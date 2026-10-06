@@ -1,0 +1,4 @@
+{
+  "type": "commonjs",
+  "description": "MathJax es5 bundles are CommonJS; this scopes them out of the root type:module."
+}
