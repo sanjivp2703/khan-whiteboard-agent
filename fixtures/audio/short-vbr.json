@@ -1,0 +1,11 @@
+{
+  "file": "short-vbr.mp3",
+  "frames": 77,
+  "sampleRate": 44100,
+  "samplesPerFrame": 1152,
+  "durationMs": 2011.4285714285716,
+  "bytes": 44230,
+  "sha256": "e2f690254ade0ffcc8bcb603c7d17dc14ee88b10f38756b0c84453bf17705d25",
+  "vbr": true,
+  "xing": "Xing"
+}

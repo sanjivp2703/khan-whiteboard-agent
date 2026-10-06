@@ -352,3 +352,46 @@ twelve types in 10 scenes — the QA demo). `fixtures/invalid/`: 100 single-scen
 including ones later slices add (`fx-core-*`, `fx-pic-*`, `fx-eng-*`, `fx-cli-*`). Test helpers:
 `test/foundation/helpers/fixtures.js` (`listFixtureLessons`, `validateLesson`, …) and
 `helpers/server.js` (`startTestServer`, `openSse`).
+
+## TTS — OpenAI provider (slice 01, `server/tts/openai.js`)
+
+The only user-facing voice is OpenAI speech synthesis; `silent` exists for tests (`KHAN_TTS=silent`).
+`selectProvider` picks `openai` whenever `KHAN_TTS` is not `silent`.
+
+**Defaults.** Model `tts-1` (`DEFAULT_MODEL`), voice `alloy` (`DEFAULT_VOICE`). Request:
+`POST https://api.openai.com/v1/audio/speech` with `Authorization: Bearer $OPENAI_API_KEY` and JSON
+`{model, voice, input, response_format: "mp3"}`; 20 s timeout per attempt; up to 3 attempts on
+network errors / 408 / 429 / 5xx with 1 s then 3 s backoff. 401/403 fail at once with
+`code: "TTS_AUTH"`, other 4xx with `"TTS_BAD_REQUEST"`, a non-audio or empty or undecodable body
+with `"TTS_BAD_RESPONSE"`; after the last retry the rejection carries `code: "TTS_FAILED"` and
+`cause`. The foundation then marks the scene `ready` with `audioUrl: null` and a `TTS_FAILED` entry
+in `errors` (brief 00 C3), so a voice outage never stalls a lesson.
+
+**Changing the voice.** Precedence (same order as the foundation): `KHAN_TTS_VOICE` env >
+`.khan/config.json` `{ "tts": { "voice": "nova" } }` > default `alloy`. The model follows the same
+pattern: `KHAN_TTS_MODEL` > `tts.model` in the config > `tts-1` (e.g. `tts-1-hd`). The provider
+exposes the voice it actually sends (`tts.voice` in health/playlist/status/inbox is never `null`
+for `openai`), and the audio cache key is `sha256(provider|voice|text)`: changing the voice
+re-voices every scene on its next ingest, the old voice's files stay in `.khan/cache/tts/`, and
+switching back is a pure cache hit with zero requests. Pick the voice by listening during QA —
+nothing else needs to change.
+
+**Duration.** `durationMs` is measured from the returned MP3 bytes by `server/tts/mp3-duration.js`
+(ID3v2/ID3v1 skipped, MPEG 1/2/2.5 layers I–III, CBR and VBR, Xing/Info frame count, LAME gapless
+delay+padding trimmed, truncated final frame ignored; garbage → `Mp3Error` `BAD_MP3`). No ffmpeg.
+Fixtures: `fixtures/audio/short.mp3` (CBR) and `short-vbr.mp3` (Xing VBR), both 2011.43 ms —
+provenance and the independent `afinfo` check are in `fixtures/audio/LICENSE.md`.
+
+**Key hygiene.** The key is read from `env.OPENAI_API_KEY` at call time inside a closure — it is not
+a property of the provider (`JSON.stringify(provider)` never contains it), it is never logged
+(logs carry provider, voice, model, text length, duration, bytes, attempt count), and any echo of
+the key in an OpenAI error body is redacted (`[redacted]`) before the message reaches the playlist.
+With no key the server still starts; `ready()` is `{ok:false, reason:"OPENAI_API_KEY not set"}`
+and every scene becomes `ready` with `audioUrl: null` and no network call is made.
+
+**Logging and test knobs.** `KHAN_TTS_LOG=1` prints one `[khan tts] …` line per attempt/result to
+stderr. `KHAN_TTS_TIMEOUT_MS` and `KHAN_TTS_BACKOFF_MS="1000,3000"` override the timing (used by
+the integration tests, which inject zero delays through the foundation's `selectProvider`).
+Tests: `test/tts/` — unit (recording `fetch` mock), `mp3-duration`, integration against the
+in-process server with a sentinel key, and a live smoke test skipped unless `KHAN_LIVE_TTS=1`:
+`KHAN_LIVE_TTS=1 OPENAI_API_KEY=sk-… node --test test/tts/live.test.js`.
