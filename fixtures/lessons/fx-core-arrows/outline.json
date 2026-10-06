@@ -1,0 +1,11 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-core-arrows",
+  "title": "Arrows on every edge and highlights of every style",
+  "scenes": [
+    { "sceneId": "s001", "title": "Hub and spokes", "goal": "Four boxes around a hub with rightward and downward arrows" },
+    { "sceneId": "s002", "title": "Leftward, upward, diagonal", "goal": "Arrows into earlier elements, a code block and a ringed line" },
+    { "sceneId": "s003", "title": "Every highlight", "goal": "Circle, underline, strike and pointer, including code lines" }
+  ],
+  "producer": { "kind": "fixture", "version": "1" }
+}

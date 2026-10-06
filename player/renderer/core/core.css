@@ -1,1 +1,5 @@
-/* player/renderer/core/core.css — SLICE 02 owns this file (created empty by the foundation; linked from player/index.html). */
+/* player/renderer/core/core.css — SLICE 02 (renderer-core).
+   The core drawables paint onto the board canvas only; they create no DOM, so there is nothing
+   to style. Kept (and linked from player/index.html and harness.html by the foundation) so a
+   later design pass can add canvas-adjacent rules here without touching the shell. Colors are
+   never written here: every token comes from shared/layout-core/tokens.js via --khan-* vars. */

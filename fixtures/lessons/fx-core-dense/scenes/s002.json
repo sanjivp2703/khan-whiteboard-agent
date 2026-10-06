@@ -1,0 +1,62 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-core-dense",
+  "sceneId": "s002",
+  "title": "Table, math, box, arrow, highlight",
+  "narration": "The lower half fills with a six by six table wrapped in a labelled box, five aligned math lines, an arrow from the table to the equations, and a ring around one line of the code above.",
+  "board": { "mode": "region", "slots": "A3:F4" },
+  "elements": [
+    {
+      "id": "frame",
+      "type": "box",
+      "slot": "A3:C4",
+      "label": "Six words label on the box",
+      "color": "muted"
+    },
+    {
+      "id": "grid66",
+      "type": "table",
+      "slot": "B3:C4",
+      "header": true,
+      "rows": [
+        ["key", "size", "hits", "miss", "ttl", "age"],
+        ["u1", "12", "40", "2", "60", "5"],
+        ["u2", "8", "31", "4", "60", "9"],
+        ["u3", "20", "12", "7", "30", "1"],
+        ["u4", "4", "99", "0", "90", "44"],
+        ["u5", "16", "3", "12", "30", "29"]
+      ],
+      "color": "accent3"
+    },
+    {
+      "id": "eq5",
+      "type": "math",
+      "slot": "D3:F4",
+      "lines": [
+        "h = \\frac{\\text{hits}}{\\text{hits} + \\text{misses}}",
+        "\\bar{c} = (1 - h)\\, c + h\\, c_0",
+        "\\lim_{n \\to \\infty} \\frac{1}{n}\\sum_{i=1}^{n} x_i = \\mu",
+        "e^{i\\pi} + 1 = 0",
+        "\\frac{a}{b} + \\frac{c}{d} = \\frac{ad + bc}{bd}"
+      ],
+      "color": "accent1"
+    },
+    {
+      "id": "link",
+      "type": "arrow",
+      "from": "grid66",
+      "to": "eq5",
+      "label": "feeds the hit rate",
+      "color": "accent3"
+    },
+    {
+      "id": "ring7",
+      "type": "highlight",
+      "target": "code14",
+      "style": "circle",
+      "line": 7,
+      "color": "accent4"
+    }
+  ],
+  "final": false
+}

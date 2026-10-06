@@ -1,0 +1,27 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-core-arrows",
+  "sceneId": "s002",
+  "title": "Leftward, upward, diagonal",
+  "narration": "Now arrows run the other way: from the hub leftwards into the west box, upwards from the south box into the hub, and diagonally from west to south. A short code block appears below with its second line ringed.",
+  "board": { "mode": "region", "slots": "A4:B4" },
+  "elements": [
+    { "id": "to_west", "type": "arrow", "from": "hub", "to": "west", "label": "four words go here", "color": "accent2", "at": 0.1 },
+    { "id": "from_south", "type": "arrow", "from": "south", "to": "hub", "color": "accent4", "at": 0.3 },
+    { "id": "diag", "type": "arrow", "from": "west", "to": "south", "label": "diagonal", "color": "muted", "at": 0.5 },
+    {
+      "id": "snippet",
+      "type": "code",
+      "slot": "A4:B4",
+      "lang": "js",
+      "lines": [
+        "const key = hash(req);",
+        "const hit = store.get(key);",
+        "return hit ?? compute(req);"
+      ],
+      "at": 0.6
+    },
+    { "id": "ring2", "type": "highlight", "target": "snippet", "style": "circle", "line": 2, "color": "accent1", "at": 0.85 }
+  ],
+  "final": false
+}

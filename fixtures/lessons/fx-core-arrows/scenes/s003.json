@@ -1,0 +1,18 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-core-arrows",
+  "sceneId": "s003",
+  "title": "Every highlight",
+  "narration": "Finally every highlight style lands on something already drawn: a ring around the north box, an underline under the hub, a strike through the west box, a pointer parked at the east box, and an underline and a strike on single code lines.",
+  "board": { "mode": "region", "slots": "E4:F4" },
+  "elements": [
+    { "id": "fin", "type": "text", "slot": "E4:F4", "style": "note", "text": "end of the tour", "color": "muted", "at": 0 },
+    { "id": "h_circle", "type": "highlight", "target": "north", "style": "circle", "color": "accent1", "at": 0.1 },
+    { "id": "h_under", "type": "highlight", "target": "hub", "style": "underline", "color": "accent5", "at": 0.25 },
+    { "id": "h_strike", "type": "highlight", "target": "west", "style": "strike", "color": "accent2", "at": 0.4 },
+    { "id": "h_point", "type": "highlight", "target": "east", "style": "pointer", "at": 0.55 },
+    { "id": "h_line_under", "type": "highlight", "target": "snippet", "style": "underline", "line": 3, "color": "accent4", "at": 0.7 },
+    { "id": "h_line_strike", "type": "highlight", "target": "snippet", "style": "strike", "line": 1, "color": "accent3", "at": 0.85 }
+  ],
+  "final": true
+}

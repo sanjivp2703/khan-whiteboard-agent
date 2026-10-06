@@ -1,0 +1,48 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-core-dense",
+  "sceneId": "s001",
+  "title": "Code and list",
+  "narration": "The densest board the core renderer must handle starts with fourteen lines of code in two columns of cells and a six item list whose items each run to eight words, side by side.",
+  "board": { "mode": "wipe" },
+  "elements": [
+    {
+      "id": "code14",
+      "type": "code",
+      "slot": "A1:B2",
+      "lang": "js",
+      "lines": [
+        "export async function get(req) {",
+        "  const key = hash(req.url, req.body);",
+        "  const hit = store.get(key);",
+        "  if (hit && !stale(hit)) return hit;",
+        "  const res = await compute(req);",
+        "  store.set(key, res, { ttl: 60 });",
+        "  return res;",
+        "}",
+        "",
+        "function stale(entry) {",
+        "  return entry.age > entry.ttl;",
+        "}",
+        "",
+        "// 14 lines, 44 chars max per line here"
+      ]
+    },
+    {
+      "id": "six8",
+      "type": "list",
+      "slot": "C1:F2",
+      "ordered": true,
+      "items": [
+        "Receive the request and normalise every header",
+        "Derive the cache key from the url body",
+        "Look the key up in the response store",
+        "Serve the hit when it is still fresh",
+        "Otherwise compute the answer and store it",
+        "Return the response to the waiting client"
+      ],
+      "color": "accent2"
+    }
+  ],
+  "final": false
+}
