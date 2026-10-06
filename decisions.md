@@ -42,3 +42,33 @@ A Claude Code skill. The user asks for the explanation in Claude's last response
 ## Research
 
 See research/01-problems.md (2026-09-26). Key findings the spec should respond to: long responses vanish from the terminal; copying out is painful; AI-generated explainer videos fail on layout (overlap, cut-offs) and on correctness; narration that is chatty or robotic tires technical listeners; retention is lower when answers are read passively.
+
+## Spec review decisions (2026-10-05, after reading the first draft)
+
+Answers to the draft's open questions:
+1. Code lives in public GitHub repo https://github.com/sanjivp2703/khan-whiteboard-agent (this folder is its working copy). Generated lessons go in `.khan/lessons/<id>/` inside the repo, gitignored.
+2. Question-return: the blocking `khan wait` mechanism (Claude keeps its turn open during the lesson). Non-blocking re-trigger rejected.
+3. No speech input. Typed questions only. Speech output only.
+4. TTS: require an OpenAI key. No `say` fallback for users. A `silent` provider still exists for tests only.
+5. Lesson size as drafted: 3–12 scenes, 1–4 scenes per answer.
+6. Nested questions allowed to depth 3.
+7. Stack as drafted: Node >= 20, vanilla JS + rough.js, no build step.
+8. Voice: provider is OpenAI (decided). The specific voice is a config setting chosen during QA by listening; audio cache keyed by voice.
+
+Changes requested to the draft:
+- Timing: add the "audio yields to the pen" rule to §6. If narration ends before the last element finishes drawing, hold silence until the stroke completes (cap ~1.5 s), then advance. No draw-time validation rule (explicitly declined).
+- Rendering: text is drawn as handwriting strokes (handwriting-style font revealed stroke by stroke), boxes/arrows via rough.js. The Khan look comes from the renderer, not the data. No freehand element.
+- Element vocabulary expands to twelve types: text, list, math, code, table, box, arrow, highlight, sketch, diagram, plot, svg.
+  - `list`: items revealed one at a time, per-item timing.
+  - `math`: LaTeX, multi-line, aligned on `=`, lines appear in turn, drawn as strokes.
+  - `table`: rows × cols drawn cell by cell; a one-row table with an index header is how arrays are shown.
+  - `highlight` gains styles `strike` and `pointer` (pen parks over the target without drawing); a highlight may target a single line of a `code` element.
+  - `sketch`: slot + `shape` from a fixed pre-authored library (~10 shapes: circle, cloud, cylinder/database, server, document, stack, person, number line, axes, table grid; extendable without contract change).
+  - `diagram`: Mermaid source; deterministic layout engine so no overlap by construction; rendered in Mermaid's hand-drawn (rough.js) look.
+  - `plot`: function expression or data series drawn on axes.
+  - `svg`: escape hatch; small SVG with coordinates local to its own viewBox, scaled into the slot. Validator allowlists tags (path, line, circle, ellipse, rect, polyline, polygon, text, g), bans script/foreignObject/image/href, caps size, checks the drawing stays inside its viewBox. Player roughens shapes and animates each path as a stroke.
+- Skill prompt rule for picking a drawing type: sketch if a shape exists → diagram for anything with nodes and edges → plot for anything with axes → svg only when none fit.
+- Colors: five accent tokens instead of three; skill rule "same concept, same color for the whole lesson".
+- Out of scope, named in §2: image generation traced into strokes (compatible with the svg-in-a-slot contract, may be added later as another producer), scrolling board, pasted photos/maps, freehand paths.
+- New risk row: svg quality (model-written SVG may be crude or wrong); mitigated by the tier order and the allowlist, judged by human in QA.
+- Drawing/rendering is expected to be its own slice or two; the orchestrator decides.
