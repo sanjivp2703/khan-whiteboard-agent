@@ -26,6 +26,7 @@ export async function startTestServer(extraEnv = {}, { populate = null, ...opts 
   const opened = [];
   if (populate) await populate(lessonsDir);
   const info = await startServer({ port: 0, lessonsDir, cacheDir, env, config: {}, opener: (url) => opened.push(url), ...opts });
+  if (info.watcher?.firstScan) await info.watcher.firstScan; // files copied in after this are never tagged as startup files
   const base = info.url;
   const api = {
     info, root, lessonsDir, cacheDir, base, opened,

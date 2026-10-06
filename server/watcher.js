@@ -18,6 +18,8 @@ export function createWatcher({ lessonsDir, onOutline, onScene, intervalMs = 300
   let stopped = false;
   let kick = null;
   let initialScan = true; // true until the first full scan has completed
+  let firstScanResolve;
+  const firstScan = new Promise((r) => { firstScanResolve = r; }); // resolves once the startup scan has completed
 
   async function listDir(dir) {
     try { return await fs.readdir(dir, { withFileTypes: true }); } catch { return []; }
@@ -92,6 +94,7 @@ export function createWatcher({ lessonsDir, onOutline, onScene, intervalMs = 300
       log('watcher scan error', e);
     } finally {
       scanning = false;
+      if (!initialScan) firstScanResolve();
     }
   }
 
@@ -111,6 +114,6 @@ export function createWatcher({ lessonsDir, onOutline, onScene, intervalMs = 300
     fsWatchers.clear();
   }
 
-  const api = { start, stop, scanNow: scan, seen };
+  const api = { start, stop, scanNow: scan, seen, firstScan };
   return api;
 }
