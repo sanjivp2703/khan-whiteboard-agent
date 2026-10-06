@@ -1,0 +1,250 @@
+{
+  "title": {
+    "Hello world": {
+      "width": 173.272,
+      "ascent": 45.848,
+      "descent": 13.728,
+      "lineHeight": 54
+    },
+    "The cache stores the response": {
+      "width": 479.072,
+      "ascent": 45.848,
+      "descent": 13.728,
+      "lineHeight": 54
+    },
+    "x = 42": {
+      "width": 102.212,
+      "ascent": 45.848,
+      "descent": 13.728,
+      "lineHeight": 54
+    },
+    "iiiiii": {
+      "width": 59.136,
+      "ascent": 45.848,
+      "descent": 13.728,
+      "lineHeight": 54
+    },
+    "WWWWWW": {
+      "width": 162.624,
+      "ascent": 45.848,
+      "descent": 13.728,
+      "lineHeight": 54
+    },
+    "khan whiteboard agent": {
+      "width": 352.044,
+      "ascent": 45.848,
+      "descent": 13.728,
+      "lineHeight": 54
+    },
+    "A": {
+      "width": 21.472,
+      "ascent": 45.848,
+      "descent": 13.728,
+      "lineHeight": 54
+    },
+    "request -> cache -> response": {
+      "width": 462.924,
+      "ascent": 45.848,
+      "descent": 13.728,
+      "lineHeight": 54
+    },
+    "Quick brown foxes jump over lazy dogs, 1234567890!": {
+      "width": 832.876,
+      "ascent": 45.848,
+      "descent": 13.728,
+      "lineHeight": 54
+    },
+    "fn(a, b) { return a + b; }": {
+      "width": 381.568,
+      "ascent": 45.848,
+      "descent": 13.728,
+      "lineHeight": 54
+    }
+  },
+  "body": {
+    "Hello world": {
+      "width": 110.264,
+      "ascent": 29.176,
+      "descent": 8.736,
+      "lineHeight": 36
+    },
+    "The cache stores the response": {
+      "width": 304.864,
+      "ascent": 29.176,
+      "descent": 8.736,
+      "lineHeight": 36
+    },
+    "x = 42": {
+      "width": 65.044,
+      "ascent": 29.176,
+      "descent": 8.736,
+      "lineHeight": 36
+    },
+    "iiiiii": {
+      "width": 37.632,
+      "ascent": 29.176,
+      "descent": 8.736,
+      "lineHeight": 36
+    },
+    "WWWWWW": {
+      "width": 103.488,
+      "ascent": 29.176,
+      "descent": 8.736,
+      "lineHeight": 36
+    },
+    "khan whiteboard agent": {
+      "width": 224.028,
+      "ascent": 29.176,
+      "descent": 8.736,
+      "lineHeight": 36
+    },
+    "A": {
+      "width": 13.664,
+      "ascent": 29.176,
+      "descent": 8.736,
+      "lineHeight": 36
+    },
+    "request -> cache -> response": {
+      "width": 294.588,
+      "ascent": 29.176,
+      "descent": 8.736,
+      "lineHeight": 36
+    },
+    "Quick brown foxes jump over lazy dogs, 1234567890!": {
+      "width": 530.012,
+      "ascent": 29.176,
+      "descent": 8.736,
+      "lineHeight": 36
+    },
+    "fn(a, b) { return a + b; }": {
+      "width": 242.816,
+      "ascent": 29.176,
+      "descent": 8.736,
+      "lineHeight": 36
+    }
+  },
+  "note": {
+    "Hello world": {
+      "width": 86.636,
+      "ascent": 22.924,
+      "descent": 6.864,
+      "lineHeight": 28
+    },
+    "The cache stores the response": {
+      "width": 239.536,
+      "ascent": 22.924,
+      "descent": 6.864,
+      "lineHeight": 28
+    },
+    "x = 42": {
+      "width": 51.106,
+      "ascent": 22.924,
+      "descent": 6.864,
+      "lineHeight": 28
+    },
+    "iiiiii": {
+      "width": 29.568,
+      "ascent": 22.924,
+      "descent": 6.864,
+      "lineHeight": 28
+    },
+    "WWWWWW": {
+      "width": 81.312,
+      "ascent": 22.924,
+      "descent": 6.864,
+      "lineHeight": 28
+    },
+    "khan whiteboard agent": {
+      "width": 176.022,
+      "ascent": 22.924,
+      "descent": 6.864,
+      "lineHeight": 28
+    },
+    "A": {
+      "width": 10.736,
+      "ascent": 22.924,
+      "descent": 6.864,
+      "lineHeight": 28
+    },
+    "request -> cache -> response": {
+      "width": 231.462,
+      "ascent": 22.924,
+      "descent": 6.864,
+      "lineHeight": 28
+    },
+    "Quick brown foxes jump over lazy dogs, 1234567890!": {
+      "width": 416.438,
+      "ascent": 22.924,
+      "descent": 6.864,
+      "lineHeight": 28
+    },
+    "fn(a, b) { return a + b; }": {
+      "width": 190.784,
+      "ascent": 22.924,
+      "descent": 6.864,
+      "lineHeight": 28
+    }
+  },
+  "code": {
+    "Hello world": {
+      "width": 110,
+      "ascent": 20.84,
+      "descent": 6.24,
+      "lineHeight": 24
+    },
+    "The cache stores the response": {
+      "width": 290,
+      "ascent": 20.84,
+      "descent": 6.24,
+      "lineHeight": 24
+    },
+    "x = 42": {
+      "width": 60,
+      "ascent": 20.84,
+      "descent": 6.24,
+      "lineHeight": 24
+    },
+    "iiiiii": {
+      "width": 60,
+      "ascent": 20.84,
+      "descent": 6.24,
+      "lineHeight": 24
+    },
+    "WWWWWW": {
+      "width": 60,
+      "ascent": 20.84,
+      "descent": 6.24,
+      "lineHeight": 24
+    },
+    "khan whiteboard agent": {
+      "width": 210,
+      "ascent": 20.84,
+      "descent": 6.24,
+      "lineHeight": 24
+    },
+    "A": {
+      "width": 10,
+      "ascent": 20.84,
+      "descent": 6.24,
+      "lineHeight": 24
+    },
+    "request -> cache -> response": {
+      "width": 280,
+      "ascent": 20.84,
+      "descent": 6.24,
+      "lineHeight": 24
+    },
+    "Quick brown foxes jump over lazy dogs, 1234567890!": {
+      "width": 500,
+      "ascent": 20.84,
+      "descent": 6.24,
+      "lineHeight": 24
+    },
+    "fn(a, b) { return a + b; }": {
+      "width": 260,
+      "ascent": 20.84,
+      "descent": 6.24,
+      "lineHeight": 24
+    }
+  }
+}

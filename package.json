@@ -1,0 +1,20 @@
+{
+  "name": "khan-whiteboard-agent",
+  "version": "0.1.0",
+  "description": "khan: turn Claude's last response into a live, interruptible, narrated whiteboard lesson",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "test:e2e": "playwright test",
+    "check": "find player server shared -name '*.js' -print0 | xargs -0 -n1 node --check",
+    "serve": "node server/index.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.54.2"
+  }
+}
