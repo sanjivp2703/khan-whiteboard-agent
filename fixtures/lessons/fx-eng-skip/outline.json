@@ -1,0 +1,11 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-eng-skip",
+  "title": "A scene without audio",
+  "scenes": [
+    { "sceneId": "s001", "title": "Before", "goal": "Explain before" },
+    { "sceneId": "s002", "title": "Silent", "goal": "The scene whose TTS fails at test time" },
+    { "sceneId": "s003", "title": "After", "goal": "Explain after" }
+  ],
+  "producer": { "kind": "fixture", "version": "1" }
+}

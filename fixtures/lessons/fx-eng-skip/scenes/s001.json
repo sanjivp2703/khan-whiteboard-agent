@@ -1,0 +1,12 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-eng-skip",
+  "sceneId": "s001",
+  "title": "Before",
+  "narration": "The first scene plays normally and leaves a title on the board for the next scene to build on.",
+  "board": { "mode": "wipe" },
+  "elements": [
+    { "id": "before", "type": "text", "slot": "A1:C1", "style": "title", "text": "Before the gap" }
+  ],
+  "final": false
+}

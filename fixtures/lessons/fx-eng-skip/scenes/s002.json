@@ -1,0 +1,12 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-eng-skip",
+  "sceneId": "s002",
+  "title": "Silent",
+  "narration": "This scene is the one the engine test marks as having no audio. Its region adds a note the later scene can still see.",
+  "board": { "mode": "region", "slots": "A2:C2" },
+  "elements": [
+    { "id": "silent", "type": "text", "slot": "A2:C2", "style": "note", "text": "no voice here", "color": "muted" }
+  ],
+  "final": false
+}

@@ -1,1 +1,97 @@
-/* player/engine/engine.css — SLICE 04 owns this file (created empty by the foundation; linked from player/index.html). */
+/* player/engine/engine.css — SLICE 04 owns this file. The lesson page chrome, mounted inside
+   #engine-root, which the foundation lays over the letterboxed board. Everything here is an
+   overlay: the board stays the full 16:9 letterbox (brief 04 item 15 / criterion 18). Colors and
+   fonts come from the --khan-* tokens (names frozen, values pending the design pass); class names
+   and data-testids are a frozen markup contract — a design pass adds, never renames. */
+
+.eng { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--khan-panel-text); font-size: clamp(11px, 1.1vw, 15px); }
+.eng button { font: inherit; }
+.eng [hidden] { display: none !important; }
+
+/* top bar ---------------------------------------------------------------------------------- */
+.eng-top { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 0.75em;
+  padding: 0.3em 0.6em; background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0)); min-height: 2.6em; box-sizing: border-box; }
+.eng-top-left, .eng-top-mid, .eng-top-right { display: flex; align-items: center; gap: 0.5em; min-width: 0; }
+.eng-top-mid { flex: 1; justify-content: center; }
+.eng-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.9; max-width: 22em; }
+.eng-state { font: 600 0.8em ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.04em; text-transform: lowercase; padding: 0.15em 0.6em; border-radius: 999px;
+  background: var(--khan-panel-bg); border: 1px solid var(--khan-panel-muted); color: var(--khan-panel-text); }
+.eng[data-state="playing"] .eng-state { border-color: var(--khan-accent4); color: var(--khan-accent4); }
+.eng[data-state="paused"] .eng-state { border-color: var(--khan-accent1); color: var(--khan-accent1); }
+.eng[data-state="stalled"] .eng-state, .eng[data-state="thinking"] .eng-state { border-color: var(--khan-accent2); color: var(--khan-accent2); }
+.eng[data-state="ended"] .eng-state { border-color: var(--khan-accent5); color: var(--khan-accent5); }
+.eng-state-label { color: var(--khan-panel-muted); font-size: 0.85em; white-space: nowrap; }
+.eng-answering { font-size: 0.8em; color: var(--khan-accent2); border: 1px dashed var(--khan-accent2); border-radius: 999px; padding: 0.1em 0.6em; white-space: nowrap; }
+.eng-btn { cursor: pointer; border: 1px solid var(--khan-panel-muted); background: var(--khan-panel-bg); color: var(--khan-panel-text); border-radius: 0.5em; padding: 0.3em 0.8em; line-height: 1.2; }
+.eng-btn:hover:not(:disabled) { border-color: var(--khan-panel-text); }
+.eng-btn:focus-visible, .eng-side-item:focus-visible, .eng-start-btn:focus-visible, .eng-ask-input:focus-visible { outline: 2px solid var(--khan-accent1); outline-offset: 2px; }
+.eng-btn:disabled { opacity: 0.45; cursor: default; }
+.eng-btn-quiet { background: transparent; border-color: transparent; color: var(--khan-panel-muted); }
+.eng-btn-quiet[aria-pressed="true"] { color: var(--khan-panel-text); border-color: var(--khan-panel-muted); }
+
+/* sidebar: a rail that expands while not playing (or when pinned / hovered) --------------- */
+.eng-side { position: absolute; top: 2.8em; bottom: 0; left: 0; width: 1.6em; overflow: hidden; box-sizing: border-box;
+  background: color-mix(in srgb, var(--khan-panel-bg) 85%, transparent); border-right: 1px solid color-mix(in srgb, var(--khan-panel-muted) 50%, transparent); }
+.eng-side[data-expanded="true"], .eng-side:hover, .eng-side:focus-within { width: 19em; overflow-y: auto; }
+.eng-side-head { font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.08em; color: var(--khan-panel-muted); padding: 0.6em 0.9em 0.3em; white-space: nowrap; }
+.eng-side-list { list-style: none; margin: 0; padding: 0; }
+.eng-side-row { border-bottom: 1px solid color-mix(in srgb, var(--khan-panel-muted) 25%, transparent); }
+.eng-side-item { display: grid; grid-template-columns: 1.6em auto 1fr auto; align-items: center; gap: 0.35em; width: 100%; min-height: 2.2em; padding: 0.3em 0.6em 0.3em 0; margin: 0; box-sizing: border-box;
+  background: transparent; border: 0; color: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
+.eng-side-item[data-ready="false"] { cursor: default; color: var(--khan-panel-muted); }
+.eng-side-item:hover[data-ready="true"] { background: color-mix(in srgb, var(--khan-panel-text) 8%, transparent); }
+.eng-side-row[data-current="true"] .eng-side-item { background: color-mix(in srgb, var(--khan-accent1) 14%, transparent); color: var(--khan-panel-text); }
+.eng-side-row[data-kind="answer"] .eng-side-item { padding-left: 0.6em; font-style: italic; }
+.eng-side-dot { width: 0.6em; height: 0.6em; border-radius: 50%; justify-self: center; background: var(--khan-panel-muted); opacity: 0.5; }
+.eng-side-row[data-status="ready"] .eng-side-dot { background: var(--khan-accent4); opacity: 1; }
+.eng-side-row[data-status="voicing"] .eng-side-dot, .eng-side-row[data-status="validating"] .eng-side-dot { background: var(--khan-accent2); opacity: 1; }
+.eng-side-row[data-status="rejected"] .eng-side-dot { background: var(--khan-accent3); opacity: 1; }
+.eng-side-row[data-degraded="true"] .eng-side-dot { background: var(--khan-accent1); opacity: 1; box-shadow: 0 0 0 2px color-mix(in srgb, var(--khan-accent1) 40%, transparent); }
+.eng-side-row[data-current="true"] .eng-side-dot { outline: 2px solid var(--khan-accent1); outline-offset: 1px; }
+.eng-side-id { font: 0.75em ui-monospace, Menlo, monospace; color: var(--khan-panel-muted); }
+.eng-side-title { overflow: hidden; text-overflow: ellipsis; }
+.eng-side-badge { font-size: 0.72em; color: var(--khan-panel-muted); border: 1px solid color-mix(in srgb, var(--khan-panel-muted) 50%, transparent); border-radius: 999px; padding: 0 0.5em; }
+.eng-side-row[data-degraded="true"] .eng-side-badge { color: var(--khan-accent1); border-color: var(--khan-accent1); }
+.eng-side-row[data-status="rejected"] .eng-side-badge { color: var(--khan-accent3); }
+
+/* start gate ------------------------------------------------------------------------------- */
+.eng-gate { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.35); }
+.eng-gate-card { display: flex; flex-direction: column; align-items: center; gap: 0.8em; padding: 1.6em 2.4em; border-radius: 1em; background: var(--khan-panel-bg); border: 1px solid var(--khan-panel-muted); max-width: 32em; text-align: center; }
+.eng-start-btn { cursor: pointer; font-size: 1.6em; padding: 0.5em 2em; border-radius: 999px; border: 2px solid var(--khan-accent1); background: var(--khan-accent1); color: var(--khan-page-bg); font-weight: 600; }
+.eng-start-btn:disabled { opacity: 0.4; cursor: default; }
+.eng-start-hint { margin: 0; color: var(--khan-panel-muted); }
+.eng-tts-note { padding: 0.8em 1em; border-radius: 0.6em; border: 1px solid var(--khan-accent3); color: var(--khan-accent3); background: color-mix(in srgb, var(--khan-accent3) 12%, transparent); }
+
+/* caption, transcript, notes --------------------------------------------------------------- */
+.eng-caption { position: absolute; left: 50%; bottom: 23%; transform: translateX(-50%); color: var(--khan-panel-muted); font-style: italic; font-size: 1.1em; pointer-events: none; white-space: nowrap; }
+.eng-caption:empty { display: none; }
+.eng-bottom { position: absolute; left: 0; right: 0; bottom: 0; padding: 0.5em 1em 0.6em 2.4em; box-sizing: border-box; max-height: 22%; overflow: auto;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.45) 70%, rgba(0, 0, 0, 0)); }
+.eng-bottom[data-visible="false"] .eng-transcript-text, .eng-bottom[data-visible="false"] .eng-transcript-meta { display: none; }
+.eng-bottom[data-visible="false"] { background: none; pointer-events: none; }
+.eng-bottom[data-visible="false"] .eng-notes { pointer-events: auto; }
+.eng-transcript-meta { display: flex; gap: 0.8em; font: 0.75em ui-monospace, Menlo, monospace; color: var(--khan-panel-muted); }
+.eng-degraded { color: var(--khan-accent1); border: 1px solid var(--khan-accent1); border-radius: 999px; padding: 0 0.5em; }
+.eng-transcript-text { margin: 0.2em 0 0; line-height: 1.35; color: var(--khan-panel-text); }
+.eng-transcript-text:empty::before { content: "—"; color: var(--khan-panel-muted); }
+.eng-notes { list-style: none; margin: 0.3em 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4em; }
+.eng-notes:empty { display: none; }
+.eng-note { font-size: 0.8em; color: var(--khan-accent1); border: 1px solid color-mix(in srgb, var(--khan-accent1) 60%, transparent); border-radius: 0.4em; padding: 0.1em 0.5em; background: color-mix(in srgb, var(--khan-panel-bg) 85%, transparent); }
+
+/* question field --------------------------------------------------------------------------- */
+.eng-ask { position: absolute; left: 50%; bottom: 26%; transform: translateX(-50%); display: flex; align-items: center; gap: 0.6em; padding: 0.6em 0.8em; border-radius: 0.8em;
+  background: var(--khan-panel-bg); border: 1px solid var(--khan-accent2); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4); width: min(42em, 80%); box-sizing: border-box; }
+.eng-ask-input { flex: 1; font: inherit; font-size: 1.1em; padding: 0.45em 0.7em; border-radius: 0.5em; border: 1px solid var(--khan-panel-muted); background: var(--khan-page-bg); color: var(--khan-panel-text); min-width: 0; }
+.eng-ask-hint { color: var(--khan-panel-muted); font-size: 0.8em; white-space: nowrap; }
+
+/* end summary ------------------------------------------------------------------------------ */
+.eng-summary { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); min-width: 20em; padding: 1.2em 1.8em; border-radius: 1em;
+  background: color-mix(in srgb, var(--khan-panel-bg) 94%, transparent); border: 1px solid var(--khan-accent5); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); }
+.eng-summary h2 { margin: 0 0 0.6em; font-size: 1.3em; color: var(--khan-accent5); }
+.eng-summary dl { display: grid; grid-template-columns: auto auto; gap: 0.3em 1.5em; margin: 0; }
+.eng-summary dt { color: var(--khan-panel-muted); }
+.eng-summary dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.eng-summary-hint { margin: 0.9em 0 0; color: var(--khan-panel-muted); font-size: 0.85em; }
+
+/* no flashing anywhere: the only motion is the pen (canvas) and width changes of the rail */
+@media (prefers-reduced-motion: reduce) { .eng * { transition: none !important; } }

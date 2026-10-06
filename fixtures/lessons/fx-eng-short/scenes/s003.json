@@ -1,0 +1,12 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-eng-short",
+  "sceneId": "s003",
+  "title": "Three",
+  "narration": "Scene three wipes the board and closes the lesson with a single line of text, final.",
+  "board": { "mode": "wipe" },
+  "elements": [
+    { "id": "three", "type": "text", "slot": "A2:F2", "style": "title", "text": "Three and done", "color": "accent4" }
+  ],
+  "final": true
+}

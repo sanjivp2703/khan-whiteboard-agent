@@ -1,0 +1,12 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-eng-short",
+  "sceneId": "s002",
+  "title": "Two",
+  "narration": "Scene two adds a box on the right side as a region, keeping the first title on the board.",
+  "board": { "mode": "region", "slots": "D1:F2" },
+  "elements": [
+    { "id": "two", "type": "box", "slot": "D1:F2", "label": "two", "color": "accent2" }
+  ],
+  "final": false
+}
