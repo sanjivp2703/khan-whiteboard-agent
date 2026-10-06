@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { SCHEMA_SCENE } from '../../shared/layout-core/constants.js';
 import { emit, readStdin, parseJsonInput, CliError, serverDown } from '../output.js';
 import { writeJsonAtomic } from '../atomic.js';
+import { get } from '../http.js';
 import { findRunningServer } from '../server-ctl.js';
 import { checkLessonId, checkSceneId, resolveLessonsDir, requireLessonFolder, readInboxSummary, pollPlaylist } from '../lesson.js';
 
@@ -50,9 +51,14 @@ export async function scene({ positionals, flags, pretty, env = process.env, std
   if (!running) throw serverDown('no khan server is running; run "khan serve" first');
   const lessonsDir = resolveLessonsDir(env, flags, running);
   const dir = requireLessonFolder(lessonsDir, lessonId);
+  // On a rewrite the playlist still holds the previous attempt's settled entry, so remember the
+  // server's last-ingest stamp and only accept a status observed after THIS write was ingested.
+  const before = await get(`${running.url}/api/lesson/${lessonId}/playlist`, { timeoutMs: 2000 });
+  const stampBefore = before.status === 200 && before.body && before.body.producer ? before.body.producer.lastWriteAt : null;
   await writeJsonAtomic(join(dir, 'scenes', `${sceneId}.json`), prepared);
 
   const { playlist, waitedMs } = await pollPlaylist(running.url, lessonId, (p) => {
+    if (p.producer && p.producer.lastWriteAt === stampBefore) return false; // not ingested yet
     const e = p.entries.find((x) => x.sceneId === sceneId);
     return !!(e && (SETTLED.has(e.status) || e.degraded));
   }, { timeoutMs: flags['timeout-ms'] ?? 3000 });
