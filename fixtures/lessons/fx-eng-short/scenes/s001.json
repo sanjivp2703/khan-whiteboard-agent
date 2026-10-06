@@ -1,0 +1,12 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-eng-short",
+  "sceneId": "s001",
+  "title": "One",
+  "narration": "Scene one is fifteen words long so that its silent audio lasts only six seconds.",
+  "board": { "mode": "wipe" },
+  "elements": [
+    { "id": "one", "type": "text", "slot": "A1:C1", "style": "title", "text": "One" }
+  ],
+  "final": false
+}

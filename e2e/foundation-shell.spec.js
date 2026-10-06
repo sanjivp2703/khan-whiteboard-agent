@@ -34,7 +34,7 @@ test('shell loads fx-full-tour, zero console errors, debug panel shows all 10 sc
   expect(vars.board).toEqual([1600, 900]);
   expect(vars.pen).toEqual([1600, 900]);
   expect(vars.hooks).toEqual(expect.arrayContaining(['engine', 'registry', 'tokens', 'constants', 'lessonId']));
-  expect(vars.engineStub).toBe(true);
+  expect(vars.engineStub).toBe(false); // slice 04 replaced the foundation stub (hooks keep `playlist` and the debug panel)
   expect(errors).toEqual([]);
 });
 

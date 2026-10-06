@@ -1,0 +1,11 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-eng-short",
+  "title": "Three short scenes",
+  "scenes": [
+    { "sceneId": "s001", "title": "One", "goal": "Explain one" },
+    { "sceneId": "s002", "title": "Two", "goal": "Explain two" },
+    { "sceneId": "s003", "title": "Three", "goal": "Explain three" }
+  ],
+  "producer": { "kind": "fixture", "version": "1" }
+}

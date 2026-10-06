@@ -1,0 +1,12 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-eng-skip",
+  "sceneId": "s003",
+  "title": "After",
+  "narration": "The third scene plays after the skipped one and closes the lesson, so the end summary can still be derived by the server.",
+  "board": { "mode": "region", "slots": "D1:F2" },
+  "elements": [
+    { "id": "after", "type": "box", "slot": "D1:F2", "label": "after", "color": "accent4" }
+  ],
+  "final": true
+}
