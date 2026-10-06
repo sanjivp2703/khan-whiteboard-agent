@@ -4,6 +4,9 @@
   "description": "khan: turn Claude's last response into a live, interruptible, narrated whiteboard lesson",
   "type": "module",
   "private": true,
+  "bin": {
+    "khan": "bin/khan"
+  },
   "license": "MIT",
   "engines": {
     "node": ">=20"

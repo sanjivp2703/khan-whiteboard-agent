@@ -14,7 +14,7 @@ Repo: https://github.com/sanjivp2703/khan-whiteboard-agent (this folder is its w
 | renderer-core | briefs/02-renderer-core.md | in progress | foundation only; size L; text, list, code, table, math, box, arrow, highlight drawables |
 | renderer-pictures | briefs/03-renderer-pictures.md | in progress | foundation only; size L; sketch library, diagram layout, plot, svg drawables |
 | player-engine | briefs/04-player-engine.md | in progress | foundation only; size L; state machine, clock, pen, stall, rewind/skip, questions + resume stack, sidebar, transcript, summary |
-| skill-cli | briefs/05-skill-cli.md | in progress | foundation only; size M; `bin/khan` (serve, outline, scene, wait, status, play) + `.claude/skills/khan/SKILL.md`; only slice allowed to edit package.json (adds `bin`) |
+| skill-cli | briefs/05-skill-cli.md | done | Done 2026-10-06 on branch `worktree-agent-ae8d83018a983aa68`. `bin/khan` + `cli/**` (serve, outline, scene, wait, status, play), `.claude/skills/khan/SKILL.md`, `package.json` `bin` entry, README "CLI and skill" section. `npm test` 122/122 (24 in `test/cli/`), `npm run test:e2e` 5/5, `npm run check` clean. Deviations: the CLI owns browser opening (server spawned with `KHAN_NO_OPEN=1`) because the foundation server opens a tab for **every** lesson folder present at startup (foundation finding, not patched); `outline` is the brief's addition to the spec's command list. Manual QA of `/khan` on a real response needs slices 01 + 04 (see README). |
 
 Parallel group after foundation: openai-tts, renderer-core, renderer-pictures, player-engine, skill-cli (no dependencies between them).
 
