@@ -1,0 +1,10 @@
+#!/usr/bin/env node
+// khan — producer-side CLI (brief 05). Implementation lives in cli/.
+import { main } from '../cli/main.js';
+
+main(process.argv.slice(2))
+  .then((code) => { if (code !== null) process.exitCode = code; })
+  .catch((e) => {
+    process.stdout.write(JSON.stringify({ ok: false, code: 'INTERNAL', message: e && e.message ? e.message : String(e) }) + '\n');
+    process.exitCode = 1;
+  });
