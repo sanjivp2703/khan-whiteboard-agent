@@ -1,1 +1,4 @@
-/* player/renderer/pictures/pictures.css — SLICE 03 owns this file (created empty by the foundation; linked from player/index.html). */
+/* player/renderer/pictures/pictures.css — SLICE 03 owns this file (linked from player/index.html and harness.html).
+   The picture drawables (sketch, diagram, plot, svg) paint only onto the board canvas and create no DOM,
+   so there is nothing to style here. Kept as the slice's reserved stylesheet; colours, if ever needed,
+   must come from the --khan-* custom properties written by player/tokens.css, never literal values. */
