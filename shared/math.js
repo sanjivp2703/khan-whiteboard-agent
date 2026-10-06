@@ -138,12 +138,15 @@ function parseAttrs(str) {
   return out;
 }
 
-/** Canonical form: whitespace between tags removed, attributes sorted, numbers kept as emitted. */
+/** Attributes with no geometric meaning that differ between the browser and liteDOM builds. */
+const DROP_ATTRS = new Set(['aria-hidden']);
+
+/** Canonical form: whitespace between tags removed, attributes sorted, non-geometric a11y attributes dropped, numbers kept as emitted. */
 export function normalizeSvg(svg) {
   const s = String(svg).replace(/>\s+</g, '><').trim();
   return s.replace(TAG_RE, (_m, slash, name, attrs, selfClose) => {
     if (slash) return `</${name}>`;
-    const list = parseAttrs(attrs).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+    const list = parseAttrs(attrs).filter(([k]) => !DROP_ATTRS.has(k)).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
     const body = list.map(([k, v]) => `${k}="${v}"`).join(' ');
     return `<${name}${body ? ' ' + body : ''}${selfClose ? '/' : ''}>`;
   });
