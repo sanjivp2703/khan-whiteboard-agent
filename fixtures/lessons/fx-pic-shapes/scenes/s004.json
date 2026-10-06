@@ -1,0 +1,77 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-pic-shapes",
+  "sceneId": "s004",
+  "title": "Two wide and one wide two tall",
+  "narration": "The numberline, axes and grid finish the two by one set on the top row. Below them five shapes stand in one by two slots, which are tall and narrow, so wide shapes such as the cloud shrink to fit the width.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "two_numberline",
+      "type": "sketch",
+      "slot": "A1:B1",
+      "shape": "numberline",
+      "label": "numberline",
+      "color": "accent2"
+    },
+    {
+      "id": "two_axes",
+      "type": "sketch",
+      "slot": "C1:D1",
+      "shape": "axes",
+      "label": "axes",
+      "color": "accent3"
+    },
+    {
+      "id": "two_grid",
+      "type": "sketch",
+      "slot": "E1:F1",
+      "shape": "grid",
+      "label": "grid",
+      "color": "accent4"
+    },
+    {
+      "id": "tall_circle",
+      "type": "sketch",
+      "slot": "A2:A3",
+      "shape": "circle",
+      "label": "circle",
+      "color": "accent1"
+    },
+    {
+      "id": "tall_cloud",
+      "type": "sketch",
+      "slot": "B2:B3",
+      "shape": "cloud",
+      "label": "cloud",
+      "color": "accent2"
+    },
+    {
+      "id": "tall_database",
+      "type": "sketch",
+      "slot": "C2:C3",
+      "shape": "database",
+      "label": "database",
+      "color": "accent3"
+    },
+    {
+      "id": "tall_server",
+      "type": "sketch",
+      "slot": "D2:D3",
+      "shape": "server",
+      "label": "server",
+      "color": "accent4"
+    },
+    {
+      "id": "tall_document",
+      "type": "sketch",
+      "slot": "E2:E3",
+      "shape": "document",
+      "label": "document",
+      "color": "accent5"
+    }
+  ],
+  "final": false
+}

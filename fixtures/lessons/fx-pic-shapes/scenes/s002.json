@@ -1,0 +1,52 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-pic-shapes",
+  "sceneId": "s002",
+  "title": "Single cells, last four",
+  "narration": "The remaining four shapes take the second row in single cells. Two of them carry no label at all, which lets the shape use the whole cell, and one uses a four word label.",
+  "board": {
+    "mode": "region",
+    "slots": "A2:F2"
+  },
+  "elements": [
+    {
+      "id": "one_person",
+      "type": "sketch",
+      "slot": "A2",
+      "shape": "person",
+      "label": "person",
+      "color": "accent1"
+    },
+    {
+      "id": "one_numberline",
+      "type": "sketch",
+      "slot": "B2",
+      "shape": "numberline",
+      "color": "accent2"
+    },
+    {
+      "id": "one_axes",
+      "type": "sketch",
+      "slot": "C2",
+      "shape": "axes",
+      "label": "axes",
+      "color": "accent3"
+    },
+    {
+      "id": "one_grid",
+      "type": "sketch",
+      "slot": "D2",
+      "shape": "grid",
+      "color": "accent4"
+    },
+    {
+      "id": "one_wide",
+      "type": "sketch",
+      "slot": "E2:F2",
+      "shape": "circle",
+      "label": "a circle two wide",
+      "color": "accent1"
+    }
+  ],
+  "final": false
+}

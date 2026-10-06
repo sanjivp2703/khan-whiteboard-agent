@@ -1,0 +1,61 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-pic-shapes",
+  "sceneId": "s001",
+  "title": "Single cells, first six",
+  "narration": "Every library shape must look right in a single cell. Here the first six shapes sit in one by one slots across the top row, each with a short label written beneath it.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "one_circle",
+      "type": "sketch",
+      "slot": "A1",
+      "shape": "circle",
+      "label": "circle",
+      "color": "accent1"
+    },
+    {
+      "id": "one_cloud",
+      "type": "sketch",
+      "slot": "B1",
+      "shape": "cloud",
+      "label": "cloud",
+      "color": "accent2"
+    },
+    {
+      "id": "one_database",
+      "type": "sketch",
+      "slot": "C1",
+      "shape": "database",
+      "label": "database",
+      "color": "accent3"
+    },
+    {
+      "id": "one_server",
+      "type": "sketch",
+      "slot": "D1",
+      "shape": "server",
+      "label": "server",
+      "color": "accent4"
+    },
+    {
+      "id": "one_document",
+      "type": "sketch",
+      "slot": "E1",
+      "shape": "document",
+      "label": "document",
+      "color": "accent5"
+    },
+    {
+      "id": "one_stack",
+      "type": "sketch",
+      "slot": "F1",
+      "shape": "stack",
+      "label": "stack",
+      "color": "muted"
+    }
+  ],
+  "final": false
+}
