@@ -1,0 +1,46 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-pic-shapes",
+  "title": "Sketch library in every aspect",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "Single cells, first six",
+      "goal": "Six shapes in one by one slots"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Single cells, last four",
+      "goal": "Four more shapes in one by one slots"
+    },
+    {
+      "sceneId": "s003",
+      "title": "Two wide",
+      "goal": "Shapes in two by one slots"
+    },
+    {
+      "sceneId": "s004",
+      "title": "Two wide and one wide two tall",
+      "goal": "Finish the two by one row and start one by two slots"
+    },
+    {
+      "sceneId": "s005",
+      "title": "Tall slots and the first big ones",
+      "goal": "Finish one by two slots and start three by two"
+    },
+    {
+      "sceneId": "s006",
+      "title": "Big slots, part two",
+      "goal": "Four shapes in three by two slots"
+    },
+    {
+      "sceneId": "s007",
+      "title": "Big slots, part three",
+      "goal": "The last four shapes in three by two slots"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-pic-dense",
+  "title": "Dense pictures",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "Everything near the cap",
+      "goal": "Show all four picture types at once"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Small slots",
+      "goal": "Diagrams and a discontinuous plot in two by two slots"
+    },
+    {
+      "sceneId": "s003",
+      "title": "Letterboxes",
+      "goal": "Tall, wide and curved SVGs"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

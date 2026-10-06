@@ -1,0 +1,86 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-pic-dense",
+  "sceneId": "s002",
+  "title": "Small slots",
+  "narration": "The same eight node diagram fits a two by two slot by switching to note sized labels, while a four node diagram keeps body text. The reciprocal function breaks at zero instead of drawing a vertical line across the plot.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "dense",
+      "type": "diagram",
+      "slot": "A1:B2",
+      "mermaid": "graph LR\nA[Req] --> B[Edge]\nB --> C[Cache]\nC -->|hit| D[Resp]\nC -->|miss| E[App]\nE --> F[(DB)]\nF --> E\nE --> C\nB --> G[Auth]\nG --> E\nA --> H[Log]\nB --> H\nE --> H"
+    },
+    {
+      "id": "four",
+      "type": "diagram",
+      "slot": "C1:D2",
+      "mermaid": "flowchart TD\nS([Start]) --> Q{Valid?}\nQ -->|yes| OK[Accept]\nQ -->|no| NO[Reject]"
+    },
+    {
+      "id": "recip",
+      "type": "plot",
+      "slot": "E1:F2",
+      "fn": "1/x",
+      "xRange": [
+        -2,
+        2
+      ],
+      "label": "one over x",
+      "color": "accent1"
+    },
+    {
+      "id": "steep",
+      "type": "plot",
+      "slot": "A3:C4",
+      "fn": "exp(x)",
+      "xRange": [
+        0,
+        10
+      ],
+      "label": "exp grows fast",
+      "color": "accent4"
+    },
+    {
+      "id": "dots",
+      "type": "plot",
+      "slot": "D3:F4",
+      "series": [
+        [
+          [
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            2,
+            4
+          ],
+          [
+            3,
+            9
+          ]
+        ],
+        "x^2 - 1"
+      ],
+      "xRange": [
+        -1,
+        4
+      ],
+      "color": "muted"
+    }
+  ],
+  "final": false
+}

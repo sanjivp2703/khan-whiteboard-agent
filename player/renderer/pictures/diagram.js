@@ -76,6 +76,46 @@ function segmentHitsRect(a, b, r) {
 const pointInRect = (p, r) => p[0] >= r.x && p[0] <= r.x + r.w && p[1] >= r.y && p[1] <= r.y + r.h;
 const expand = (r, m) => ({ x: r.x - m, y: r.y - m, w: r.w + 2 * m, h: r.h + 2 * m });
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+const DETOUR_GAP = 24;
+
+/**
+ * Route an edge from node `a` to node `b` (virtual centres ca/cb may be offset for parallel edges).
+ * Candidates in preference order: straight; single elbow (two corners); a detour around the outside
+ * of the other nodes (three segments) — used only when everything simpler crosses another node.
+ * The route with the fewest node crossings wins; ties keep the simpler route. Deterministic.
+ * @returns {number[][]} polyline points, first on a's boundary, last on b's boundary
+ */
+export function routeEdge(a, b, ca, cb, others, safe, td) {
+  const crossings = (pts) => { let n = 0; for (let i = 0; i + 1 < pts.length; i++) n += others.filter((o) => segmentHitsRect(pts[i], pts[i + 1], o)).length; return n; };
+  const blocked = (c) => pointInRect(c, a.rect) || pointInRect(c, b.rect) || others.some((o) => pointInRect(c, o));
+  const candidates = [];
+  const sp = exitPoint(a.polygon, ca, cb), tp = exitPoint(b.polygon, cb, ca);
+  candidates.push([sp, tp]);
+  if (crossings(candidates[0]) > 0) {
+    for (const c of [[ca[0], cb[1]], [cb[0], ca[1]]]) {
+      if (blocked(c)) continue;
+      candidates.push([exitPoint(a.polygon, ca, c), c, exitPoint(b.polygon, cb, c)]);
+    }
+    // detours: TD → go sideways (left/right of every node), LR → go above/below
+    const all = [a.rect, b.rect, ...others];
+    if (td) {
+      const left = Math.min(...all.map((r) => r.x)) - DETOUR_GAP, right = Math.max(...all.map((r) => r.x + r.w)) + DETOUR_GAP;
+      for (const x of [Math.max(safe.x + 2, left), Math.min(safe.x + safe.w - 2, right)]) {
+        const c1 = [x, ca[1]], c2 = [x, cb[1]];
+        candidates.push([exitPoint(a.polygon, ca, c1), c1, c2, exitPoint(b.polygon, cb, c2)]);
+      }
+    } else {
+      const top = Math.min(...all.map((r) => r.y)) - DETOUR_GAP, bottom = Math.max(...all.map((r) => r.y + r.h)) + DETOUR_GAP;
+      for (const y of [Math.max(safe.y + 2, top), Math.min(safe.y + safe.h - 2, bottom)]) {
+        const c1 = [ca[0], y], c2 = [cb[0], y];
+        candidates.push([exitPoint(a.polygon, ca, c1), c1, c2, exitPoint(b.polygon, cb, c2)]);
+      }
+    }
+  }
+  const scored = candidates.map((points, idx) => ({ points, idx, crossings: crossings(points), length: points.reduce((s, p, i) => (i ? s + dist(points[i - 1], p) : 0), 0) }));
+  scored.sort((x, y) => x.crossings - y.crossings || (x.points.length - y.points.length) || x.length - y.length || x.idx - y.idx);
+  return scored[0].points;
+}
 
 // ---------- node shapes ----------
 
@@ -157,25 +197,15 @@ export function prepareDiagram(element, ctx, ast = null) {
     const j = group.indexOf(i);
     let ca = a.center.slice(), cb = b.center.slice();
     if (group.length > 1) {
-      const dx = cb[0] - ca[0], dy = cb[1] - ca[1], len = Math.hypot(dx, dy) || 1;
+      // perpendicular taken from the canonical (sorted) direction so an edge and its reverse get distinct offsets
+      const [lo, hi] = [a, b].sort((p, q) => (p.id < q.id ? -1 : 1));
+      const dx = hi.center[0] - lo.center[0], dy = hi.center[1] - lo.center[1], len = Math.hypot(dx, dy) || 1;
       const off = (j - (group.length - 1) / 2) * PARALLEL_OFFSET;
       const nx = (-dy / len) * off, ny = (dx / len) * off;
       ca = [ca[0] + nx, ca[1] + ny]; cb = [cb[0] + nx, cb[1] + ny];
     }
     const others = tree.nodes.filter((n) => n.id !== e.from && n.id !== e.to).map((n) => expand(nodeInfo.get(n.id).rect, 3));
-    const crossings = (segs) => segs.reduce((acc, [p, q]) => acc + others.filter((o) => segmentHitsRect(p, q, o)).length, 0);
-    // straight
-    const sp = exitPoint(a.polygon, ca, cb), tp = exitPoint(b.polygon, cb, ca);
-    let candidates = [{ points: [sp, tp], crossings: crossings([[sp, tp]]) }];
-    if (candidates[0].crossings > 0) {
-      for (const c of [[ca[0], cb[1]], [cb[0], ca[1]]]) {
-        if (pointInRect(c, a.rect) || pointInRect(c, b.rect) || others.some((o) => pointInRect(c, o))) continue;
-        const p0 = exitPoint(a.polygon, ca, c), p1 = exitPoint(b.polygon, cb, c);
-        candidates.push({ points: [p0, c, p1], crossings: crossings([[p0, c], [c, p1]]) });
-      }
-    }
-    candidates = candidates.map((c, idx) => ({ ...c, idx })).sort((x, y) => x.crossings - y.crossings || x.idx - y.idx);
-    const route = candidates[0].points;
+    const route = routeEdge(a, b, ca, cb, others, safe, tree.direction !== 'LR');
     const width = e.style === 'thick' ? THICK_WIDTH : STROKE_WIDTH;
     const dash = e.style === 'dotted' ? DASH_DOTTED : null;
     const strokes = roughStrokes(route.length === 2 ? r.line(route[0][0], route[0][1], route[1][0], route[1][1]) : r.linearPath(route), chalk, { width, dash });
@@ -197,8 +227,11 @@ export function prepareDiagram(element, ctx, ast = null) {
       const dx = seg[1][0] - seg[0][0], dy = seg[1][1] - seg[0][1], len = Math.hypot(dx, dy) || 1;
       const fit = fitText(e.label, Math.max(40, safe.w * 0.3), { styles: ['note'], maxLines: 2 });
       const lw = fit.width * s, lh = fit.height * s;
-      let lx = mx - dy / len * EDGE_LABEL_OFFSET - lw / 2;
-      let ly = my + dx / len * EDGE_LABEL_OFFSET - lh / 2;
+      // unit perpendicular (nx, ny); push the label clear of the line by its own half extent
+      const nx = -dy / len, ny = dx / len;
+      const off = EDGE_LABEL_OFFSET / 2 + Math.abs(nx) * (lw / 2) + Math.abs(ny) * (lh / 2);
+      let lx = mx + nx * off - lw / 2;
+      let ly = my + ny * off - lh / 2;
       lx = Math.max(safe.x, Math.min(lx, safe.x + safe.w - lw));
       ly = Math.max(safe.y, Math.min(ly, safe.y + safe.h - lh));
       const written = writeLines(fit.lines, 'note', lx, ly, lw, chalk, { align: 'center', scale: s });

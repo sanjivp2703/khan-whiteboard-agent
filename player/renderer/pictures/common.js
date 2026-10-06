@@ -192,8 +192,9 @@ export function commandsToPath(commands) {
 /**
  * Glyph outlines for a line of text — shared/handwriting.glyphPaths plus a repair step: the vendored
  * opentype `toPathData` can emit a literal `NaN` for coordinates whose fractional part prints in
- * exponent notation (its roundDecimal concatenates `decimalPart + "e+2"`). Such glyphs are rebuilt
- * from the glyph's own path commands (same geometry, our serializer). Reported as a shared-module gap.
+ * exponent notation (its roundDecimal concatenates the decimal part with the string "e+2"). Such
+ * glyphs are rebuilt from the glyph's own path commands (same geometry, our serializer).
+ * Reported as a shared-module gap.
  */
 export function glyphOutlines(text, style, x, y) {
   const glyphs = glyphPaths(text, style, x, y);
@@ -359,6 +360,8 @@ export function buildDrawable({ id, type, parts, fallbackRect, picture = {} }) {
     partStarts,
     naturalMs: naturalMs(paths),
     paths,
+    /** Per-path style, aligned with `paths` (test hook): {mode, width, dash, color}. */
+    strokeInfo: all.map((s) => ({ mode: s.mode, width: s.width, dash: s.dash, color: s.color })),
     picture: { ...picture, partKinds: list.map((p) => p.kind), partMeta: list.map((p) => p.meta || null), strokeCount: all.length },
     paint(ctx2d, u) {
       const { complete, partial } = revealState(list, u);

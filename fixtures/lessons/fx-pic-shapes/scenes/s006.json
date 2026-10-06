@@ -1,0 +1,45 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-pic-shapes",
+  "sceneId": "s006",
+  "title": "Big slots, part two",
+  "narration": "Database, server, document and stack fill three by two slots. The server and the document write their label inside the shape when there is room, which there is at this size.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "big_database",
+      "type": "sketch",
+      "slot": "A1:C2",
+      "shape": "database",
+      "label": "primary database",
+      "color": "accent3"
+    },
+    {
+      "id": "big_server",
+      "type": "sketch",
+      "slot": "D1:F2",
+      "shape": "server",
+      "label": "app server",
+      "color": "accent4"
+    },
+    {
+      "id": "big_document",
+      "type": "sketch",
+      "slot": "A3:C4",
+      "shape": "document",
+      "label": "design doc",
+      "color": "accent5"
+    },
+    {
+      "id": "big_stack",
+      "type": "sketch",
+      "slot": "D3:F4",
+      "shape": "stack",
+      "label": "call stack",
+      "color": "muted"
+    }
+  ],
+  "final": false
+}

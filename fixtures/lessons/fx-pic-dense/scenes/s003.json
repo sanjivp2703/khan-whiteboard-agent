@@ -1,0 +1,31 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-pic-dense",
+  "sceneId": "s003",
+  "title": "Letterboxes",
+  "narration": "An SVG keeps its own aspect ratio inside the slot. A tall view box is centred horizontally, a wide one with a negative origin is centred vertically, and paths may use arcs and curves with nested transforms.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "tall",
+      "type": "svg",
+      "slot": "A1:B4",
+      "svg": "<svg viewBox=\"0 0 10 100\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"1\" y=\"1\" width=\"8\" height=\"98\" stroke=\"accent2\" fill=\"none\"/><line x1=\"5\" y1=\"1\" x2=\"5\" y2=\"99\" stroke=\"muted\"/><circle cx=\"5\" cy=\"20\" r=\"3\" stroke=\"accent1\" fill=\"accent1\"/><circle cx=\"5\" cy=\"50\" r=\"3\" stroke=\"accent3\" fill=\"none\"/><circle cx=\"5\" cy=\"80\" r=\"3\" stroke=\"accent4\" fill=\"accent4\"/></svg>"
+    },
+    {
+      "id": "wide",
+      "type": "svg",
+      "slot": "C1:F2",
+      "svg": "<svg viewBox=\"-50 -5 100 10\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"-50\" y1=\"0\" x2=\"50\" y2=\"0\" stroke=\"chalk\"/><polyline points=\"-45,-4 -30,4 -15,-4 0,4 15,-4 30,4 45,-4\" stroke=\"accent5\" fill=\"none\"/><g transform=\"translate(-40,0) scale(0.5)\"><rect x=\"0\" y=\"-8\" width=\"10\" height=\"16\" stroke=\"accent2\" fill=\"accent2\"/></g><text x=\"0\" y=\"-2\" font-size=\"3\" text-anchor=\"middle\" fill=\"accent1\">wide view box</text></svg>"
+    },
+    {
+      "id": "curves",
+      "type": "svg",
+      "slot": "C3:F4",
+      "svg": "<svg viewBox=\"0 0 100 100\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M10 80 C 30 10, 70 10, 90 80\" stroke=\"accent1\" fill=\"none\"/><path d=\"M10 50 Q 50 0 90 50\" stroke=\"accent2\" fill=\"none\"/><path d=\"M20 90 A 30 30 0 0 1 80 90\" stroke=\"accent3\" fill=\"none\"/><g transform=\"translate(50,50)\"><g transform=\"rotate(45)\"><rect x=\"-10\" y=\"-10\" width=\"20\" height=\"20\" stroke=\"accent4\" fill=\"accent4\"/></g></g><text x=\"50\" y=\"20\" font-size=\"6\" text-anchor=\"middle\" fill=\"chalk\">arcs and curves</text></svg>"
+    }
+  ],
+  "final": true
+}

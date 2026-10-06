@@ -1,0 +1,62 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-pic-shapes",
+  "sceneId": "s003",
+  "title": "Two wide",
+  "narration": "In a two by one slot the shape keeps its aspect ratio and is centred, so a tall shape like the database or the person leaves empty space either side while the label still fits beneath.",
+  "board": {
+    "mode": "region",
+    "slots": "A3:F4"
+  },
+  "elements": [
+    {
+      "id": "two_cloud",
+      "type": "sketch",
+      "slot": "A3:B3",
+      "shape": "cloud",
+      "label": "cloud",
+      "color": "accent2"
+    },
+    {
+      "id": "two_database",
+      "type": "sketch",
+      "slot": "C3:D3",
+      "shape": "database",
+      "label": "database",
+      "color": "accent3"
+    },
+    {
+      "id": "two_server",
+      "type": "sketch",
+      "slot": "E3:F3",
+      "shape": "server",
+      "label": "server",
+      "color": "accent4"
+    },
+    {
+      "id": "two_document",
+      "type": "sketch",
+      "slot": "A4:B4",
+      "shape": "document",
+      "label": "document",
+      "color": "accent5"
+    },
+    {
+      "id": "two_stack",
+      "type": "sketch",
+      "slot": "C4:D4",
+      "shape": "stack",
+      "label": "stack",
+      "color": "muted"
+    },
+    {
+      "id": "two_person",
+      "type": "sketch",
+      "slot": "E4:F4",
+      "shape": "person",
+      "label": "person",
+      "color": "accent1"
+    }
+  ],
+  "final": false
+}

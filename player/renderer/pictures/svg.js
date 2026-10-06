@@ -1,7 +1,7 @@
 // player/renderer/pictures/svg.js — `svg` drawable: the parsed subset AST ({viewBox, shapes}) is
 // letterboxed into the slot inner rect and every shape becomes rough path strokes in the canvas
-// pipeline. NO DOM is ever created: no DOMParser, no innerHTML, no <svg>, no <image>/<use>.
-// Only the allowlisted tag names are switched on; anything else is ignored and counted.
+// pipeline. No DOM is ever created and the source string is never handed to the browser: only the
+// allowlisted tag names are switched on; anything else is ignored and counted.
 //
 // Transforms: every shape is turned into an absolute path (rect → polygon, circle/ellipse → four
 // cubic arcs, polyline/polygon → lines, path → parsed with arcs converted to cubics), then every

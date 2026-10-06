@@ -5,7 +5,7 @@
 // after the element's accent (common.seriesToken). Axes, ticks and tick labels are chalk; the
 // optional `label` is written top-right in the element colour.
 import { CAPS } from '../../../shared/layout-core/constants.js';
-import { parse as parseExpr, evaluate } from '../../../shared/expr.js';
+import { parse as parseExpr, sample } from '../../../shared/expr.js';
 import { measure } from '../../../shared/handwriting.js';
 import {
   pictureRects, roughFor, tokenColor, seriesToken, roughStrokes, writeAt, buildDrawable,
@@ -29,16 +29,9 @@ export function formatNum(v) {
   return s === '-0' ? '0' : s;
 }
 
-/** Sample an expression at CAPS.plotSamples evenly spaced x over xRange. */
+/** Sample an expression at CAPS.plotSamples evenly spaced x over xRange (shared/expr.sample). */
 export function sampleFn(src, xRange, n = CAPS.plotSamples) {
-  const ast = parseExpr(src);
-  const [min, max] = xRange;
-  const pts = [];
-  for (let i = 0; i < n; i++) {
-    const x = min + ((max - min) * i) / (n - 1);
-    pts.push([x, evaluate(ast, x)]);
-  }
-  return pts;
+  return sample(parseExpr(src), xRange, n).map((p) => [p.x, p.y]);
 }
 
 /** Auto y range from finite data with 10 % padding (flat data gets ±1 or ±10 %). */
