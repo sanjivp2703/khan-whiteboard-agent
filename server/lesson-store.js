@@ -40,7 +40,7 @@ export function createStore({ lessonsDir, provider }) {
     if (!e) {
       e = {
         sceneId, kind: kindOf(sceneId), status: 'pending', raw: null, effective: null, errors: [], degraded: false,
-        droppedElementIds: [], attempts: 0, audio: null, durationMs: null, title: null, board: null, final: false,
+        droppedElementIds: [], attempts: 0, invalidAttempts: 0, audio: null, durationMs: null, title: null, board: null, final: false,
         questionId: null, insertAfter: null, occIn: null, occOut: null, generation: 0, rejectTimer: null,
       };
       lesson.scenes.set(sceneId, e);

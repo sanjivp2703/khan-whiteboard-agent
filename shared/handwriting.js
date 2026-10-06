@@ -86,6 +86,54 @@ export function lineHeight(style) {
 
 function round(v) { return Math.round(v * ROUND) / ROUND; }
 
+// ---------- path serialization ----------
+// The vendored opentype `Path.toPathData` rounds through string concatenation
+// (`Math.round(decimalPart + "e+2")`), which yields `NaN` whenever the fractional part prints in
+// exponent notation (e.g. 1.2e-7 → "1.2e-7e+2"). Glyph outlines are therefore serialized here from
+// the path's own commands with a plain fixed-decimal formatter (2 decimals, same layout as
+// toPathData(2): integers print without decimals, a space precedes every non-negative value after
+// the first). The vendored library is not edited.
+const PATH_DECIMALS = 2;
+const PATH_SCALE = 10 ** PATH_DECIMALS;
+
+/** Format one coordinate: finite, rounded to PATH_DECIMALS, never "NaN", never "-0". */
+export function formatCoord(v) {
+  if (!Number.isFinite(v)) throw new RangeError(`handwriting: non-finite path coordinate ${v}`);
+  const r = Math.round(v * PATH_SCALE) / PATH_SCALE;
+  if (r === 0) return '0';
+  return Number.isInteger(r) ? String(r) : r.toFixed(PATH_DECIMALS);
+}
+
+function packValues(...values) {
+  let s = '';
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (i > 0 && v >= 0) s += ' ';
+    s += formatCoord(v);
+  }
+  return s;
+}
+
+/** Serialize opentype path commands ({type, x, y, x1, y1, x2, y2}) to SVG path data. */
+export function commandsToPathData(commands) {
+  let d = '';
+  for (const c of commands) {
+    switch (c.type) {
+      case 'M': d += 'M' + packValues(c.x, c.y); break;
+      case 'L': d += 'L' + packValues(c.x, c.y); break;
+      case 'C': d += 'C' + packValues(c.x1, c.y1, c.x2, c.y2, c.x, c.y); break;
+      case 'Q': d += 'Q' + packValues(c.x1, c.y1, c.x, c.y); break;
+      case 'Z': d += 'Z'; break;
+      default: break;
+    }
+  }
+  return d;
+}
+
+function glyphPathData(glyph, x, y, size) {
+  return commandsToPathData(glyph.getPath(x, y, size).commands);
+}
+
 /** Advance width of `text` in px for a style (kerning on), rounded to 1/1000 px. */
 export function textWidth(text, style) {
   const chars = [...String(text)];
@@ -173,7 +221,7 @@ export function glyphPaths(text, style, x, y) {
       const glyph = f.charToGlyph(ch);
       const natural = (glyph.advanceWidth || 0) * scale;
       const offset = Math.max(0, (CODE_CHAR_ADVANCE - natural) / 2); // centre glyph in its fixed cell
-      const d = ch.trim() === '' ? '' : glyph.getPath(cx + offset, y, size).toPathData(2);
+      const d = ch.trim() === '' ? '' : glyphPathData(glyph, cx + offset, y, size);
       out.push({ char: ch, d, advance: CODE_CHAR_ADVANCE, x: round(cx) });
       cx += CODE_CHAR_ADVANCE;
     }
@@ -189,7 +237,7 @@ export function glyphPaths(text, style, x, y) {
       advance += (k || 0) * scale;
     }
     const ch = chars[i] ?? '';
-    const d = ch.trim() === '' ? '' : glyph.getPath(cx, y, size).toPathData(2);
+    const d = ch.trim() === '' ? '' : glyphPathData(glyph, cx, y, size);
     out.push({ char: ch, d, advance: round(advance), x: round(cx) });
     cx += advance;
   }

@@ -78,13 +78,15 @@ export async function startServer(opts = {}) {
   const ingest = createIngest({
     store, cache, control, provider, env, log,
     onChange: (lesson) => sse.broadcast(lesson),
-    onNewOutline: (lesson) => { lifecycle.noteActivity(); lifecycle.openBrowser(`http://${host}:${port}/lesson/${lesson.lessonId}`); },
+    // open the browser only for an outline that appeared after startup — never for the lesson
+    // folders ingested by the startup scan (replays, accumulated old lessons: QA finding 5)
+    onNewOutline: (lesson, { initial = false } = {}) => { lifecycle.noteActivity(); if (!initial) lifecycle.openBrowser(`http://${host}:${port}/lesson/${lesson.lessonId}`); },
     onEnded: () => lifecycle.noteEnded(),
   });
 
   const watcher = createWatcher({
     lessonsDir,
-    onOutline: (lessonId, json, error) => ingest.ingestOutline(lessonId, json, error),
+    onOutline: (lessonId, json, error, meta) => ingest.ingestOutline(lessonId, json, error, meta),
     onScene: (lessonId, sceneId, json, error) => { ingest.ingestScene(lessonId, sceneId, json, error).catch((e) => log('ingest error', e)); },
     intervalMs: Number(env.KHAN_WATCH_INTERVAL_MS) > 0 ? Number(env.KHAN_WATCH_INTERVAL_MS) : 300,
     stableMs: Number(env.KHAN_WATCH_STABLE_MS) > 0 ? Number(env.KHAN_WATCH_STABLE_MS) : 250,

@@ -27,8 +27,10 @@ npm run serve -- --lessons-dir fixtures/lessons   # node server/index.js; then o
 ```
 
 Manual look: start the server on `fixtures/lessons`, open `/lesson/fx-full-tour?debug=1` (the debug
-panel lists every scene reaching `ready`) and `/harness/fx-full-tour?scene=s001&u=1` (fallback
-rectangles for every element until the renderer slices register drawables).
+panel lists every scene reaching `ready`) and `/harness/fx-full-tour?scene=s001&u=1` (every element
+drawn through the registered renderers; the dashed fallback rectangle only for an unregistered type).
+Since fix pass 1 the server opens no tab for the lesson folders it finds at startup, so pointing it at
+`fixtures/lessons` is safe.
 
 **Playwright pin.** `@playwright/test` is pinned to **1.54.2** on purpose: Playwright >= 1.62 has no
 Chromium build for macOS 13, which this machine runs (lessons.md). Do not "upgrade" it until the OS is.
@@ -225,16 +227,17 @@ occupancy changed.
 | `GET /api/lesson/:id/playlist` | playlist snapshot (below) |
 | `GET /api/lesson/:id/scene/:sceneId` | the **effective** scene (degraded scenes have offending elements removed); 404 until validated/degraded |
 | `GET /api/lesson/:id/audio/:sceneId` | audio file with its `Content-Type` (`audio/wav` for silent); 404 if none |
-| `GET /api/lesson/:id/events` | SSE: `playlist` (full snapshot on connect and on every change), `heartbeat` every 15 s; snapshot-only |
+| `GET /api/lesson/:id/events` | SSE: `playlist` (full snapshot on connect and on every change), `heartbeat` every 15 s; snapshot-only. A well-formed id not ingested yet gets a 200 stream that emits `waiting` and switches to `playlist` when the lesson appears |
 | `POST /api/lesson/:id/position` `{sceneId, event:"start"\|"end", t?}` | 204; drives `buffer.readyAhead` and `ended` |
 | `POST /api/lesson/:id/question` `{text, atSceneId, atTime}` | `{qId}`; text 1–500 chars; ids `q001, q002…` |
-| `GET /api/lesson/:id/wait?timeout=<s>` | long-poll, one JSON object (semantics below) |
+| `GET /api/lesson/:id/wait?timeout=<s>` | long-poll, one JSON object (semantics below); 404 for a lesson the server has not ingested |
 | `GET /api/lesson/:id/status` | `{lessonId, title, tts, producer:{lastWriteAt, lastWriteAgeMs}, counts:{planned, scenes, ready, degraded, rejected, answerScenes, questions, svgElements}, buffer:{readyAhead}, player:{connected, position}, ended}` |
 | `GET /api/health` | `{ok:true, port, host, lessonsDir, tts}` |
 
 Every `:lessonId` / `:sceneId` is checked against the §4.1 regexes before anything else (400
 otherwise). A request carrying an `Origin` header other than `http://127.0.0.1:<port>` or
-`http://localhost:<port>` → 403; requests without `Origin` (curl, CLI) are allowed. Bodies ≤ 64 KB.
+`http://localhost:<port>` → 403; requests without `Origin` (curl, CLI) are allowed. Bodies ≤ 64 KB (larger →
+`413` JSON error).
 
 Playlist snapshot:
 ```json
@@ -269,11 +272,11 @@ of (1)–(4) or `timeout` seconds → `{"event":"timeout"}`. `readyAhead` = read
 player's last `start` (all ready entries before any start). Every response carries `notices`
 (degradations), cleared once sent.
 
-Lifecycle: the server opens the browser at `/lesson/<id>` when a new `outline.json` appears (macOS
-`open`, else `xdg-open`; suppressed by `KHAN_NO_OPEN=1`). It exits 10 min after `ended`, or 10 min
-after the last SSE client disconnected (if any ever connected); `KHAN_IDLE_EXIT_MS` overrides. On
-startup it ingests every lesson folder already present (that is how `khan play` replays; audio comes
-from the cache). `startServer({port, host, lessonsDir, cacheDir, env, config, opener, exitOnIdle,
+Lifecycle: the server opens the browser at `/lesson/<id>` when a new `outline.json` appears **after
+startup** (macOS `open`, else `xdg-open`; suppressed by `KHAN_NO_OPEN=1`). It exits 10 min after
+`ended`, or 10 min after the last SSE client disconnected (if any ever connected); `KHAN_IDLE_EXIT_MS`
+overrides. On startup it ingests every lesson folder already present without opening anything (that
+is how `khan play` replays; audio comes from the cache). `startServer({port, host, lessonsDir, cacheDir, env, config, opener, exitOnIdle,
 idleExitMs}) → {port, host, url, lessonsDir, cacheDir, tts, store, ingest, lifecycle, provider,
 cache, wait, close()}`; `node server/index.js --port N --lessons-dir D [--cache-dir C] [--host H]`
 prints one JSON line `{"ok":true,"port":…,"url":…,"lessonsDir":…,"tts":{…}}` on start.
@@ -296,6 +299,31 @@ written to the lesson folder, cache or any response (tested with a sentinel).
 Environment variables: `KHAN_TTS`, `KHAN_TTS_VOICE`, `OPENAI_API_KEY`, `KHAN_PORT`, `KHAN_HOST`,
 `KHAN_LESSONS_DIR`, `KHAN_CACHE_DIR`, `KHAN_NO_OPEN`, `KHAN_IDLE_EXIT_MS`, `KHAN_REJECT_GRACE_MS`,
 `KHAN_PLAYER_CLOSED_MS`, `KHAN_WATCH_INTERVAL_MS`, `KHAN_WATCH_STABLE_MS`.
+
+**Fix pass 1 (after QA report 01).** Behaviour changes in the foundation, all additive:
+- *Browser opening* (finding 5): the watcher tags every file it finds during the startup scan as
+  `initial`; `ingestOutline` only fires the opener for an outline that is **not** initial, so a server
+  started over an accumulated lessons dir (or `fixtures/lessons`) opens zero tabs and a new lesson
+  written afterwards opens exactly one. `KHAN_NO_OPEN=1` still suppresses every open (the CLI keeps
+  passing it and opening the tab itself).
+- *SSE before ingest* (finding 7): `GET /api/lesson/:id/events` for a well-formed id the server has
+  not ingested is a 200 `text/event-stream` that sends `waiting {lessonId}` (plus heartbeats) and, the
+  moment the lesson appears, attaches as a normal client and streams `playlist` snapshots. No lesson
+  object is created for a pending stream; malformed ids are still 400 before anything else.
+- *Reject cycle* (finding 6): `invalidAttempts` counts consecutive invalid validations of a scene
+  since it was last valid; a `ready` scene rewritten invalid is `rejected` once before degrading, and a
+  valid rewrite resets the cycle. `attempts` (every ingest) stays for diagnostics; `attempt` in the
+  reject file / inbox is now the invalid-attempt number.
+- *Body cap* (finding 11): over 64 KB → `413 {"error":"body too large (max 65536 bytes)"}` (declared
+  `Content-Length` checked up front, chunked bodies cut off at the cap), never a destroyed socket.
+- *`wait` on an unknown lesson* (finding 13): 404 `{"error":"unknown lesson"}` like `status`; no
+  phantom lesson is materialised.
+- *Glyph paths* (finding 8): `shared/handwriting.glyphPaths` serializes the glyph's own path commands
+  with a fixed 2-decimal formatter (`formatCoord`, `commandsToPathData` exported) instead of the
+  vendored `toPathData`, so no `NaN` coordinate can appear; same layout as before (`M12.34 56L…`).
+- *E2E* (finding 2): `foundation-harness` criterion 17 now asserts containment of every drawable in
+  its slot (arrows/highlights in the board) across all ten tour scenes, and checks the fallback by
+  unregistering `text` in the page (`registry.unregister`, test-only).
 
 ## C4. Drawable interface — `player/registry.js`
 

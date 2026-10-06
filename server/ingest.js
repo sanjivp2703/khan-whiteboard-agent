@@ -25,7 +25,8 @@ export function createIngest({ store, cache, control, provider, env = {}, onChan
   }
 
   // ---------- outline ----------
-  function ingestOutline(lessonId, json, parseError) {
+  /** `meta.initial` is true when the watcher found the file during its startup scan (replay). */
+  function ingestOutline(lessonId, json, parseError, meta = {}) {
     const lesson = store.ensure(lessonId);
     touchProducer(lesson);
     if (parseError || !json) {
@@ -38,7 +39,7 @@ export function createIngest({ store, cache, control, provider, env = {}, onChan
     if (r.ok || (json && Array.isArray(json.scenes))) {
       const first = lesson.outline === null;
       lesson.outline = json;
-      if (first && !lesson.opened) { lesson.opened = true; onNewOutline(lesson); }
+      if (first && !lesson.opened) { lesson.opened = true; onNewOutline(lesson, { initial: meta.initial === true }); }
     }
     changed(lesson);
   }
@@ -130,6 +131,7 @@ export function createIngest({ store, cache, control, provider, env = {}, onChan
       entry.occOut = result.occupancy;
       entry.degraded = false;
       entry.droppedElementIds = [];
+      entry.invalidAttempts = 0; // a valid revision resets the reject → rewrite → degrade cycle
       startVoicing(lesson, entry);
       return;
     }
@@ -137,13 +139,20 @@ export function createIngest({ store, cache, control, provider, env = {}, onChan
     await finishInvalid(lesson, entry, occIn, result);
   }
 
+  /**
+   * Reject → rewrite → degrade (spec §5). Only invalid attempts count: `invalidAttempts` is the
+   * number of consecutive invalid validations of this scene since it was last valid, so a scene
+   * that was ready and is then rewritten invalid still gets its reject round (QA finding 6).
+   * `attempts` keeps counting every ingest (diagnostics only).
+   */
   async function finishInvalid(lesson, entry, occIn, result) {
-    if (entry.attempts <= 1) {
+    entry.invalidAttempts = (entry.invalidAttempts || 0) + 1;
+    if (entry.invalidAttempts <= 1) {
       entry.status = 'rejected';
       entry.occOut = occIn;
       lesson.inboxPending = lesson.inboxPending.filter((p) => !(p.kind === 'reject' && p.sceneId === entry.sceneId));
-      lesson.inboxPending.push({ kind: 'reject', sceneId: entry.sceneId, attempt: entry.attempts, errors: entry.errors, delivered: false });
-      control.writeReject(lesson, entry.sceneId, entry.attempts, entry.errors);
+      lesson.inboxPending.push({ kind: 'reject', sceneId: entry.sceneId, attempt: entry.invalidAttempts, errors: entry.errors, delivered: false });
+      control.writeReject(lesson, entry.sceneId, entry.invalidAttempts, entry.errors);
       const gen = entry.generation;
       entry.rejectTimer = setTimeout(() => {
         entry.rejectTimer = null;

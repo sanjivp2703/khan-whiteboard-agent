@@ -12,13 +12,19 @@ export const TEST_ENV = Object.freeze({
   KHAN_WATCH_STABLE_MS: '100',
 });
 
-export async function startTestServer(extraEnv = {}, opts = {}) {
+/**
+ * @param {object} extraEnv merged over TEST_ENV
+ * @param {object} opts passed to startServer, except `populate(lessonsDir)` — a hook that fills the
+ *   lessons dir BEFORE the server starts (to test the startup scan / replay path)
+ */
+export async function startTestServer(extraEnv = {}, { populate = null, ...opts } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'khan-test-'));
   const lessonsDir = join(root, 'lessons');
   const cacheDir = join(root, 'cache');
   mkdirSync(lessonsDir, { recursive: true });
   const env = { ...TEST_ENV, ...extraEnv };
   const opened = [];
+  if (populate) await populate(lessonsDir);
   const info = await startServer({ port: 0, lessonsDir, cacheDir, env, config: {}, opener: (url) => opened.push(url), ...opts });
   const base = info.url;
   const api = {
@@ -81,11 +87,16 @@ async function safeJson(r) {
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** Open an SSE connection; returns {events: [], close()} and resolves once the first playlist event arrives. */
-export async function openSse(url) {
+/**
+ * Open an SSE connection; returns {status, events: [], close(), next(event)} and resolves once the
+ * first `until` event (default `playlist`) arrives. `next(name)` resolves with the next event of
+ * that name received after the call.
+ */
+export async function openSse(url, { until = 'playlist' } = {}) {
   const controller = new AbortController();
   const res = await fetch(url, { signal: controller.signal, headers: { accept: 'text/event-stream' } });
   const events = [];
+  const waiters = []; // {name, resolve}
   let buffer = '';
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
@@ -106,11 +117,15 @@ export async function openSse(url) {
             if (line.startsWith('event: ')) ev.event = line.slice(7);
             else if (line.startsWith('data: ')) ev.data = JSON.parse(line.slice(6));
           }
-          if (ev.data !== null) { events.push(ev); if (ev.event === 'playlist') resolveFirst(ev); }
+          if (ev.data !== null) {
+            events.push(ev);
+            if (ev.event === until) resolveFirst(ev);
+            for (const w of waiters.splice(0)) { if (w.name === ev.event) w.resolve(ev); else waiters.push(w); }
+          }
         }
       }
     } catch { /* aborted */ }
   })();
   await first;
-  return { events, close: () => controller.abort() };
+  return { status: res.status, headers: res.headers, events, close: () => controller.abort(), next: (name) => new Promise((resolve) => waiters.push({ name, resolve })) };
 }
