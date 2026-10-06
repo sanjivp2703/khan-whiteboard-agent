@@ -1,0 +1,11 @@
+{
+  "file": "short.mp3",
+  "frames": 77,
+  "sampleRate": 44100,
+  "samplesPerFrame": 1152,
+  "durationMs": 2011.4285714285716,
+  "bytes": 32109,
+  "sha256": "542fc54533b3dc8e28864f9321c9ad86a931a41a3c3fa3b7bca7e0ec47d4695d",
+  "vbr": false,
+  "xing": null
+}
