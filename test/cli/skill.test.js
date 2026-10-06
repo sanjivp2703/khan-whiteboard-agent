@@ -7,6 +7,8 @@ import { SKILL_PATH } from './helpers.js';
 import { validateScene, validateOutline, prepareValidator } from '../../shared/schema/validate.js';
 import { createOccupancy } from '../../shared/layout-core/occupancy.js';
 import { ELEMENT_TYPES } from '../../shared/layout-core/constants.js';
+import { ERROR_CODES } from '../../shared/schema/errors.js';
+import { BANNED_MACROS } from '../../shared/math.js';
 
 const md = readFileSync(SKILL_PATH, 'utf8');
 
@@ -73,6 +75,19 @@ test('body contains every required rule (criterion 10)', () => {
   for (const t of ELEMENT_TYPES) has(new RegExp('^\\| `' + t + '` \\|', 'm'), `cheat-sheet row for ${t}`);
   has(/≤ 8 nodes, ≤ 12 edges/, 'diagram caps');
   has(/≤ 4 KB/, 'svg size cap');
+});
+
+test('section 7 maps every validator error code to a fix and lists every banned math macro; the wait loop fits the Bash tool timeout (QA finding 12)', () => {
+  const sec = body.slice(body.indexOf('## 7.'), body.indexOf('## 8.'));
+  for (const code of ERROR_CODES) assert.ok(sec.includes('| `' + code + '` |'), `error table lacks a row for ${code}`);
+  for (const m of BANNED_MACROS) assert.ok(sec.includes('`\\' + m + '`'), `BAD_MATH row lacks \\${m}`);
+  assert.match(sec, /base.*ams/, 'states the base + ams package rule');
+  // khan wait must return before Claude Code's 120 s default Bash timeout; a timeout event is silent
+  assert.match(body, /khan" wait <lessonId> --timeout 100/, 'wait is invoked with --timeout 100');
+  assert.doesNotMatch(body, /khan" wait <lessonId>\n/, 'no bare wait invocation without --timeout');
+  assert.match(body, /120 s/, 'names the Bash tool default timeout');
+  assert.match(body, /\| `timeout` \|[^\n]*run `wait` again immediately and silently/, 'timeout → wait again, silently');
+  assert.match(body, /\| `continue` \|[^\n]*write the next scene, then `wait` again/, 'continue fast path unchanged');
 });
 
 test('the skill never tells Claude to read the lesson directory (criterion 11)', () => {
