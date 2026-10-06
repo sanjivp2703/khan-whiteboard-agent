@@ -14,6 +14,8 @@ import { lessonUrl, defaultPort, DEFAULT_HOST } from '../paths.js';
 import { openBrowser } from '../open.js';
 
 const DEFAULT_PRODUCER = Object.freeze({ kind: 'claude-code-skill', version: '1' });
+/** The browser only opens once the server has ingested the outline; under load the watcher can take a few seconds. */
+export const DEFAULT_INGEST_WAIT_MS = 10000;
 
 /** Pure: returns {outline, errors}. Exported for unit tests. */
 export function prepareOutline(input, lessonIdArg, now = new Date()) {
@@ -66,7 +68,7 @@ export async function outline({ positionals, flags, pretty, env = process.env, s
   let ingested = false;
   let opened = false;
   if (running) {
-    ingested = await waitForOutline(running.url, lessonId, { timeoutMs: flags['timeout-ms'] ?? 3000 });
+    ingested = await waitForOutline(running.url, lessonId, { timeoutMs: flags['timeout-ms'] ?? DEFAULT_INGEST_WAIT_MS });
     if (ingested) opened = openBrowser(url, env, flags);
   }
   emit({ ok: true, lessonId, url, lessonsDir, dir, scenes: out.scenes.length, server: !!running, ingested, opened }, pretty);

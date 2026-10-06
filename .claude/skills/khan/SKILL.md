@@ -88,8 +88,10 @@ The CLI fills in `schema`, `lessonId` and `sceneId` if you omit them, writes the
 After **every** scene (including the final one) run:
 
 ```sh
-"${CLAUDE_PROJECT_DIR}/bin/khan" wait <lessonId>
+"${CLAUDE_PROJECT_DIR}/bin/khan" wait <lessonId> --timeout 100
 ```
+
+**Always pass `--timeout 100`.** Claude Code's Bash tool kills a command after 120 s by default (its per-call `timeout` parameter, in milliseconds, allows up to 600000), and a killed `wait` loses the event. A 100 s window always returns before that. Never use the CLI default (540 s) unless you also set the Bash tool's `timeout` parameter to at least 600000 on that same call. During production this costs nothing: `wait` returns at once with `continue` whenever fewer than 3 scenes are ready ahead, so the window only matters while the buffer is full or after the final scene, when `timeout` events every ~100 s are normal.
 
 It blocks until something needs you and prints one object with `event` (and always `notices`). Act on it:
 
@@ -98,14 +100,14 @@ It blocks until something needs you and prints one object with `event` (and alwa
 | `continue` | the player's buffer has fewer than 3 ready scenes ahead | write the next scene, then `wait` again |
 | `reject` | `sceneId` failed validation; `errors` has the codes | rewrite that scene (once), then `wait` again |
 | `question` | the user typed `text` at `atSceneId` / `atTime`; `qId` is `q001`… | write 1–4 answer scenes (below), then `wait` again |
-| `timeout` | nothing happened for the timeout (default 540 s) | run `wait` again |
+| `timeout` | nothing happened within the 100 s window (the buffer is full, or the final scene is written and the user is still watching) | run `wait` again immediately and silently: print nothing, do not tell the user, do not end the turn. Expect many in a row during a long lesson |
 | `finished` | the lesson played to the end with no open questions; `summary` has counts | print the one-line summary and **end your turn** |
 | `player-closed` | the browser tab has been gone for a while | print the one-line summary and **end your turn** |
 | `error` | `code` `SERVER_DOWN` or similar | tell the user what happened and stop |
 
 Order of work when several things are pending: answer a `question` before writing the next lesson scene (the user is waiting), fix a `reject` before adding more scenes.
 
-After writing the **last** lesson scene (`"final": true`) keep calling `wait` — the user may still ask questions — until `finished` or `player-closed`.
+After writing the **last** lesson scene (`"final": true`) keep calling `wait` — the user may still ask questions — until `finished` or `player-closed`. A long lesson means a long run of `timeout` events here; each one is just "call `wait` again". Only `finished`, `player-closed` and `error` end the loop.
 
 ### Answering a question
 
@@ -183,7 +185,7 @@ common element fields: "id", "type", "slot" (not on arrow/highlight), "color" (a
 |---|---|---|---|
 | `text` | `slot`, `text` | `style` title/body/note (default body), `color` | ≤ 10 words per cell, ≤ 40 total; `title` ≤ 8 words and at least 2 columns wide; must fit the slot when wrapped |
 | `list` | `slot`, `items[]` | `ordered`, `itemAt[]`, `color` | 2–6 items, ≤ 8 words each; rows ≥ ceil(items / 3); items appear one at a time |
-| `math` | `slot`, `lines[]` (LaTeX) | `color` | 1–5 lines, ≤ 60 chars each; math-mode markup only, no `\def` `\newcommand` `\input` `\href` `\url`; must compile |
+| `math` | `slot`, `lines[]` (LaTeX) | `color` | 1–5 lines, ≤ 60 chars each; MathJax with the **`base` and `ams` packages only**, math-mode markup only (no `$`, no text-mode environments); every macro that defines macros, loads packages, links, or styles is `BAD_MATH` (the full list is under `BAD_MATH` in section 7), as is anything from another package; each line must compile |
 | `code` | `slot`, `lines[]` | `lang` | ≤ 7 lines per row, ≤ 14 total; ≤ 22 chars per column of width; no tabs; keep lines short |
 | `table` | `slot`, `rows[][]` | `header`, `color` | ≤ 6 × 6, rectangular; each cell ≤ 3 words and ≤ 12 chars; columns ≥ ceil(cols / 3), rows ≥ ceil(rows / 4) |
 | `box` | `slot` | `label` (≤ 6 words), `color` | an outline; elements whose slot lies inside it do not count as overlapping |
@@ -198,7 +200,40 @@ Also: 1–8 elements per scene; narration 15–90 words; ids unique since the la
 
 ## 7. Error codes → fixes
 
-`CAP_WORDS`/`CAP_CHARS`/`CAP_LINES`/`CAP_COUNT` cut content or widen the slot · `OVERFLOW` the text does not fit when wrapped: fewer words or a bigger slot · `OVERLAP` two slotted elements share a cell: move one · `OUT_OF_REGION` an element lies outside the scene's `slots` · `REGION_OCCUPIED` the region touches cells used since the last wipe: pick free cells or `wipe` · `BAD_REF`/`SELF_REF` an arrow or highlight points at nothing on the board (or itself) · `DUP_ID` an id already used since the last wipe · `SLOT_TOO_SMALL` titles need 2 columns, diagrams and plots 2 × 2 · `BAD_NARRATION` word count or markdown in the narration · `BAD_MATH`/`BAD_MERMAID`/`BAD_EXPR`/`BAD_SVG` the content did not parse under the subset above · `BAD_AT` `at` outside `[0, 0.9]` or decreasing · `BAD_BOARD` bad `mode`/`slots`, or an answer scene `a01` that is not a wipe · `BAD_ENUM` wrong `style`, `shape`, `color`.
+Every `errors[]` entry is `{elementId, code, message}`; `elementId` is `null` for scene-level codes. Fix the named element (or the scene) and resend the same `sceneId` once. The codes are exactly these:
+
+| code | what it means | fix |
+|---|---|---|
+| `BAD_JSON` | the file was not valid JSON — usually a heredoc slip: an unescaped `"` inside a string, a trailing comma, a comment, or empty stdin (the CLI reports its own `BAD_JSON` with `"ok":false` before writing) | resend strict JSON; inside JSON strings escape `"` as `\"` and every backslash as `\\` (LaTeX `\frac` is written `\\frac`) |
+| `BAD_SCHEMA` | `schema` is not exactly `khan-scene/1` (`khan-outline/1` for the outline), or the top level is not an object | omit `schema` (the CLI fills it) or set it exactly |
+| `BAD_LESSON_ID` | `lessonId` in the file is malformed or is not the lesson being written (the CLI's `ID_MISMATCH` is the same slip caught before writing) | omit `lessonId` (the CLI fills it from the argument) and pass the exact `lessonId` the outline command printed |
+| `BAD_SCENE_ID` | `sceneId` is malformed or does not match the argument; in an outline the ids do not run `s001, s002, …` | lesson scenes are `s001`…, answer scenes `qNNN-aNN`; omit `sceneId` in the file and pass it as the argument |
+| `MISSING_FIELD` | a required field is absent: `narration`, `elements`; `id` or `type` on an element; `slot` on a slotted element; `text`, `items`, `lines`, `rows`, `shape`, `mermaid`, `svg`, `fn` or `series`, `from` and `to`, `target`; `questionId` and `insertAfter` on an answer scene | add the field the message names |
+| `BAD_FIELD` | a field has the wrong type or is not allowed here: a `slot` on an arrow or highlight; `questionId`/`insertAfter` on a lesson scene (or a `questionId` that is not the `qNNN` prefix of the sceneId); tabs or line breaks inside `code` lines; ragged `table` rows; `itemAt` not an array of numbers; `xRange`/`yRange` not `[min, max]` with min < max; `final` not a boolean; an element or `elements` that is not an object/array; an empty `math` line | fix the type or remove the field |
+| `BAD_ID` | an element `id` does not match `^[a-z][a-z0-9_]{0,23}$` (uppercase, hyphen, leading digit, longer than 24 chars) | rename it, and every `from`/`to`/`target` that points at it |
+| `DUP_ID` | an `id` already used on the board since the last wipe (earlier scenes count) | pick a new id |
+| `BAD_SLOT` | `slot` is not a cell `A1`…`F4` or a range `B2:D3` (lowercase letters, a column past `F`, a row past `4`, a range written backwards, a stray space) | write the slot as `<col><row>` or `<top-left>:<bottom-right>` within A–F × 1–4 |
+| `SLOT_TOO_SMALL` | a `title` text needs ≥ 2 columns; `diagram` and `plot` need ≥ 2 × 2 cells; a `list` needs rows ≥ ceil(items / 3); a `table` needs columns ≥ ceil(cols / 3) and rows ≥ ceil(rows / 4) | widen the slot or shrink the content |
+| `BAD_ENUM` | an unknown element `type`, or a wrong `style` (text: title/body/note; highlight: circle/underline/strike/pointer), `shape` (the ten sketch shapes), or `color` (`accent1`…`accent5`, `muted`) | use a listed value or omit the field for the default |
+| `BAD_BOARD` | `board` is not `{mode:"wipe"}` or `{mode:"region", slots}`; `slots` missing, invalid, or present on a wipe; or the first answer scene (`a01`) is not a wipe | fix `board`; `a01` is always `{"mode":"wipe"}` |
+| `BAD_NARRATION` | narration missing, outside 15–90 words, or containing markdown/code (backticks, `*`, `#`, bullets, links) | rewrite as 15–90 words of plain prose |
+| `CAP_COUNT` | too many or too few of something: 1–8 elements, 2–6 list items, ≤ 6 × 6 table, ≤ 8 diagram nodes / ≤ 12 edges, ≤ 3 plot series / ≤ 50 points, ≤ 40 svg shapes, 3–12 outline scenes | cut content or split the scene |
+| `CAP_WORDS` | a word cap: text 10 per cell / 40 total, title 8, list item 8, table cell 3, box label 6, arrow or sketch label 4, diagram node 4 / edge 3, svg text 6 | fewer words or (for text) a bigger slot |
+| `CAP_CHARS` | a character cap: math line 60, table cell 12, code 22 per column of width, svg 4 KB | shorten, or widen the slot for code |
+| `CAP_LINES` | math 1–5 lines; code ≤ 14 lines and ≤ 7 per row of height | cut lines or make the slot taller |
+| `OVERFLOW` | the text (or list, table, code) does not fit its slot once wrapped and measured | fewer words or a bigger slot |
+| `OVERLAP` | two slotted elements share a cell (elements inside a `box` are exempt) | move one |
+| `OUT_OF_REGION` | a region scene's element lies outside the scene's `slots` | move it inside `slots` or enlarge `slots` |
+| `REGION_OCCUPIED` | the region touches cells used since the last wipe | pick free cells or make the scene a `wipe` |
+| `BAD_AT` | `at` (or an `itemAt` value) outside `[0, 0.9]`, or decreasing in element order | omit `at`, or keep values in range and non-decreasing |
+| `BAD_REF` | an arrow or highlight points at an id not on the board (not yet drawn, wiped, or itself an arrow/highlight) | point at a slotted element drawn earlier (this scene or since the last wipe) |
+| `SELF_REF` | an arrow's `from` equals its `to`, or an element points at itself | fix the reference |
+| `BAD_LINE` | `highlight.line` on a target that is not `code`, not a positive integer, or beyond that code element's line count | target the code element with a 1-based line within range, or drop `line` |
+| `BAD_MATH` | a math line uses a banned macro or does not compile under MathJax `base` + `ams`. Banned: `\def` `\edef` `\gdef` `\xdef` `\let` `\newcommand` `\newcommand*` `\renewcommand` `\providecommand` `\newenvironment` `\renewenvironment` `\DeclareMathOperator` `\input` `\include` `\includegraphics` `\usepackage` `\require` `\unicode` `\href` `\url` `\mathchoice` `\csname` `\expandafter` `\catcode` `\uppercase` `\lowercase` `\special` `\write` `\read` `\openout` `\closeout` `\class` `\cssId` `\style` `\html` `\data` `\begingroup` `\endgroup`; anything from a package other than base/ams fails to compile too | write plain math-mode LaTeX (`\frac`, `\sqrt`, `\sum`, `\text{}`, `\bar`, Greek letters, `aligned`), no macro definitions, no `$` |
+| `BAD_MERMAID` | the diagram is not a `flowchart`/`graph` `TD` or `LR` of the supported subset (no subgraphs, classes, clicks, styles, other diagram kinds) | rewrite as a plain flowchart with `A[Label] --> B{Choice}` and `-->|edge label|` |
+| `BAD_EXPR` | a plot `fn` does not parse: unknown function, implicit multiplication (`2x`), unbalanced parentheses, a variable other than `x` | use explicit `*` and only the listed functions and constants |
+| `BAD_SVG` | the svg is not well formed, has no `viewBox`, uses a disallowed tag or attribute (`style`, `class`, `id`, `href`, `on*`, `script`, `image`, `use`), a non-token color, or draws outside the viewBox | simplify to the allowed tags with token colors inside the viewBox — or use a sketch/diagram/plot instead |
+| `TTS_FAILED` | the voice could not be synthesized; the scene is still `ready` and plays silently for its estimated duration | not an authoring error: carry on and mention it in the final summary |
 
 ## 8. Worked examples (each is a complete, valid scene)
 

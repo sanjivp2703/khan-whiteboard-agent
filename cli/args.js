@@ -23,7 +23,7 @@ export const COMMANDS = {
   },
   scene: {
     positionals: [2, 2],
-    flags: { 'lessons-dir': 'string', 'timeout-ms': 'int' },
+    flags: { 'lessons-dir': 'string', 'timeout-ms': 'int', 'max-wait-ms': 'int' },
     usage: 'khan scene <lessonId> <sceneId> < scene.json',
     summary: 'atomically write one scene from stdin and report its validation status',
   },
@@ -125,7 +125,8 @@ const FLAG_HELP = {
   'cache-dir': 'TTS cache directory (default: KHAN_CACHE_DIR, else <KHAN_HOME>/cache/tts)',
   foreground: 'run the server in this process instead of detaching it',
   'no-open': 'do not open the browser (KHAN_NO_OPEN=1 does the same)',
-  'timeout-ms': 'how long to wait for the server to pick the file up (default 3000)',
+  'timeout-ms': 'how long to wait for the server to pick the file up (default: scene 3000, outline 10000, play 5000)',
+  'max-wait-ms': 'scene: keep waiting this long while the server has no verdict yet (default 10000)',
   timeout: 'seconds to block before returning {"event":"timeout"} (default 540, max 600)',
 };
 

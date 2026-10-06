@@ -42,7 +42,7 @@ export function pidAlive(pid) {
 }
 
 /** GET /api/health → body or null (never throws). */
-export async function health(host, port, timeoutMs = 1500) {
+export async function health(host, port, timeoutMs = 3000) {
   try {
     const r = await get(`http://${host}:${port}/api/health`, { timeoutMs });
     return r.status === 200 && r.body && r.body.ok === true ? r.body : null;
