@@ -1,0 +1,28 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-code",
+  "sceneId": "s003",
+  "title": "Exactly twenty two",
+  "narration": "Lines of exactly twenty two characters fit one column, and seven of them fill one row. This is the densest single cell of code the validator allows.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "dense",
+      "type": "code",
+      "slot": "A1",
+      "lang": "txt",
+      "lines": [
+        "1234567890123456789012",
+        "abcdefghijklmnopqrstuv",
+        "ABCDEFGHIJKLMNOPQRSTUV",
+        "xxxxxxxxxxxxxxxxxxxxxx",
+        "yyyyyyyyyyyyyyyyyyyyyy",
+        "zzzzzzzzzzzzzzzzzzzzzz",
+        "1234567890123456789012"
+      ]
+    }
+  ],
+  "final": true
+}

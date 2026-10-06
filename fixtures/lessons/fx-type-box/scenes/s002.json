@@ -1,0 +1,26 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-box",
+  "sceneId": "s002",
+  "title": "Plain and long label",
+  "narration": "A box without a label is just a frame, and a label may run to six words. Both are added in a region beside the earlier group.",
+  "board": {
+    "mode": "region",
+    "slots": "D1:F4"
+  },
+  "elements": [
+    {
+      "id": "plain",
+      "type": "box",
+      "slot": "D1:F2"
+    },
+    {
+      "id": "long",
+      "type": "box",
+      "slot": "D3:F4",
+      "label": "Six words is the label cap",
+      "color": "accent2"
+    }
+  ],
+  "final": false
+}

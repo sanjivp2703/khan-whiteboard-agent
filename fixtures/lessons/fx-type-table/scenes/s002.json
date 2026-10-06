@@ -1,0 +1,71 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-table",
+  "sceneId": "s002",
+  "title": "Six by six",
+  "narration": "The largest table allowed is six columns by six rows. It needs at least two columns and two rows of cells; here it takes three columns so every short cell fits.",
+  "board": {
+    "mode": "region",
+    "slots": "A2:C4"
+  },
+  "elements": [
+    {
+      "id": "big",
+      "type": "table",
+      "slot": "A2:C3",
+      "header": true,
+      "rows": [
+        [
+          "key",
+          "size",
+          "hits",
+          "miss",
+          "ttl",
+          "age"
+        ],
+        [
+          "u1",
+          "12",
+          "40",
+          "2",
+          "60",
+          "5"
+        ],
+        [
+          "u2",
+          "8",
+          "31",
+          "4",
+          "60",
+          "9"
+        ],
+        [
+          "u3",
+          "20",
+          "12",
+          "7",
+          "30",
+          "1"
+        ],
+        [
+          "u4",
+          "4",
+          "99",
+          "0",
+          "90",
+          "44"
+        ],
+        [
+          "u5",
+          "16",
+          "3",
+          "12",
+          "30",
+          "29"
+        ]
+      ],
+      "color": "accent2"
+    }
+  ],
+  "final": false
+}

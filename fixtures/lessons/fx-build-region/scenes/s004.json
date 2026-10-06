@@ -1,0 +1,21 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-build-region",
+  "sceneId": "s004",
+  "title": "Second wipe",
+  "narration": "A second wipe clears everything, so ids from before may be reused and the board starts fresh for the closing thought.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "slot": "A2:F2",
+      "style": "title",
+      "text": "Same key, same answer, no recompute",
+      "color": "accent1"
+    }
+  ],
+  "final": true
+}

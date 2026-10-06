@@ -1,0 +1,26 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-type-arrow",
+  "title": "Arrow elements",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "Request to cache",
+      "goal": "Explain request to cache"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Across scenes",
+      "goal": "Explain across scenes"
+    },
+    {
+      "sceneId": "s003",
+      "title": "Chain",
+      "goal": "Explain chain"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

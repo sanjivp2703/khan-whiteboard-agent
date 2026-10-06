@@ -1,0 +1,21 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-plot",
+  "sceneId": "s003",
+  "title": "Default ranges",
+  "narration": "Without ranges the x axis runs from minus ten to ten and the y range is chosen from the data. Functions that are undefined for some x simply break there.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "logplot",
+      "type": "plot",
+      "slot": "B1:E3",
+      "fn": "ln(x) + sqrt(abs(x))",
+      "label": "ln and sqrt",
+      "color": "accent3"
+    }
+  ],
+  "final": true
+}

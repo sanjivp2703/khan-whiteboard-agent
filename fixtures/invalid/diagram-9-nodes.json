@@ -1,0 +1,19 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-invalid",
+  "sceneId": "s001",
+  "title": "Invalid case",
+  "narration": "This scene exists only to be rejected by the validator with a specific and stable error code for the test sweep.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "d",
+      "type": "diagram",
+      "slot": "A1:F4",
+      "mermaid": "flowchart TD\nN0\nN1\nN2\nN3\nN4\nN5\nN6\nN7\nN8"
+    }
+  ],
+  "final": false
+}

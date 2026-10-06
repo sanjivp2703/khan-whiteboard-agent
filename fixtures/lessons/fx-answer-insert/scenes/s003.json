@@ -1,0 +1,20 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-answer-insert",
+  "sceneId": "s003",
+  "title": "Third",
+  "narration": "The third scene continues the lesson after any inserted answers have played and the board has been restored to where it was.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "t3",
+      "type": "text",
+      "slot": "A1:C1",
+      "style": "body",
+      "text": "Back to the lesson."
+    }
+  ],
+  "final": false
+}

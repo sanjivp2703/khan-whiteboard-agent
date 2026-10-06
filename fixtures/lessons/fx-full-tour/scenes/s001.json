@@ -1,0 +1,37 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-full-tour",
+  "sceneId": "s001",
+  "title": "The problem",
+  "narration": "Every request to this service recomputes the same expensive answer. The database is queried, templates are rendered, and the result is thrown away the moment it is sent. A response cache keeps that result for the next identical request.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "slot": "A1:D1",
+      "style": "title",
+      "text": "How the response cache works",
+      "color": "accent1"
+    },
+    {
+      "id": "problem",
+      "type": "text",
+      "slot": "A2:C3",
+      "style": "body",
+      "text": "Same request, same expensive work, every single time. The answer is recomputed and discarded.",
+      "color": "accent3"
+    },
+    {
+      "id": "aside",
+      "type": "text",
+      "slot": "D2:F2",
+      "style": "note",
+      "text": "Most traffic repeats within a minute.",
+      "color": "muted"
+    }
+  ],
+  "final": false
+}

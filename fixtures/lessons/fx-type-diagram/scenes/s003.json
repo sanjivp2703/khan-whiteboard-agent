@@ -1,0 +1,19 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-diagram",
+  "sceneId": "s003",
+  "title": "Shapes and edges",
+  "narration": "Every node shape and edge style of the subset is used once here: rectangle, round, stadium, diamond and circle; arrow, line, dotted and thick edges.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "shapes",
+      "type": "diagram",
+      "slot": "A1:D4",
+      "mermaid": "flowchart TD\n%% all forms\nA[Rect] --> B(Round)\nB --- C([Stadium])\nC -.-> D{Diamond}\nD ==> E((Circle))\nE -- back --> A"
+    }
+  ],
+  "final": true
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-type-text",
+  "title": "Text elements",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "Three styles",
+      "goal": "Explain three styles"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Explicit timing",
+      "goal": "Explain explicit timing"
+    },
+    {
+      "sceneId": "s003",
+      "title": "Forty words",
+      "goal": "Explain forty words"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

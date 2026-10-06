@@ -1,0 +1,20 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-invalid",
+  "sceneId": "s001",
+  "title": "Invalid case",
+  "narration": "- This narration starts with a bullet marker which is markdown.\n- A second bullet line follows it, and that is enough words for the cap.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "t1",
+      "type": "text",
+      "slot": "A1:B1",
+      "style": "body",
+      "text": "A perfectly fine piece of text."
+    }
+  ],
+  "final": false
+}

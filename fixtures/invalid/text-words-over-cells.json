@@ -1,0 +1,20 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-invalid",
+  "sceneId": "s001",
+  "title": "Invalid case",
+  "narration": "This scene exists only to be rejected by the validator with a specific and stable error code for the test sweep.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "t1",
+      "type": "text",
+      "slot": "A1",
+      "style": "body",
+      "text": "w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11"
+    }
+  ],
+  "final": false
+}

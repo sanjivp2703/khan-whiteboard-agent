@@ -1,0 +1,20 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-degrade-flow",
+  "sceneId": "s001",
+  "title": "Fine",
+  "narration": "The first scene is valid and gives the degrade tests a ready entry before the broken scene arrives.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "ok1",
+      "type": "text",
+      "slot": "A1:C1",
+      "style": "title",
+      "text": "All good so far"
+    }
+  ],
+  "final": false
+}

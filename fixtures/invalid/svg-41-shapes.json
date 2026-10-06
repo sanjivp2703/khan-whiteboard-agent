@@ -1,0 +1,19 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-invalid",
+  "sceneId": "s001",
+  "title": "Invalid case",
+  "narration": "This scene exists only to be rejected by the validator with a specific and stable error code for the test sweep.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "s",
+      "type": "svg",
+      "slot": "A1:C3",
+      "svg": "<svg viewBox=\"0 0 200 100\"><circle cx=\"10\" cy=\"10\" r=\"2\"/><circle cx=\"30\" cy=\"10\" r=\"2\"/><circle cx=\"50\" cy=\"10\" r=\"2\"/><circle cx=\"70\" cy=\"10\" r=\"2\"/><circle cx=\"90\" cy=\"10\" r=\"2\"/><circle cx=\"110\" cy=\"10\" r=\"2\"/><circle cx=\"130\" cy=\"10\" r=\"2\"/><circle cx=\"150\" cy=\"10\" r=\"2\"/><circle cx=\"170\" cy=\"10\" r=\"2\"/><circle cx=\"190\" cy=\"10\" r=\"2\"/><circle cx=\"10\" cy=\"30\" r=\"2\"/><circle cx=\"30\" cy=\"30\" r=\"2\"/><circle cx=\"50\" cy=\"30\" r=\"2\"/><circle cx=\"70\" cy=\"30\" r=\"2\"/><circle cx=\"90\" cy=\"30\" r=\"2\"/><circle cx=\"110\" cy=\"30\" r=\"2\"/><circle cx=\"130\" cy=\"30\" r=\"2\"/><circle cx=\"150\" cy=\"30\" r=\"2\"/><circle cx=\"170\" cy=\"30\" r=\"2\"/><circle cx=\"190\" cy=\"30\" r=\"2\"/><circle cx=\"10\" cy=\"50\" r=\"2\"/><circle cx=\"30\" cy=\"50\" r=\"2\"/><circle cx=\"50\" cy=\"50\" r=\"2\"/><circle cx=\"70\" cy=\"50\" r=\"2\"/><circle cx=\"90\" cy=\"50\" r=\"2\"/><circle cx=\"110\" cy=\"50\" r=\"2\"/><circle cx=\"130\" cy=\"50\" r=\"2\"/><circle cx=\"150\" cy=\"50\" r=\"2\"/><circle cx=\"170\" cy=\"50\" r=\"2\"/><circle cx=\"190\" cy=\"50\" r=\"2\"/><circle cx=\"10\" cy=\"70\" r=\"2\"/><circle cx=\"30\" cy=\"70\" r=\"2\"/><circle cx=\"50\" cy=\"70\" r=\"2\"/><circle cx=\"70\" cy=\"70\" r=\"2\"/><circle cx=\"90\" cy=\"70\" r=\"2\"/><circle cx=\"110\" cy=\"70\" r=\"2\"/><circle cx=\"130\" cy=\"70\" r=\"2\"/><circle cx=\"150\" cy=\"70\" r=\"2\"/><circle cx=\"170\" cy=\"70\" r=\"2\"/><circle cx=\"190\" cy=\"70\" r=\"2\"/><circle cx=\"10\" cy=\"90\" r=\"2\"/></svg>"
+    }
+  ],
+  "final": false
+}

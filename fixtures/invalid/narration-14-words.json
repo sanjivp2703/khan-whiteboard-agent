@@ -1,0 +1,20 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-invalid",
+  "sceneId": "s001",
+  "title": "Invalid case",
+  "narration": "word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12 word13 word14",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "t1",
+      "type": "text",
+      "slot": "A1:B1",
+      "style": "body",
+      "text": "A perfectly fine piece of text."
+    }
+  ],
+  "final": false
+}

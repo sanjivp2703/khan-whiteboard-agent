@@ -1,0 +1,38 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-table",
+  "sceneId": "s003",
+  "title": "An array",
+  "narration": "Arrays are drawn as a one row table with an index header. Six values across two cells of the grid, header true, exactly as the skill rules say.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "arr",
+      "type": "table",
+      "slot": "A1:B1",
+      "header": true,
+      "rows": [
+        [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ],
+        [
+          "3",
+          "1",
+          "4",
+          "1",
+          "5",
+          "9"
+        ]
+      ],
+      "color": "accent3"
+    }
+  ],
+  "final": true
+}

@@ -1,0 +1,22 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-answer-insert",
+  "sceneId": "q002-a01",
+  "title": "Nested answer",
+  "narration": "A question asked during an answer inserts after that answer scene, nesting two deep. It is a single wipe scene that is also final.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "b1",
+      "type": "text",
+      "slot": "A1:C1",
+      "style": "body",
+      "text": "Nested answer, one scene."
+    }
+  ],
+  "final": true,
+  "questionId": "q002",
+  "insertAfter": "q001-a01"
+}

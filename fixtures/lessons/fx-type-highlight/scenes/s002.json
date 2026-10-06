@@ -1,0 +1,54 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-highlight",
+  "sceneId": "s002",
+  "title": "Every style",
+  "narration": "Underline, strike and pointer styles complete the set, and a highlight on code may name a single line. The pointer draws nothing; the pen simply parks over the target.",
+  "board": {
+    "mode": "region",
+    "slots": "D1:F4"
+  },
+  "elements": [
+    {
+      "id": "later",
+      "type": "text",
+      "slot": "D1:F1",
+      "style": "body",
+      "text": "later work",
+      "color": "accent2"
+    },
+    {
+      "id": "under",
+      "type": "highlight",
+      "target": "later",
+      "style": "underline",
+      "color": "accent2",
+      "at": 0.1
+    },
+    {
+      "id": "strike",
+      "type": "highlight",
+      "target": "key",
+      "style": "strike",
+      "color": "muted",
+      "at": 0.3
+    },
+    {
+      "id": "line2",
+      "type": "highlight",
+      "target": "snippet",
+      "style": "circle",
+      "line": 2,
+      "color": "accent4",
+      "at": 0.5
+    },
+    {
+      "id": "point",
+      "type": "highlight",
+      "target": "snippet",
+      "style": "pointer",
+      "at": 0.7
+    }
+  ],
+  "final": false
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-type-code",
+  "title": "Code elements",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "Three lines",
+      "goal": "Explain three lines"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Fourteen lines",
+      "goal": "Explain fourteen lines"
+    },
+    {
+      "sceneId": "s003",
+      "title": "Exactly twenty two",
+      "goal": "Explain exactly twenty two"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

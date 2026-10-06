@@ -1,0 +1,39 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-build-region",
+  "sceneId": "s003",
+  "title": "Steps and a ring",
+  "narration": "The bottom row takes a list with per item timing, and a highlight rings the title from the first scene, showing references reach back across region scenes.",
+  "board": {
+    "mode": "region",
+    "slots": "A4:F4"
+  },
+  "elements": [
+    {
+      "id": "steps",
+      "type": "list",
+      "slot": "A4:D4",
+      "items": [
+        "hash",
+        "look up",
+        "serve"
+      ],
+      "at": 0,
+      "itemAt": [
+        0,
+        0.2,
+        0.4
+      ],
+      "color": "accent4"
+    },
+    {
+      "id": "ring",
+      "type": "highlight",
+      "target": "title",
+      "style": "circle",
+      "at": 0.7,
+      "color": "accent1"
+    }
+  ],
+  "final": false
+}

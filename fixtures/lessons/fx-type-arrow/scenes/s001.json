@@ -1,0 +1,36 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-arrow",
+  "sceneId": "s001",
+  "title": "Request to cache",
+  "narration": "An arrow connects two elements already on the board and never points at nothing. A label of up to four words sits on the line.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "client",
+      "type": "text",
+      "slot": "A2",
+      "style": "body",
+      "text": "client",
+      "color": "accent1"
+    },
+    {
+      "id": "cache",
+      "type": "box",
+      "slot": "C1:D3",
+      "label": "cache",
+      "color": "accent2"
+    },
+    {
+      "id": "req",
+      "type": "arrow",
+      "from": "client",
+      "to": "cache",
+      "label": "GET with key",
+      "color": "accent1"
+    }
+  ],
+  "final": false
+}

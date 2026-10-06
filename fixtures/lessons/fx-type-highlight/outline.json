@@ -1,0 +1,26 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-type-highlight",
+  "title": "Highlight elements",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "Circle",
+      "goal": "Explain circle"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Every style",
+      "goal": "Explain every style"
+    },
+    {
+      "sceneId": "s003",
+      "title": "Default style",
+      "goal": "Explain default style"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

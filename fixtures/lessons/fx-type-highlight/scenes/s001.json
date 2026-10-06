@@ -1,0 +1,40 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-highlight",
+  "sceneId": "s001",
+  "title": "Circle",
+  "narration": "A highlight draws attention to an element already on the board. The circle style rings the target; here it rings a short text block.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "key",
+      "type": "text",
+      "slot": "A1:B1",
+      "style": "body",
+      "text": "the cache key",
+      "color": "accent1"
+    },
+    {
+      "id": "snippet",
+      "type": "code",
+      "slot": "A2:C3",
+      "lang": "js",
+      "lines": [
+        "const key = hash(req);",
+        "const hit = store.get(key);",
+        "if (hit) return hit;",
+        "return compute(req);"
+      ]
+    },
+    {
+      "id": "ring",
+      "type": "highlight",
+      "target": "key",
+      "style": "circle",
+      "color": "accent3"
+    }
+  ],
+  "final": false
+}

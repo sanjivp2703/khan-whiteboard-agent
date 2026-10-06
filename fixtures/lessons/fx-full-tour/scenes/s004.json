@@ -1,0 +1,28 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-full-tour",
+  "sceneId": "s004",
+  "title": "Hit or miss",
+  "narration": "A diagram makes the branch obvious. On a hit the stored response is served; on a miss the application computes it, the cache stores it, and then it is served.",
+  "board": {
+    "mode": "region",
+    "slots": "A3:F4"
+  },
+  "elements": [
+    {
+      "id": "branch",
+      "type": "diagram",
+      "slot": "A3:D4",
+      "mermaid": "flowchart LR\n  R[Request] --> C{In cache?}\n  C -->|hit| S[Serve]\n  C -->|miss| A[Compute]\n  A --> W[Store]\n  W --> S"
+    },
+    {
+      "id": "legend",
+      "type": "text",
+      "slot": "E3:F4",
+      "style": "note",
+      "text": "Hits are cheap. Misses pay once and then become hits.",
+      "color": "muted"
+    }
+  ],
+  "final": false
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-type-box",
+  "title": "Box elements",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "A labelled box",
+      "goal": "Explain a labelled box"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Plain and long label",
+      "goal": "Explain plain and long label"
+    },
+    {
+      "sceneId": "s003",
+      "title": "Coloured boxes",
+      "goal": "Explain coloured boxes"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

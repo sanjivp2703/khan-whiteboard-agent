@@ -1,0 +1,26 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-type-svg",
+  "title": "SVG elements",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "Last resort",
+      "goal": "Explain last resort"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Forty shapes",
+      "goal": "Explain forty shapes"
+    },
+    {
+      "sceneId": "s003",
+      "title": "Groups and transforms",
+      "goal": "Explain groups and transforms"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

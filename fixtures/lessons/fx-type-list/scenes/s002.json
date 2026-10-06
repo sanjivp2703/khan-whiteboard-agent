@@ -1,0 +1,38 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-list",
+  "sceneId": "s002",
+  "title": "Six ordered items",
+  "narration": "An ordered list can hold up to six items and needs at least two rows for that many. Each item here has its own explicit reveal time so the pacing matches the narration exactly.",
+  "board": {
+    "mode": "region",
+    "slots": "C1:F2"
+  },
+  "elements": [
+    {
+      "id": "six",
+      "type": "list",
+      "slot": "C1:E2",
+      "ordered": true,
+      "items": [
+        "Receive request",
+        "Normalise headers",
+        "Compute key",
+        "Check store",
+        "Serve or compute",
+        "Write back"
+      ],
+      "at": 0.05,
+      "itemAt": [
+        0.05,
+        0.15,
+        0.3,
+        0.45,
+        0.6,
+        0.75
+      ],
+      "color": "accent2"
+    }
+  ],
+  "final": false
+}

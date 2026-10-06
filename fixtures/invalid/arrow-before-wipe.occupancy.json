@@ -1,0 +1,18 @@
+{
+  "cells": [
+    "A1",
+    "B1",
+    "C2"
+  ],
+  "elements": {
+    "prior": {
+      "type": "text",
+      "slot": "A1:B1"
+    },
+    "code0": {
+      "type": "code",
+      "slot": "C2",
+      "lineCount": 3
+    }
+  }
+}

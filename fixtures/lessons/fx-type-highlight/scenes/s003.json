@@ -1,0 +1,27 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-highlight",
+  "sceneId": "s003",
+  "title": "Default style",
+  "narration": "When no style is given the highlight defaults to a circle. This last scene wipes the board and rings a fresh block of text.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "fresh",
+      "type": "text",
+      "slot": "B2:D2",
+      "style": "title",
+      "text": "Done",
+      "color": "accent5"
+    },
+    {
+      "id": "ring2",
+      "type": "highlight",
+      "target": "fresh",
+      "color": "accent5"
+    }
+  ],
+  "final": true
+}

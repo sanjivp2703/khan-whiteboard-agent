@@ -1,0 +1,30 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-full-tour",
+  "sceneId": "s006",
+  "title": "Cost falls as hits rise",
+  "narration": "Plotting the average cost against the hit rate gives a straight line from full cost at zero hits down to nothing at a perfect hit rate.",
+  "board": {
+    "mode": "region",
+    "slots": "A3:D4"
+  },
+  "elements": [
+    {
+      "id": "costplot",
+      "type": "plot",
+      "slot": "A3:D4",
+      "fn": "1 - x",
+      "xRange": [
+        0,
+        1
+      ],
+      "yRange": [
+        0,
+        1
+      ],
+      "label": "cost vs hit rate",
+      "color": "accent2"
+    }
+  ],
+  "final": false
+}

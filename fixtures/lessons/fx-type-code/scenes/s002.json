@@ -1,0 +1,36 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-code",
+  "sceneId": "s002",
+  "title": "Fourteen lines",
+  "narration": "A code element may have fourteen lines at most, seven per row of cells, and up to twenty two characters per column of cells. This block uses all fourteen lines across three columns.",
+  "board": {
+    "mode": "region",
+    "slots": "C1:E2"
+  },
+  "elements": [
+    {
+      "id": "full",
+      "type": "code",
+      "slot": "C1:E2",
+      "lang": "js",
+      "lines": [
+        "async function get(req) {",
+        "  const key = hash(req);",
+        "  const hit = store.get(key);",
+        "  if (hit) return hit;",
+        "  const res = await compute(req);",
+        "  store.set(key, res, ttl);",
+        "  return res;",
+        "}",
+        "",
+        "function hash(req) {",
+        "  return sha(req.url + req.body);",
+        "}",
+        "",
+        "// 14 lines, 66 chars max per line"
+      ]
+    }
+  ],
+  "final": false
+}

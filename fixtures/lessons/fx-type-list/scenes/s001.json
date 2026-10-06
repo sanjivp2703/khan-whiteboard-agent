@@ -1,0 +1,24 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-list",
+  "sceneId": "s001",
+  "title": "Three steps",
+  "narration": "A list reveals one item at a time. The three steps of a cache lookup are shown in order, each appearing as the narration reaches it.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "steps",
+      "type": "list",
+      "slot": "A1:B2",
+      "items": [
+        "Hash the request",
+        "Look up the hash",
+        "Return the stored answer"
+      ],
+      "color": "accent1"
+    }
+  ],
+  "final": false
+}

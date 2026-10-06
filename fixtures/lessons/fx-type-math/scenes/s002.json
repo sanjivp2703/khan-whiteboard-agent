@@ -1,0 +1,35 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-math",
+  "sceneId": "s002",
+  "title": "Aligned on equals",
+  "narration": "Several lines are aligned on their equals signs and appear in turn, so a derivation reads top to bottom with the equalities in one column.",
+  "board": {
+    "mode": "region",
+    "slots": "A2:F3"
+  },
+  "elements": [
+    {
+      "id": "derive",
+      "type": "math",
+      "slot": "A2:C3",
+      "lines": [
+        "(a+b)^2 = a^2 + 2ab + b^2",
+        "a^2 + 2ab + b^2 = c^2 + 2ab",
+        "ab = \\frac{c^2 - a^2 - b^2}{2}"
+      ],
+      "color": "accent2"
+    },
+    {
+      "id": "sum",
+      "type": "math",
+      "slot": "D2:F3",
+      "lines": [
+        "\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}",
+        "\\int_0^1 x^2 \\, dx = \\frac{1}{3}"
+      ],
+      "color": "accent3"
+    }
+  ],
+  "final": false
+}

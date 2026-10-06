@@ -1,0 +1,31 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-full-tour",
+  "sceneId": "s005",
+  "title": "Hit rate",
+  "narration": "The hit rate is the fraction of requests served from the cache. With a hit rate h and an origin cost c, the average cost per request falls to one minus h times c.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "hitrate",
+      "type": "math",
+      "slot": "A1:D2",
+      "lines": [
+        "h = \\frac{\\text{hits}}{\\text{hits} + \\text{misses}}",
+        "\\bar{c} = (1 - h)\\, c"
+      ],
+      "color": "accent1"
+    },
+    {
+      "id": "ex",
+      "type": "text",
+      "slot": "E1:F2",
+      "style": "note",
+      "text": "At ninety percent hits the origin does a tenth of the work.",
+      "color": "muted"
+    }
+  ],
+  "final": false
+}

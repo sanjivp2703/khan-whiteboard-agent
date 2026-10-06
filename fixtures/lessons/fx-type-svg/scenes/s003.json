@@ -1,0 +1,19 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-svg",
+  "sceneId": "s003",
+  "title": "Groups and transforms",
+  "narration": "Groups may carry translate, scale and rotate transforms, and every allowlisted shape appears here once: path, line, circle, ellipse, rect, polyline, polygon and text.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "all",
+      "type": "svg",
+      "slot": "B1:E4",
+      "svg": "<svg viewBox=\"0 0 120 120\" xmlns=\"http://www.w3.org/2000/svg\"><g transform=\"translate(10,10)\"><path d=\"M0 0 L40 0 Q 50 20 40 40 Z\" stroke=\"accent1\" fill=\"none\"/><line x1=\"0\" y1=\"50\" x2=\"40\" y2=\"50\" stroke=\"muted\"/></g><g transform=\"translate(60,10) scale(0.5)\"><circle cx=\"40\" cy=\"40\" r=\"30\" stroke=\"accent2\" fill=\"none\"/><ellipse cx=\"40\" cy=\"40\" rx=\"20\" ry=\"10\" stroke=\"accent3\" fill=\"none\"/></g><g transform=\"rotate(10, 60, 90)\"><rect x=\"20\" y=\"80\" width=\"30\" height=\"20\" stroke=\"accent4\" fill=\"none\"/></g><polyline points=\"70,70 80,90 90,70 100,90\" stroke=\"accent5\" fill=\"none\"/><polygon points=\"70,100 90,100 80,115\" stroke=\"chalk\" fill=\"none\"/><text x=\"60\" y=\"65\" font-size=\"7\" text-anchor=\"middle\" fill=\"chalk\">all eight shapes in one</text></svg>"
+    }
+  ],
+  "final": true
+}

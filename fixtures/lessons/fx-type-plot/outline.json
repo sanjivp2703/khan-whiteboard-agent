@@ -1,0 +1,26 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-type-plot",
+  "title": "Plot elements",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "A parabola",
+      "goal": "Explain a parabola"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Three series",
+      "goal": "Explain three series"
+    },
+    {
+      "sceneId": "s003",
+      "title": "Default ranges",
+      "goal": "Explain default ranges"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

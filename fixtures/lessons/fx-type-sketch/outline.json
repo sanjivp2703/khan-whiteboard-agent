@@ -1,0 +1,26 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-type-sketch",
+  "title": "Sketch library",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "Five shapes",
+      "goal": "Explain five shapes"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Five more",
+      "goal": "Explain five more"
+    },
+    {
+      "sceneId": "s003",
+      "title": "Unlabelled and small",
+      "goal": "Explain unlabelled and small"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

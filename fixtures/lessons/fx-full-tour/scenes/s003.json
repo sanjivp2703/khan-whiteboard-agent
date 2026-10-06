@@ -1,0 +1,48 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-full-tour",
+  "sceneId": "s003",
+  "title": "The lookup",
+  "narration": "The lookup is three steps. Hash the request into a key, look the key up in the store, and if there is a hit return it immediately without touching the application.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "steps",
+      "type": "list",
+      "slot": "A1:C2",
+      "ordered": true,
+      "items": [
+        "Hash the request into a key",
+        "Look the key up in the store",
+        "On a hit, return it at once"
+      ],
+      "color": "accent2"
+    },
+    {
+      "id": "code",
+      "type": "code",
+      "slot": "D1:F2",
+      "lang": "js",
+      "lines": [
+        "const key = hash(req);",
+        "const hit = store.get(key);",
+        "if (hit) return hit;",
+        "const res = await compute(req);",
+        "store.set(key, res, ttl);",
+        "return res;"
+      ]
+    },
+    {
+      "id": "hitline",
+      "type": "highlight",
+      "target": "code",
+      "style": "circle",
+      "line": 3,
+      "at": 0.7,
+      "color": "accent1"
+    }
+  ],
+  "final": false
+}

@@ -1,0 +1,19 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-invalid",
+  "sceneId": "s001",
+  "title": "Invalid case",
+  "narration": "This scene exists only to be rejected by the validator with a specific and stable error code for the test sweep.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "s",
+      "type": "svg",
+      "slot": "A1:C3",
+      "svg": "<svg viewBox=\"0 0 100 100\"><text x=\"1\" y=\"50\">one two three four five six seven</text></svg>"
+    }
+  ],
+  "final": false
+}

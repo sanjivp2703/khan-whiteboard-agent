@@ -1,0 +1,20 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-invalid",
+  "sceneId": "s001",
+  "title": "Invalid case",
+  "narration": "This narration contains **bold markdown** which the text to speech engine would read aloud as literal asterisks, so it is rejected.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "t1",
+      "type": "text",
+      "slot": "A1:B1",
+      "style": "body",
+      "text": "A perfectly fine piece of text."
+    }
+  ],
+  "final": false
+}

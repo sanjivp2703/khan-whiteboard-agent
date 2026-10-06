@@ -1,0 +1,31 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-answer-insert",
+  "title": "Answer insertion",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "Opening",
+      "goal": "Explain opening"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Second",
+      "goal": "Explain second"
+    },
+    {
+      "sceneId": "s003",
+      "title": "Third",
+      "goal": "Explain third"
+    },
+    {
+      "sceneId": "s004",
+      "title": "Closing",
+      "goal": "Explain closing"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

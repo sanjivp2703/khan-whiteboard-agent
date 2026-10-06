@@ -1,0 +1,33 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-full-tour",
+  "sceneId": "s010",
+  "title": "Summary",
+  "narration": "Cache the whole response, key it by the request, serve hits instantly, bound the memory with an eviction policy, and bound staleness with a time to live. That is the entire mechanism.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "sum",
+      "type": "list",
+      "slot": "A1:D2",
+      "items": [
+        "Key by request",
+        "Serve hits instantly",
+        "Evict to bound memory",
+        "Expire to bound staleness"
+      ],
+      "color": "accent1"
+    },
+    {
+      "id": "end",
+      "type": "text",
+      "slot": "A3:F3",
+      "style": "title",
+      "text": "Same key, same answer",
+      "color": "accent5"
+    }
+  ],
+  "final": true
+}

@@ -1,0 +1,20 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-answer-insert",
+  "sceneId": "s004",
+  "title": "Closing",
+  "narration": "The closing scene is marked final so the server knows the lesson track is complete once the player reports its end.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "t4",
+      "type": "text",
+      "slot": "A1:C1",
+      "style": "title",
+      "text": "The end"
+    }
+  ],
+  "final": true
+}

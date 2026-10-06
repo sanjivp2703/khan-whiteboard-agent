@@ -1,0 +1,36 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-text",
+  "sceneId": "s001",
+  "title": "Three styles",
+  "narration": "Every piece of writing on the board is one of three text styles. The title is big and short, the body carries the explanation, and a note sits quietly beside the main idea with extra detail.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "slot": "A1:C1",
+      "style": "title",
+      "text": "Caching in one picture"
+    },
+    {
+      "id": "body",
+      "type": "text",
+      "slot": "A2:B3",
+      "style": "body",
+      "text": "A cache keeps a copy of an expensive answer close to the code that asks for it, so the next identical request is served from memory instead of being computed again.",
+      "color": "accent1"
+    },
+    {
+      "id": "note",
+      "type": "text",
+      "slot": "C2",
+      "style": "note",
+      "text": "Same input, same output, no second trip.",
+      "color": "muted"
+    }
+  ],
+  "final": false
+}

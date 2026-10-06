@@ -1,0 +1,20 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-answer-insert",
+  "sceneId": "s001",
+  "title": "Opening",
+  "narration": "The lesson opens with a single statement on the board. Everything that follows builds on this one idea about caching the whole response.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "t1",
+      "type": "text",
+      "slot": "A1:C1",
+      "style": "title",
+      "text": "Cache the response"
+    }
+  ],
+  "final": false
+}

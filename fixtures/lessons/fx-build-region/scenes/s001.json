@@ -1,0 +1,28 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-build-region",
+  "sceneId": "s001",
+  "title": "The frame",
+  "narration": "We start with a wipe and lay down the title and a box for the cache. Later scenes will add to this board region by region without redrawing it.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "slot": "A1:C1",
+      "style": "title",
+      "text": "How a lookup flows",
+      "color": "accent1"
+    },
+    {
+      "id": "cache",
+      "type": "box",
+      "slot": "B2:C3",
+      "label": "cache",
+      "color": "accent2"
+    }
+  ],
+  "final": false
+}

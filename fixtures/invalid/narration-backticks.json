@@ -1,0 +1,20 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-invalid",
+  "sceneId": "s001",
+  "title": "Invalid case",
+  "narration": "This narration contains `code` in backticks which belongs in a code element and never in the spoken narration of a scene.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "t1",
+      "type": "text",
+      "slot": "A1:B1",
+      "style": "body",
+      "text": "A perfectly fine piece of text."
+    }
+  ],
+  "final": false
+}

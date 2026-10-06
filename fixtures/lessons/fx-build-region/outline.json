@@ -1,0 +1,31 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-build-region",
+  "title": "Building up a board",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "The frame",
+      "goal": "Explain the frame"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Add the client",
+      "goal": "Explain add the client"
+    },
+    {
+      "sceneId": "s003",
+      "title": "Steps and a ring",
+      "goal": "Explain steps and a ring"
+    },
+    {
+      "sceneId": "s004",
+      "title": "Second wipe",
+      "goal": "Explain second wipe"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

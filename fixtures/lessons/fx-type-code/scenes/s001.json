@@ -1,0 +1,24 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-code",
+  "sceneId": "s001",
+  "title": "Three lines",
+  "narration": "Code goes in a code element and never in the narration. Three short lines of JavaScript show a cache lookup, written in the fixed width handwriting style.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "lookup",
+      "type": "code",
+      "slot": "A1:B1",
+      "lang": "js",
+      "lines": [
+        "const key = hash(req);",
+        "const hit = store.get(key);",
+        "if (hit) return hit;"
+      ]
+    }
+  ],
+  "final": false
+}

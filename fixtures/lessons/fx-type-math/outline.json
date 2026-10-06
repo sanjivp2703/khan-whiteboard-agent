@@ -1,0 +1,26 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-type-math",
+  "title": "Math elements",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "One equation",
+      "goal": "Explain one equation"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Aligned on equals",
+      "goal": "Explain aligned on equals"
+    },
+    {
+      "sceneId": "s003",
+      "title": "Near the caps",
+      "goal": "Explain near the caps"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

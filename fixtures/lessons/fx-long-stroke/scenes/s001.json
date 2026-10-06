@@ -1,0 +1,20 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-long-stroke",
+  "sceneId": "s001",
+  "title": "Setup",
+  "narration": "This lesson exists to test the yield rule. The first two scenes are ordinary; the last one has very little narration and a great deal of drawing.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "intro",
+      "type": "text",
+      "slot": "A1:C1",
+      "style": "title",
+      "text": "Pen versus voice"
+    }
+  ],
+  "final": false
+}

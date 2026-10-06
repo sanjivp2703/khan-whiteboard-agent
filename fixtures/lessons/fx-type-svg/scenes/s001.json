@@ -1,0 +1,19 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-svg",
+  "sceneId": "s001",
+  "title": "Last resort",
+  "narration": "When no sketch, diagram or plot fits, a small SVG may be used. It must declare a viewBox and use only the allowlisted shapes, which are then scaled into the slot.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "simple",
+      "type": "svg",
+      "slot": "A1:C3",
+      "svg": "<svg viewBox=\"0 0 100 60\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"5\" y=\"5\" width=\"40\" height=\"30\" stroke=\"accent1\" fill=\"none\"/><circle cx=\"75\" cy=\"30\" r=\"15\" stroke=\"accent2\" fill=\"accent2\"/><text x=\"25\" y=\"50\" font-size=\"8\" text-anchor=\"middle\" fill=\"chalk\">a box</text></svg>"
+    }
+  ],
+  "final": false
+}

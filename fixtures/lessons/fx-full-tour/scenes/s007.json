@@ -1,0 +1,58 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-full-tour",
+  "sceneId": "s007",
+  "title": "Eviction policies",
+  "narration": "Memory is finite, so something must be evicted. Least recently used drops what has not been touched for longest; least frequently used drops what is rarely asked for.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "policies",
+      "type": "table",
+      "slot": "A1:C2",
+      "header": true,
+      "rows": [
+        [
+          "Policy",
+          "Evicts",
+          "Good for"
+        ],
+        [
+          "LRU",
+          "oldest use",
+          "recency"
+        ],
+        [
+          "LFU",
+          "rarest",
+          "hot keys"
+        ],
+        [
+          "TTL",
+          "expired",
+          "freshness"
+        ]
+      ],
+      "color": "accent3"
+    },
+    {
+      "id": "memory",
+      "type": "box",
+      "slot": "D1:F2",
+      "label": "bounded memory",
+      "color": "muted"
+    },
+    {
+      "id": "evict",
+      "type": "arrow",
+      "from": "policies",
+      "to": "memory",
+      "label": "frees",
+      "at": 0.6,
+      "color": "accent3"
+    }
+  ],
+  "final": false
+}

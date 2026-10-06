@@ -1,0 +1,37 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-table",
+  "sceneId": "s001",
+  "title": "Small table",
+  "narration": "A table is drawn cell by cell. This one compares three cache policies in three columns with a header row, fitting in a single cell of the grid.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "policies",
+      "type": "table",
+      "slot": "A1:B1",
+      "header": true,
+      "rows": [
+        [
+          "Policy",
+          "Evicts",
+          "Cost"
+        ],
+        [
+          "LRU",
+          "oldest use",
+          "low"
+        ],
+        [
+          "LFU",
+          "rarest",
+          "medium"
+        ]
+      ],
+      "color": "accent1"
+    }
+  ],
+  "final": false
+}

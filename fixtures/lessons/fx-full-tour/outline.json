@@ -1,0 +1,63 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-full-tour",
+  "title": "How the response cache works",
+  "audience": "working developer",
+  "focus": "the response cache",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "The problem",
+      "goal": "Explain the problem"
+    },
+    {
+      "sceneId": "s002",
+      "title": "The shape of a cache",
+      "goal": "Explain the shape of a cache"
+    },
+    {
+      "sceneId": "s003",
+      "title": "The lookup",
+      "goal": "Explain the lookup"
+    },
+    {
+      "sceneId": "s004",
+      "title": "Hit or miss",
+      "goal": "Explain hit or miss"
+    },
+    {
+      "sceneId": "s005",
+      "title": "Hit rate",
+      "goal": "Explain hit rate"
+    },
+    {
+      "sceneId": "s006",
+      "title": "Cost falls as hits rise",
+      "goal": "Explain cost falls as hits rise"
+    },
+    {
+      "sceneId": "s007",
+      "title": "Eviction policies",
+      "goal": "Explain eviction policies"
+    },
+    {
+      "sceneId": "s008",
+      "title": "Staleness",
+      "goal": "Explain staleness"
+    },
+    {
+      "sceneId": "s009",
+      "title": "Putting it together",
+      "goal": "Explain putting it together"
+    },
+    {
+      "sceneId": "s010",
+      "title": "Summary",
+      "goal": "Explain summary"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

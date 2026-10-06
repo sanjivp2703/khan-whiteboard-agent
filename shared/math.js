@@ -59,7 +59,8 @@ export function checkMathCaps(lines) {
 export const MATHJAX_CONFIG = Object.freeze({
   tex: { packages: ['base', 'ams'], inlineMath: [], displayMath: [], processEscapes: false, processEnvironments: false, processRefs: false, tags: 'none' },
   svg: { fontCache: 'none', displayAlign: 'left', mtextInheritFont: false, scale: 1, minScale: 1 },
-  options: { enableMenu: false, enableAssistiveMml: false },
+  /** browser only: tex-svg.js bundles the menu and assistive-mml components; node-main has neither */
+  browserOptions: { enableMenu: false, enableAssistiveMml: false },
   startup: { typeset: false },
 });
 
@@ -79,7 +80,6 @@ function nodeInit() {
       loader: { load: ['input/tex', 'output/svg'], paths: { mathjax: es5Dir.replace(/\/$/, '') }, require },
       tex: { ...MATHJAX_CONFIG.tex, formatError: (_jax, err) => { throw err; } },
       svg: { ...MATHJAX_CONFIG.svg },
-      options: { ...MATHJAX_CONFIG.options },
       startup: { ...MATHJAX_CONFIG.startup },
     });
     adaptor = instance.startup.adaptor;
@@ -94,7 +94,7 @@ function browserInit() {
       loader: { load: [] },
       tex: { ...MATHJAX_CONFIG.tex, formatError: (_jax, err) => { throw err; } },
       svg: { ...MATHJAX_CONFIG.svg },
-      options: { ...MATHJAX_CONFIG.options },
+      options: { ...MATHJAX_CONFIG.browserOptions },
       startup: { ...MATHJAX_CONFIG.startup },
     };
     const script = document.createElement('script');

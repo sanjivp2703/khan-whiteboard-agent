@@ -1,0 +1,19 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-svg",
+  "sceneId": "s002",
+  "title": "Forty shapes",
+  "narration": "Forty shapes is the most an SVG element may contain, in at most four kilobytes. This grid of circles, squares and ticks sits right at that cap.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "forty",
+      "type": "svg",
+      "slot": "A1:D4",
+      "svg": "<svg viewBox=\"0 0 200 100\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"12\" cy=\"10\" r=\"6\" stroke=\"accent1\" fill=\"none\"/><rect x=\"31\" y=\"4\" width=\"12\" height=\"12\" stroke=\"chalk\" fill=\"none\"/><line x1=\"56\" y1=\"10\" x2=\"68\" y2=\"10\" stroke=\"muted\"/><circle cx=\"87\" cy=\"10\" r=\"6\" stroke=\"accent4\" fill=\"none\"/><rect x=\"106\" y=\"4\" width=\"12\" height=\"12\" stroke=\"chalk\" fill=\"none\"/><line x1=\"131\" y1=\"10\" x2=\"143\" y2=\"10\" stroke=\"muted\"/><circle cx=\"162\" cy=\"10\" r=\"6\" stroke=\"accent2\" fill=\"none\"/><rect x=\"181\" y=\"4\" width=\"12\" height=\"12\" stroke=\"chalk\" fill=\"none\"/><line x1=\"6\" y1=\"30\" x2=\"18\" y2=\"30\" stroke=\"muted\"/><circle cx=\"37\" cy=\"30\" r=\"6\" stroke=\"accent5\" fill=\"none\"/><rect x=\"56\" y=\"24\" width=\"12\" height=\"12\" stroke=\"chalk\" fill=\"none\"/><line x1=\"81\" y1=\"30\" x2=\"93\" y2=\"30\" stroke=\"muted\"/><circle cx=\"112\" cy=\"30\" r=\"6\" stroke=\"accent3\" fill=\"none\"/><rect x=\"131\" y=\"24\" width=\"12\" height=\"12\" stroke=\"chalk\" fill=\"none\"/><line x1=\"156\" y1=\"30\" x2=\"168\" y2=\"30\" stroke=\"muted\"/><circle cx=\"187\" cy=\"30\" r=\"6\" stroke=\"accent1\" fill=\"none\"/><rect x=\"6\" y=\"44\" width=\"12\" height=\"12\" stroke=\"chalk\" fill=\"none\"/><line x1=\"31\" y1=\"50\" x2=\"43\" y2=\"50\" stroke=\"muted\"/><circle cx=\"62\" cy=\"50\" r=\"6\" stroke=\"accent4\" fill=\"none\"/><rect x=\"81\" y=\"44\" width=\"12\" height=\"12\" stroke=\"chalk\" fill=\"none\"/><line x1=\"106\" y1=\"50\" x2=\"118\" y2=\"50\" stroke=\"muted\"/><circle cx=\"137\" cy=\"50\" r=\"6\" stroke=\"accent2\" fill=\"none\"/><rect x=\"156\" y=\"44\" width=\"12\" height=\"12\" stroke=\"chalk\" fill=\"none\"/><line x1=\"181\" y1=\"50\" x2=\"193\" y2=\"50\" stroke=\"muted\"/><circle cx=\"12\" cy=\"70\" r=\"6\" stroke=\"accent5\" fill=\"none\"/><rect x=\"31\" y=\"64\" width=\"12\" height=\"12\" stroke=\"chalk\" fill=\"none\"/><line x1=\"56\" y1=\"70\" x2=\"68\" y2=\"70\" stroke=\"muted\"/><circle cx=\"87\" cy=\"70\" r=\"6\" stroke=\"accent3\" fill=\"none\"/><rect x=\"106\" y=\"64\" width=\"12\" height=\"12\" stroke=\"chalk\" fill=\"none\"/><line x1=\"131\" y1=\"70\" x2=\"143\" y2=\"70\" stroke=\"muted\"/><circle cx=\"162\" cy=\"70\" r=\"6\" stroke=\"accent1\" fill=\"none\"/><rect x=\"181\" y=\"64\" width=\"12\" height=\"12\" stroke=\"chalk\" fill=\"none\"/><line x1=\"6\" y1=\"90\" x2=\"18\" y2=\"90\" stroke=\"muted\"/><circle cx=\"37\" cy=\"90\" r=\"6\" stroke=\"accent4\" fill=\"none\"/><rect x=\"56\" y=\"84\" width=\"12\" height=\"12\" stroke=\"chalk\" fill=\"none\"/><line x1=\"81\" y1=\"90\" x2=\"93\" y2=\"90\" stroke=\"muted\"/><circle cx=\"112\" cy=\"90\" r=\"6\" stroke=\"accent2\" fill=\"none\"/><rect x=\"131\" y=\"84\" width=\"12\" height=\"12\" stroke=\"chalk\" fill=\"none\"/><line x1=\"156\" y1=\"90\" x2=\"168\" y2=\"90\" stroke=\"muted\"/><circle cx=\"187\" cy=\"90\" r=\"6\" stroke=\"accent5\" fill=\"none\"/></svg>"
+    }
+  ],
+  "final": false
+}

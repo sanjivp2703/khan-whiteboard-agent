@@ -1,0 +1,19 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-diagram",
+  "sceneId": "s002",
+  "title": "Eight nodes",
+  "narration": "The largest diagram has eight nodes and twelve edges. It is laid out left to right across the whole board, with short labels so it stays readable.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "max",
+      "type": "diagram",
+      "slot": "A1:F4",
+      "mermaid": "graph LR\nA[Client] --> B[Edge]\nB --> C[Cache]\nC -->|hit| D[Response]\nC -->|miss| E[App]\nE --> F[(DB)]\nF --> E\nE --> C\nB --> G[Auth]\nG --> E\nA --> H[Metrics]\nB --> H\nE --> H"
+    }
+  ],
+  "final": false
+}

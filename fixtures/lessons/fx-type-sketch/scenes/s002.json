@@ -1,0 +1,53 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-sketch",
+  "sceneId": "s002",
+  "title": "Five more",
+  "narration": "Stack, person, numberline, axes and grid complete the ten shape library. The library can grow later without changing the scene contract.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "stack",
+      "type": "sketch",
+      "slot": "A1:B2",
+      "shape": "stack",
+      "label": "stack",
+      "color": "accent1"
+    },
+    {
+      "id": "person",
+      "type": "sketch",
+      "slot": "C1:D2",
+      "shape": "person",
+      "label": "person",
+      "color": "accent2"
+    },
+    {
+      "id": "numberline",
+      "type": "sketch",
+      "slot": "E1:F2",
+      "shape": "numberline",
+      "label": "numberline",
+      "color": "accent3"
+    },
+    {
+      "id": "axes",
+      "type": "sketch",
+      "slot": "A3:B4",
+      "shape": "axes",
+      "label": "axes",
+      "color": "accent4"
+    },
+    {
+      "id": "grid",
+      "type": "sketch",
+      "slot": "C3:D4",
+      "shape": "grid",
+      "label": "grid",
+      "color": "accent5"
+    }
+  ],
+  "final": false
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-type-list",
+  "title": "List elements",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "Three steps",
+      "goal": "Explain three steps"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Six ordered items",
+      "goal": "Explain six ordered items"
+    },
+    {
+      "sceneId": "s003",
+      "title": "Long items",
+      "goal": "Explain long items"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

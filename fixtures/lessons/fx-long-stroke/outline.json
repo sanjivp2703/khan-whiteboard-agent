@@ -1,0 +1,26 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-long-stroke",
+  "title": "Audio yields to the pen",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "Setup",
+      "goal": "Explain setup"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Middle",
+      "goal": "Explain middle"
+    },
+    {
+      "sceneId": "s003",
+      "title": "Long strokes",
+      "goal": "Explain long strokes"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

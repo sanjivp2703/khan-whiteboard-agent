@@ -1,0 +1,33 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-degrade-flow",
+  "sceneId": "s002",
+  "title": "Broken",
+  "narration": "This scene has one invalid element among valid ones. The bad text overflows its single cell by a wide margin; the box and note are fine.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "good",
+      "type": "box",
+      "slot": "A1:B2",
+      "label": "kept"
+    },
+    {
+      "id": "bad",
+      "type": "text",
+      "slot": "C1",
+      "style": "title",
+      "text": "Nine words title too long for a cell"
+    },
+    {
+      "id": "note",
+      "type": "text",
+      "slot": "A3:B3",
+      "style": "note",
+      "text": "also kept"
+    }
+  ],
+  "final": false
+}

@@ -1,0 +1,74 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-full-tour",
+  "sceneId": "s009",
+  "title": "Putting it together",
+  "narration": "The whole picture: client, cache, application and database in a row, with the cache absorbing most of the traffic before it reaches anything expensive.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "client",
+      "type": "sketch",
+      "slot": "A2",
+      "shape": "person",
+      "label": "client",
+      "color": "accent4"
+    },
+    {
+      "id": "cache",
+      "type": "box",
+      "slot": "B2:C2",
+      "label": "cache",
+      "color": "accent2"
+    },
+    {
+      "id": "app",
+      "type": "sketch",
+      "slot": "D2",
+      "shape": "server",
+      "label": "app",
+      "color": "accent1"
+    },
+    {
+      "id": "db",
+      "type": "sketch",
+      "slot": "E2:F2",
+      "shape": "database",
+      "label": "database",
+      "color": "accent3"
+    },
+    {
+      "id": "c2c",
+      "type": "arrow",
+      "from": "client",
+      "to": "cache",
+      "color": "accent4"
+    },
+    {
+      "id": "c2a",
+      "type": "arrow",
+      "from": "cache",
+      "to": "app",
+      "label": "misses only",
+      "color": "accent2"
+    },
+    {
+      "id": "a2d",
+      "type": "arrow",
+      "from": "app",
+      "to": "db",
+      "color": "accent1"
+    },
+    {
+      "id": "mostly",
+      "type": "highlight",
+      "target": "cache",
+      "style": "underline",
+      "at": 0.8,
+      "color": "accent2"
+    }
+  ],
+  "final": false
+}

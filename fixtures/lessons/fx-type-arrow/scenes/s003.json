@@ -1,0 +1,50 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-arrow",
+  "sceneId": "s003",
+  "title": "Chain",
+  "narration": "After a wipe three boxes form a chain with two arrows, each coloured to match the concept it carries, so the flow reads left to right.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "a",
+      "type": "box",
+      "slot": "A2",
+      "label": "A",
+      "color": "accent1"
+    },
+    {
+      "id": "b",
+      "type": "box",
+      "slot": "C2",
+      "label": "B",
+      "color": "accent2"
+    },
+    {
+      "id": "c",
+      "type": "box",
+      "slot": "E2",
+      "label": "C",
+      "color": "accent3"
+    },
+    {
+      "id": "ab",
+      "type": "arrow",
+      "from": "a",
+      "to": "b",
+      "label": "first",
+      "color": "accent1"
+    },
+    {
+      "id": "bc",
+      "type": "arrow",
+      "from": "b",
+      "to": "c",
+      "label": "then",
+      "color": "accent2"
+    }
+  ],
+  "final": true
+}

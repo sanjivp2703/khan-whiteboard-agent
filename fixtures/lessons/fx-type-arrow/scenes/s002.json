@@ -1,0 +1,29 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-arrow",
+  "sceneId": "s002",
+  "title": "Across scenes",
+  "narration": "Arrows may reference elements drawn in earlier scenes since the last wipe. The database appears in a region and the arrow from the cache to it is drawn without a label.",
+  "board": {
+    "mode": "region",
+    "slots": "E1:F4"
+  },
+  "elements": [
+    {
+      "id": "db",
+      "type": "sketch",
+      "slot": "E2:F3",
+      "shape": "database",
+      "label": "origin",
+      "color": "accent3"
+    },
+    {
+      "id": "miss",
+      "type": "arrow",
+      "from": "cache",
+      "to": "db",
+      "color": "muted"
+    }
+  ],
+  "final": false
+}

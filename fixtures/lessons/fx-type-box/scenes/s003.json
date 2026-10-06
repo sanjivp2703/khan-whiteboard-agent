@@ -1,0 +1,27 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-box",
+  "sceneId": "s003",
+  "title": "Coloured boxes",
+  "narration": "Boxes take any accent colour and any slot size, from a single cell to the whole board. Two sizes are shown here after a wipe.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "one",
+      "type": "box",
+      "slot": "A1",
+      "label": "one cell",
+      "color": "accent3"
+    },
+    {
+      "id": "wide",
+      "type": "box",
+      "slot": "B1:F4",
+      "label": "the rest",
+      "color": "accent5"
+    }
+  ],
+  "final": true
+}

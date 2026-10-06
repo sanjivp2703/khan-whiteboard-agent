@@ -1,0 +1,22 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-math",
+  "sceneId": "s001",
+  "title": "One equation",
+  "narration": "Equations are always math elements, never text. A single line is written in the body size and revealed stroke by stroke like everything else.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "emc",
+      "type": "math",
+      "slot": "A1:C1",
+      "lines": [
+        "E = mc^2"
+      ],
+      "color": "accent1"
+    }
+  ],
+  "final": false
+}

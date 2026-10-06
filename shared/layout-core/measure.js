@@ -76,8 +76,10 @@ export function measureCode(el, rect) {
   if (maxChars > charCap) reasons.push(reason('CAP_CHARS', `a line has ${maxChars} chars, cap is ${charCap} (22 × colSpan ${cols})`));
   const height = lines.length * lh;
   const width = maxChars * CODE_CHAR_ADVANCE;
-  if (height > inner.h) reasons.push(reason('OVERFLOW', `code height ${height} px exceeds slot height ${inner.h} px`));
-  if (width > inner.w) reasons.push(reason('OVERFLOW', `code width ${width} px exceeds slot width ${inner.w} px`));
+  if (reasons.length === 0) { // pixel fit only matters once the caps pass (one fault, one code)
+    if (height > inner.h) reasons.push(reason('OVERFLOW', `code height ${height} px exceeds slot height ${inner.h} px`));
+    if (width > inner.w) reasons.push(reason('OVERFLOW', `code width ${width} px exceeds slot width ${inner.w} px`));
+  }
   return { inner, lines, lineHeight: lh, charAdvance: CODE_CHAR_ADVANCE, lineCap, charCap, width, height, fits: reasons.length === 0, reasons };
 }
 

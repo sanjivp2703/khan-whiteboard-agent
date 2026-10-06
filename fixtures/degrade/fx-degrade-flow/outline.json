@@ -1,0 +1,26 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-degrade-flow",
+  "title": "Degrade flow",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "Fine",
+      "goal": "Explain fine"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Broken",
+      "goal": "Explain broken"
+    },
+    {
+      "sceneId": "s003",
+      "title": "After",
+      "goal": "Explain after"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

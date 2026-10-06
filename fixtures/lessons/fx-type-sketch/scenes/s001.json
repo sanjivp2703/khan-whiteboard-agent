@@ -1,0 +1,53 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-sketch",
+  "sceneId": "s001",
+  "title": "Five shapes",
+  "narration": "The sketch library is the first choice for any picture. Circle, cloud, database, server and document are pre authored shapes, each roughened and labelled.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "circle",
+      "type": "sketch",
+      "slot": "A1:B2",
+      "shape": "circle",
+      "label": "circle",
+      "color": "accent1"
+    },
+    {
+      "id": "cloud",
+      "type": "sketch",
+      "slot": "C1:D2",
+      "shape": "cloud",
+      "label": "cloud",
+      "color": "accent2"
+    },
+    {
+      "id": "database",
+      "type": "sketch",
+      "slot": "E1:F2",
+      "shape": "database",
+      "label": "database",
+      "color": "accent3"
+    },
+    {
+      "id": "server",
+      "type": "sketch",
+      "slot": "A3:B4",
+      "shape": "server",
+      "label": "server",
+      "color": "accent4"
+    },
+    {
+      "id": "document",
+      "type": "sketch",
+      "slot": "C3:D4",
+      "shape": "document",
+      "label": "document",
+      "color": "accent5"
+    }
+  ],
+  "final": false
+}

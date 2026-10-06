@@ -1,0 +1,20 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-degrade-flow",
+  "sceneId": "s003",
+  "title": "After",
+  "narration": "The final scene is valid again, so the lesson can finish normally after the broken scene has been rejected, rewritten or degraded.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "ok3",
+      "type": "text",
+      "slot": "A1:C1",
+      "style": "title",
+      "text": "Still fine"
+    }
+  ],
+  "final": true
+}

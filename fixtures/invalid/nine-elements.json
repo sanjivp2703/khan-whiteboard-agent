@@ -1,0 +1,76 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-invalid",
+  "sceneId": "s001",
+  "title": "Invalid case",
+  "narration": "This scene exists only to be rejected by the validator with a specific and stable error code for the test sweep.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "t0a",
+      "type": "text",
+      "slot": "A1",
+      "style": "body",
+      "text": "A perfectly fine piece of text."
+    },
+    {
+      "id": "t0b",
+      "type": "text",
+      "slot": "A2",
+      "style": "body",
+      "text": "A perfectly fine piece of text."
+    },
+    {
+      "id": "t0c",
+      "type": "text",
+      "slot": "A3",
+      "style": "body",
+      "text": "A perfectly fine piece of text."
+    },
+    {
+      "id": "t1a",
+      "type": "text",
+      "slot": "B1",
+      "style": "body",
+      "text": "A perfectly fine piece of text."
+    },
+    {
+      "id": "t1b",
+      "type": "text",
+      "slot": "B2",
+      "style": "body",
+      "text": "A perfectly fine piece of text."
+    },
+    {
+      "id": "t1c",
+      "type": "text",
+      "slot": "B3",
+      "style": "body",
+      "text": "A perfectly fine piece of text."
+    },
+    {
+      "id": "t2a",
+      "type": "text",
+      "slot": "C1",
+      "style": "body",
+      "text": "A perfectly fine piece of text."
+    },
+    {
+      "id": "t2b",
+      "type": "text",
+      "slot": "C2",
+      "style": "body",
+      "text": "A perfectly fine piece of text."
+    },
+    {
+      "id": "t2c",
+      "type": "text",
+      "slot": "C3",
+      "style": "body",
+      "text": "A perfectly fine piece of text."
+    }
+  ],
+  "final": false
+}

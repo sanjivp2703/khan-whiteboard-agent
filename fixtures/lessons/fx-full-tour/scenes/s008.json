@@ -1,0 +1,28 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-full-tour",
+  "sceneId": "s008",
+  "title": "Staleness",
+  "narration": "A cached response can go stale. A time to live bounds how old an answer may be, trading a little freshness for a lot of saved work.",
+  "board": {
+    "mode": "region",
+    "slots": "A3:F4"
+  },
+  "elements": [
+    {
+      "id": "ttl",
+      "type": "svg",
+      "slot": "A3:C4",
+      "svg": "<svg viewBox=\"0 0 100 50\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"5\" y1=\"40\" x2=\"95\" y2=\"40\" stroke=\"muted\"/><rect x=\"10\" y=\"15\" width=\"30\" height=\"20\" stroke=\"accent4\" fill=\"none\"/><text x=\"25\" y=\"30\" font-size=\"8\" text-anchor=\"middle\" fill=\"accent4\">fresh</text><rect x=\"55\" y=\"15\" width=\"30\" height=\"20\" stroke=\"accent3\" fill=\"none\"/><text x=\"70\" y=\"30\" font-size=\"8\" text-anchor=\"middle\" fill=\"accent3\">stale</text><line x1=\"47\" y1=\"10\" x2=\"47\" y2=\"45\" stroke=\"chalk\"/></svg>"
+    },
+    {
+      "id": "ttlnote",
+      "type": "text",
+      "slot": "D3:F4",
+      "style": "body",
+      "text": "A time to live caps how stale an answer may be.",
+      "color": "accent4"
+    }
+  ],
+  "final": false
+}

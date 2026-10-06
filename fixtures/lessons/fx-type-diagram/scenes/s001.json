@@ -1,0 +1,19 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-diagram",
+  "sceneId": "s001",
+  "title": "Three nodes",
+  "narration": "Anything with nodes and edges is a diagram. Three nodes top to bottom show a request checked against the cache before reaching the origin.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "flow",
+      "type": "diagram",
+      "slot": "A1:C3",
+      "mermaid": "flowchart TD\n  R[Request] --> C{In cache?}\n  C -->|yes| H[Serve hit]\n  C -->|no| O[Origin]"
+    }
+  ],
+  "final": false
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-math",
+  "sceneId": "s003",
+  "title": "Near the caps",
+  "narration": "Five lines of up to sixty characters each are the most a single math element may hold. This one spreads across the full width of the board.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "five",
+      "type": "math",
+      "slot": "A1:F2",
+      "lines": [
+        "f(x) = \\sqrt{x} + \\alpha",
+        "x_{n+1} = x_n - \\frac{f(x_n)}{f'(x_n)}",
+        "\\lim_{h \\to 0} \\frac{f(x+h) - f(x)}{h} = f'(x)",
+        "e^{i\\pi} + 1 = 0",
+        "\\frac{a}{b} + \\frac{c}{d} + \\frac{e}{f} = \\frac{g}{h} + k"
+      ],
+      "color": "accent4"
+    }
+  ],
+  "final": true
+}

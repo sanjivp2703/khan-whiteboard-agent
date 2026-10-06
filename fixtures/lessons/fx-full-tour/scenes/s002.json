@@ -1,0 +1,39 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-full-tour",
+  "sceneId": "s002",
+  "title": "The shape of a cache",
+  "narration": "A cache is a key value store that sits between the client and the application. The key is derived from the request, the value is the finished response, and both live in memory.",
+  "board": {
+    "mode": "region",
+    "slots": "D3:F4"
+  },
+  "elements": [
+    {
+      "id": "store",
+      "type": "sketch",
+      "slot": "D3:E4",
+      "shape": "database",
+      "label": "response store",
+      "color": "accent2"
+    },
+    {
+      "id": "client",
+      "type": "sketch",
+      "slot": "F3:F4",
+      "shape": "person",
+      "label": "client",
+      "color": "accent4"
+    },
+    {
+      "id": "ask",
+      "type": "arrow",
+      "from": "client",
+      "to": "store",
+      "label": "asks",
+      "at": 0.6,
+      "color": "accent4"
+    }
+  ],
+  "final": false
+}

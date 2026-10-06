@@ -1,0 +1,23 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-list",
+  "sceneId": "s003",
+  "title": "Long items",
+  "narration": "Items can be eight words long at most. Two long items spread across three columns show the widest list the validator will accept without an overflow.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "two",
+      "type": "list",
+      "slot": "A1:C2",
+      "items": [
+        "Every item may contain at most eight words",
+        "The second item also uses exactly eight words"
+      ],
+      "color": "accent5"
+    }
+  ],
+  "final": true
+}
