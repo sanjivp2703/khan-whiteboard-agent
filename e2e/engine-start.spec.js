@@ -69,6 +69,11 @@ test('criterion 2b: scene 1 ready first, then click anywhere → playing immedia
   expect(audio.src).toContain('/audio/s001');
   // position start posted for s001 (server side)
   await expect.poll(async () => (await (await page.request.get(`/api/lesson/${lesson.lessonId}/status`)).json()).player.position).toEqual(expect.objectContaining({ sceneId: 's001', event: 'start' }));
+  // QA finding 9: the engine awaited the renderer-core `ready` hook (MathJax initialised) before its first playlist/paint
+  const events = await engine.events(page);
+  const readyEv = events.find((e) => e.type === 'renderer-ready');
+  expect(readyEv).toEqual(expect.objectContaining({ hook: true, outcome: 'ready' }));
+  expect(events.indexOf(readyEv)).toBeLessThan(events.findIndex((e) => e.type === 'scene-start'));
   expect(errors).toEqual([]);
 });
 
@@ -154,5 +159,31 @@ test('criterion 18: letterboxing — 1000×1000 → 1000×562 centred vertically
   const root = await page.locator('#engine-root').boundingBox();
   expect(Math.abs(root.x - box.x)).toBeLessThanOrEqual(1);
   expect(Math.abs(root.width - box.width)).toBeLessThanOrEqual(1);
+  // a 320 px wide phone (QA finding 10): board 320×180, no horizontal page scroll, every toolbar button whole and inside the board
+  await page.setViewportSize({ width: 320, height: 640 });
+  box = await page.locator('#board').boundingBox();
+  expect(Math.abs(box.width - 320)).toBeLessThanOrEqual(2);
+  expect(Math.abs(box.height - 180)).toBeLessThanOrEqual(2);
+  const widths = () => page.evaluate(() => ({
+    doc: document.documentElement.scrollWidth, body: document.body.scrollWidth,
+    truncated: [...document.querySelectorAll('.eng-top .eng-btn')].filter((b) => b.scrollWidth > b.clientWidth + 1).map((b) => b.textContent),
+  }));
+  let w = await widths();
+  expect(w.doc).toBeLessThanOrEqual(320);
+  expect(w.body).toBeLessThanOrEqual(320);
+  expect(w.truncated).toEqual([]);
+  for (const id of ['sidebar-toggle', 'start-button', 'pause-button', 'ask-button', 'transcript-toggle']) {
+    const b = await page.getByTestId(id).boundingBox();
+    expect(b, id).not.toBeNull();
+    expect(b.x, id).toBeGreaterThanOrEqual(-0.5);
+    expect(b.x + b.width, id).toBeLessThanOrEqual(320.5);
+  }
+  // and while playing (gate gone, state pill reads playing)
+  await engine.waitForStatuses(page, { s001: 'ready' });
+  await page.getByTestId('start-button').click();
+  await engine.waitForState(page, 'playing');
+  w = await widths();
+  expect(w.doc).toBeLessThanOrEqual(320);
+  expect(w.truncated).toEqual([]);
   expect(errors).toEqual([]);
 });

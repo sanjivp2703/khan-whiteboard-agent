@@ -27,6 +27,11 @@ async function askNow(page, text) {
   return stack[stack.length - 1];
 }
 
+/** Every scene start so far, in order, as "sceneId" or "sceneId(resume)". */
+async function sceneStarts(page) {
+  return (await engine.events(page)).filter((e) => e.type === 'scene-start').map((e) => `${e.sceneId}${e.resume ? '(resume)' : ''}`);
+}
+
 /** Wait for the `resume` event into sceneId and return it (t at the instant of resumption). */
 async function waitForResume(page, sceneId, timeout = 40_000) {
   await page.waitForFunction((id) => window.__khan.engine.events.some((e) => e.type === 'resume' && e.sceneId === id), sceneId, { timeout, polling: 15 });
@@ -77,6 +82,11 @@ test('criterion 10: ask at t≈3 of s002 → thinking, stack depth 1, input focu
   // positions: a01 start/end, a02 start/end, then s002 start again
   const seq = posts.filter((p) => p.kind === 'position').map((p) => `${p.event} ${p.sceneId}`);
   expect(seq.slice(seq.indexOf('start q001-a01'))).toEqual(['start q001-a01', 'end q001-a01', 'start q001-a02', 'end q001-a02', 'start s002']);
+  // spec §7 step 5 (QA finding 1): the resumed s002 plays out and the lesson continues with s003 — the answers do NOT replay
+  await engine.waitForScene(page, 's003', 40_000);
+  expect(await sceneStarts(page)).toEqual(['s001', 's002', 'q001-a01', 'q001-a02', 's002(resume)', 's003']);
+  const seq2 = posts.filter((p) => p.kind === 'position').map((p) => `${p.event} ${p.sceneId}`);
+  expect(seq2.slice(seq2.lastIndexOf('start s002'))).toEqual(['start s002', 'end s002', 'start s003']);
   expect(errors).toEqual([]);
 });
 
@@ -139,6 +149,52 @@ test('criterion 11: nested questions — depth 2 returns to q001-a01 then s002; 
   // playlist order from the server: s001, s002, q001-a01, q002-a01, q003-a01, q001-a02, s003, s004
   const pl = await engine.playlist(page);
   expect(pl.entries.map((e) => e.sceneId)).toEqual(['s001', 's002', 'q001-a01', 'q002-a01', 'q003-a01', 'q001-a02', 's003', 's004']);
+  // depth-3 continue (QA finding 1): after the fully unwound s002 ends, s003 plays next — none of the four answer
+  // scenes sitting between s002 and s003 in the playlist replays
+  await engine.waitForScene(page, 's003', 40_000);
+  expect(await sceneStarts(page)).toEqual(['s001', 's002', 'q001-a01', 'q002-a01', 'q003-a01', 'q002-a01(resume)', 'q001-a01(resume)', 'q001-a02', 's002(resume)', 's003']);
+  const seq = posts.filter((p) => p.kind === 'position').map((p) => `${p.event} ${p.sceneId}`);
+  expect(seq.slice(seq.lastIndexOf('start s002'))).toEqual(['start s002', 'end s002', 'start s003']);
+  expect(errors).toEqual([]);
+});
+
+test('criterion 10b: after the answer and the resumed scene, playback continues with the next LESSON scene (QA finding 1 repro on fx-eng-short); a manual rewind still replays the answer in position', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors = collectErrors(page);
+  const posts = recordPosts(page);
+  const lesson = makeLesson('fx-eng-short');
+  lesson.writeAll();
+  await openLesson(page, lesson.lessonId, { config: { playbackRate: 2 } });
+  await engine.waitForStatuses(page, { s001: 'ready', s002: 'ready', s003: 'ready' });
+  await page.getByTestId('start-button').click();
+  await engine.waitForSceneTime(page, 's001', 1.0);
+  await page.locator('body').focus();
+  const top = await askNow(page, 'why is scene one so short?');
+  expect(top.sceneId).toBe('s001');
+  expect(top.t).toBeGreaterThanOrEqual(1);
+  await expect.poll(() => posts.filter((p) => p.kind === 'question').length).toBe(1);
+  // the producer answers with a single final wipe scene inserted after s001
+  const three = fixtureScene('fx-eng-short', 's003');
+  lesson.writeRaw({ ...three, sceneId: 'q001-a01', title: 'Answer', board: { mode: 'wipe' }, elements: [{ ...three.elements[0], id: 'ans', text: 'Because.' }], final: true, questionId: 'q001', insertAfter: 's001' });
+  await engine.waitForScene(page, 'q001-a01', 30_000);
+  const { ev, live } = await waitForResume(page, 's001');
+  expect(Math.abs(ev.t - top.t)).toBeLessThan(0.01);
+  expect(live.state).toBe('playing');
+  // s001 plays out → s002 (not q001-a01 again) → s003 → ended
+  await engine.waitForState(page, 'ended', 40_000);
+  expect(await sceneStarts(page)).toEqual(['s001', 'q001-a01', 's001(resume)', 's002', 's003']);
+  const seq = posts.filter((p) => p.kind === 'position').map((p) => `${p.event} ${p.sceneId}`);
+  expect(seq).toEqual(['start s001', 'start q001-a01', 'end q001-a01', 'start s001', 'end s001', 'start s002', 'end s002', 'start s003', 'end s003']);
+  await expect(page.getByTestId('summary')).toHaveAttribute('data-scenes', '4');
+  await expect(page.getByTestId('summary')).toHaveAttribute('data-questions', '1');
+  // spec §7 rewind: "answer scenes already in the playlist are replayed in position" — jump back to s001
+  const before = (await sceneStarts(page)).length;
+  await page.getByTestId('sidebar-item-s001').click();
+  await engine.waitForScene(page, 's001', 20_000);
+  expect(await engine.state(page)).toBe('playing');
+  await engine.waitForState(page, 'ended', 40_000);
+  expect((await sceneStarts(page)).slice(before)).toEqual(['s001', 'q001-a01', 's002', 's003']);
+  expect(await engine.drawn(page)).toEqual(['three']);
   expect(errors).toEqual([]);
 });
 

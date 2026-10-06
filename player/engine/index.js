@@ -16,7 +16,7 @@ import { makeDrawCtx, registry as defaultRegistry } from '../registry.js';
 import { initialState, reduce, canAsk, canJump } from './reducer.js';
 import { peek } from './resume-stack.js';
 import { buildTimeline, progressAt, effectiveTime, isSceneComplete, activeIndex, startedIds } from './scheduler.js';
-import { planBoardAt, boardHistory, countSvgElements, kindOfScene } from './board-plan.js';
+import { planBoardAt, boardHistory, countSvgElements, kindOfScene, nextEntryAfter } from './board-plan.js';
 import { buildUi } from './ui.js';
 import { createPen } from './pen.js';
 
@@ -28,6 +28,7 @@ export const DEFAULT_CONFIG = Object.freeze({
   playbackRate: 1,        // tests speed the audio clock up; drawing follows the clock
   naturalMsScale: 1,      // tests stretch natural stroke durations to exercise the yield rule
   metadataTimeoutMs: 5000,
+  rendererReadyTimeoutMs: 15000, // wait at most this long for window.__khan.rendererCore.ready (MathJax) before the first paint
 });
 
 const EFFECTIVE_STATUSES = new Set(['voicing', 'ready', 'degraded']);
@@ -60,7 +61,8 @@ export function start(opts) {
   let beatTimer = null;
   let playlistReceivedAt = 0;
   let sidebarPinned = false;
-  const played = new Set();        // sceneIds with a posted `end`
+  const played = new Set();        // sceneIds with a posted `end` (end summary)
+  const passPlayed = new Set();    // sceneIds completed since the last manual jump: answer scenes in here are not replayed (spec §7 step 5)
   const events = [];
   const config = { ...DEFAULT_CONFIG };
   let font = null;
@@ -172,11 +174,19 @@ export function start(opts) {
         if (!r.ok) return null;
         const scene = await r.json();
         scenes.set(sceneId, scene);
+        warmScene(scene);
         return scene;
       } catch { return null; } finally { fetching.delete(sceneId); }
     })();
     fetching.set(sceneId, p);
     return p;
+  }
+
+  /** Pre-compile the scene's math through the renderer-core hook, if present (never blocks, never throws). */
+  function warmScene(scene) {
+    const rc = window.__khan && window.__khan.rendererCore;
+    if (!rc || typeof rc.warm !== 'function') return;
+    try { Promise.resolve(rc.warm(scene)).catch((e) => log('warm-failed', { sceneId: scene && scene.sceneId, error: String(e && e.message) })); } catch (e) { log('warm-failed', { sceneId: scene && scene.sceneId, error: String(e && e.message) }); }
   }
 
   /** Outline scenes merged with playlist entries, in playlist order (planned scenes slot in by number). */
@@ -224,10 +234,11 @@ export function start(opts) {
 
   // ---------------------------------------------------------------------------
   // advancing
+  /** The entry that follows `afterSceneId` on the lesson track: the next lesson scene, or an
+   *  answer scene in position unless it already played in this pass (QA finding 1: after a resumed
+   *  scene ends, the answers just watched must not replay; a manual jump starts a new pass). */
   function nextLessonEntry(afterSceneId) {
-    const list = entries();
-    const idx = list.findIndex((e) => e.sceneId === afterSceneId);
-    return idx >= 0 && idx + 1 < list.length ? list[idx + 1] : null;
+    return nextEntryAfter(entries(), afterSceneId, passPlayed);
   }
   function lessonIsFinal() {
     const lesson = entries().filter((e) => kindOfScene(e.sceneId) === 'lesson');
@@ -279,12 +290,13 @@ export function start(opts) {
   }
   function clearBeat() { if (beatTimer) { clearTimeout(beatTimer); beatTimer = null; } }
 
-  async function onSceneComplete() {
+  async function onSceneComplete(eff = null) {
     if (!current || current.completed) return;
     current.completed = true;
     const entry = current.entry;
-    log('scene-complete', { sceneId: entry.sceneId });
+    log('scene-complete', { sceneId: entry.sceneId, holdMs: Math.round(current.holdMs), snap: !!(eff && eff.snap), skipped: current.skipped });
     played.add(entry.sceneId);
+    passPlayed.add(entry.sceneId);
     await postPosition(entry.sceneId, 'end', current.durationMs / 1000);
     if (fsm.state !== 'playing' || !current || current.entry !== entry) return; // something else happened meanwhile
     const top = peek(fsm.stack);
@@ -501,6 +513,7 @@ export function start(opts) {
     if (!r.ok) return false;
     log('jump', { sceneId });
     waitingSince = null;
+    passPlayed.clear(); // a manual rewind/skip starts a new pass: answer scenes replay in position (spec §7)
     playScene(e, { t: 0 });
     return true;
   }
@@ -601,7 +614,7 @@ export function start(opts) {
           : effectiveTime({ audioMs: audio.currentTime * 1000, audioEnded: ended, durationMs: current.durationMs || audio.duration * 1000 || 0, holdMs: current.holdMs, yieldCapMs: Number(config.yieldCapMs) });
       if (current.lastPaintT !== eff.t) paintCurrent(eff.t);
       updatePen(eff.t, now);
-      if (fsm.state === 'playing' && !current.completed && !current.skipped && isSceneComplete(current.timeline, { audioEnded: ended, t: eff.t, snap: eff.snap })) onSceneComplete();
+      if (fsm.state === 'playing' && !current.completed && !current.skipped && isSceneComplete(current.timeline, { audioEnded: ended, t: eff.t, snap: eff.snap })) onSceneComplete(eff);
     } else if (current && current.static) {
       if (current.lastPaintT !== Infinity) paintCurrent(Infinity);
       pen.setMode('hidden');
@@ -711,7 +724,23 @@ export function start(opts) {
   // boot: font, SSE, loop
   hooks.ready = (async () => {
     try { font = await handwriting.loadFont(tokens.fontHandFile); } catch (e) { log('font-failed', { error: String(e && e.message) }); font = null; }
+    await rendererReady();
   })();
+  /** Wait (once, bounded) for the renderer-core hook's `ready` (MathJax initialised) so math never
+   *  paints blank on a slow machine; absent hook or timeout → carry on (prepare falls back to pending). */
+  async function rendererReady() {
+    const rc = window.__khan && window.__khan.rendererCore;
+    const p = rc && rc.ready;
+    if (!p || typeof p.then !== 'function') { log('renderer-ready', { hook: false }); return; }
+    const t0 = nowMs();
+    let timer = null;
+    const outcome = await Promise.race([
+      p.then(() => 'ready', () => 'failed'),
+      new Promise((resolve) => { timer = setTimeout(() => resolve('timeout'), Math.max(0, Number(config.rendererReadyTimeoutMs) || 0)); }),
+    ]);
+    clearTimeout(timer);
+    log('renderer-ready', { hook: true, outcome, waitedMs: Math.round(nowMs() - t0) });
+  }
   // SSE. The server 404s a lesson it has not ingested yet (an EventSource does not retry after a
   // 404), so a closed stream is reopened with a short backoff; the server replays a full snapshot
   // on every (re)connect, so nothing is missed.

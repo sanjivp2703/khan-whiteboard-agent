@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { planBoardAt, boardIdsBefore, boardHistory, countSvgElements } from '../../player/engine/board-plan.js';
+import { planBoardAt, boardIdsBefore, boardHistory, countSvgElements, nextEntryAfter } from '../../player/engine/board-plan.js';
 import { FIXTURES } from '../foundation/helpers/fixtures.js';
 
 const ids = (plan) => plan.ids.map((x) => x.id);
@@ -101,4 +101,35 @@ test('boardPlan: target not loaded yet plans the earlier board only; svg counter
   const tour = loadLesson('fx-full-tour');
   assert.equal(countSvgElements([...tour.values()]), 1);
   assert.equal(countSvgElements([null, { elements: [{ type: 'svg' }, { type: 'svg' }, { type: 'text' }] }]), 2);
+});
+
+test('nextEntryAfter: lesson order; answer scenes in position unless already played this pass; a manual jump starts a new pass (QA finding 1)', () => {
+  const order = ['s001', 's002', 'q001-a01', 'q002-a01', 'q003-a01', 'q001-a02', 's003', 's004'];
+  const entries = order.map((sceneId, position) => ({ sceneId, position }));
+  const id = (e) => (e ? e.sceneId : null);
+  assert.equal(id(nextEntryAfter(entries, null)), 's001');
+  assert.equal(id(nextEntryAfter(entries, 's001')), 's002');
+  // a fresh pass (after a rewind): answers replay in position, in playlist order
+  assert.equal(id(nextEntryAfter(entries, 's002')), 'q001-a01');
+  assert.equal(id(nextEntryAfter(entries, 'q001-a01')), 'q002-a01');
+  assert.equal(id(nextEntryAfter(entries, 'q003-a01')), 'q001-a02');
+  assert.equal(id(nextEntryAfter(entries, 'q001-a02')), 's003');
+  // the live flow: every answer already played in this pass → the next LESSON scene, no replay
+  const pass = new Set(['s001', 'q001-a01', 'q002-a01', 'q003-a01', 'q001-a02', 's002']);
+  assert.equal(id(nextEntryAfter(entries, 's002', pass)), 's003');
+  // partially played (the user jumped away before the rest arrived): unplayed answers still play in position
+  assert.equal(id(nextEntryAfter(entries, 's002', new Set(['q001-a01']))), 'q002-a01');
+  assert.equal(id(nextEntryAfter(entries, 'q002-a01', new Set(['q001-a01', 'q003-a01']))), 'q001-a02');
+  // lesson scenes are never skipped, even when already played (a rewound lesson replays its scenes)
+  assert.equal(id(nextEntryAfter(entries, 's003', new Set(['s004']))), 's004');
+  // end of the list, unknown scene, empty playlist
+  assert.equal(nextEntryAfter(entries, 's004'), null);
+  assert.equal(nextEntryAfter(entries, 'zzz'), null);
+  assert.equal(nextEntryAfter([], null), null);
+  // only already-played answers remain → nothing to play (the engine then stalls or ends per `final`)
+  assert.equal(nextEntryAfter(entries.slice(0, 6), 's002', pass), null);
+  // any iterable works for the pass set
+  assert.equal(id(nextEntryAfter(entries, 's002', ['q001-a01', 'q002-a01', 'q003-a01', 'q001-a02'])), 's003');
+  // the input is not mutated
+  assert.deepEqual(entries.map(id), order);
 });
