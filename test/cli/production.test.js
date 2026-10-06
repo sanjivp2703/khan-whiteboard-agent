@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { cpSync } from 'node:fs';
 import { makeHome, runKhan, startKhan, startHomeServer, outlineOf, sceneOf, badSceneOf, killPid, FIXTURES, sleep } from './helpers.js';
 
 test('production run 1 (criterion 6): serve → outline → 4 scenes interleaved with wait → fake player → finished', async () => {
@@ -183,17 +184,21 @@ test('status without a key and KHAN_TTS unset (criterion 8): tts.ready false wit
   }
 });
 
-test('khan play fx-full-tour --lessons-dir fixtures/lessons (criterion 9): spawns, prints the URL, all 10 scenes ready ≤ 10 s; missing lesson → NO_LESSON', async () => {
+test('khan play fx-full-tour --lessons-dir <copy of fixtures/lessons> (criterion 9): spawns, prints the URL, all 10 scenes ready ≤ 10 s; missing lesson → NO_LESSON', async () => {
   const h = makeHome();
+  // the server writes audio/, control/ and state/ into every lesson folder it serves, so replay a
+  // temp copy of the fixtures rather than the tracked ones (same approach as playwright.config.js)
+  const lessons = join(h.home, 'fixture-lessons');
+  cpSync(join(FIXTURES, 'lessons'), lessons, { recursive: true });
   let pid = null;
   try {
-    const missing = await runKhan(['play', 'no-such-lesson-here', '--lessons-dir', join(FIXTURES, 'lessons')], { env: h.env });
+    const missing = await runKhan(['play', 'no-such-lesson-here', '--lessons-dir', lessons], { env: h.env });
     assert.equal(missing.code, 1);
     assert.equal(missing.json.code, 'NO_LESSON');
     assert.equal(h.readServerJson(), null, 'nothing spawned for a missing lesson');
 
     const t0 = Date.now();
-    const r = await runKhan(['play', 'fx-full-tour', '--lessons-dir', join(FIXTURES, 'lessons'), '--port', '0'], { env: h.env });
+    const r = await runKhan(['play', 'fx-full-tour', '--lessons-dir', lessons, '--port', '0'], { env: h.env });
     assert.equal(r.code, 0, r.stdout + r.stderr);
     assert.equal(r.lines.length, 1);
     pid = h.readServerJson().pid;
@@ -202,7 +207,7 @@ test('khan play fx-full-tour --lessons-dir fixtures/lessons (criterion 9): spawn
     assert.equal(r.json.ingested, true);
     assert.equal(r.json.opened, false, 'KHAN_NO_OPEN=1 honoured');
     assert.equal(r.json.url, `http://127.0.0.1:${r.json.port}/lesson/fx-full-tour`);
-    assert.equal(r.json.lessonsDir, join(FIXTURES, 'lessons'));
+    assert.equal(r.json.lessonsDir, lessons);
     // all scenes ready within 10 s of the trigger
     for (;;) {
       const p = await (await fetch(`${r.json.url.replace('/lesson/fx-full-tour', '')}/api/lesson/fx-full-tour/playlist`)).json();
@@ -214,7 +219,7 @@ test('khan play fx-full-tour --lessons-dir fixtures/lessons (criterion 9): spawn
     assert.equal(st.json.counts.ready, 10);
     assert.equal(st.json.counts.svgElements, 1);
     // play again: reuses the server, no second spawn
-    const again = await runKhan(['play', 'fx-full-tour', '--lessons-dir', join(FIXTURES, 'lessons')], { env: h.env });
+    const again = await runKhan(['play', 'fx-full-tour', '--lessons-dir', lessons], { env: h.env });
     assert.equal(again.json.spawned, false);
     assert.equal(h.readServerJson().pid, pid);
     // --no-open flag also suppresses opening
