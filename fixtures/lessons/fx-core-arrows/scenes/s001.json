@@ -1,0 +1,18 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-core-arrows",
+  "sceneId": "s001",
+  "title": "Hub and spokes",
+  "narration": "A hub sits in the middle with a box on each side. The first arrows leave the hub to the right and come down from the box above, so the right to left and bottom to top attachments are both exercised.",
+  "board": { "mode": "wipe" },
+  "elements": [
+    { "id": "north", "type": "box", "slot": "C1:D1", "label": "north", "color": "accent1" },
+    { "id": "west", "type": "box", "slot": "A2:B2", "label": "west", "color": "accent2" },
+    { "id": "hub", "type": "text", "slot": "C2:D2", "style": "body", "text": "the hub", "color": "accent5" },
+    { "id": "east", "type": "box", "slot": "E2:F2", "label": "east", "color": "accent3" },
+    { "id": "south", "type": "box", "slot": "C3:D3", "label": "south", "color": "accent4" },
+    { "id": "to_east", "type": "arrow", "from": "hub", "to": "east", "label": "to the right", "color": "accent3", "at": 0.6 },
+    { "id": "from_north", "type": "arrow", "from": "north", "to": "hub", "label": "down", "color": "accent1", "at": 0.8 }
+  ],
+  "final": false
+}

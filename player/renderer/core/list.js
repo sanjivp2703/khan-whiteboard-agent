@@ -3,7 +3,7 @@
 import { measureList } from '../../../shared/layout-core/measure.js';
 import { LIST_LAYOUT } from '../../../shared/layout-core/constants.js';
 import { lineHeight } from '../../../shared/handwriting.js';
-import { buildDrawable, blockStrokes, lineStrokes, baselineFor, roughFit, roughEllipse, roughStrokes, expandRect, elementColor, requireField, ROUGH_ENVELOPE } from './drawable.js';
+import { buildDrawable, blockStrokes, lineStrokes, baselineFor, roughFit, roughStrokes, expandRect, elementColor, requireField, ROUGH_ENVELOPE } from './drawable.js';
 import { partStartsFor } from './timing-window.js';
 
 const BULLET_DIA = 8;
@@ -34,7 +34,8 @@ export function prepareList(el, ctx) {
       const cy = baseline - lh * 0.28;
       const ideal = { x: cx - BULLET_DIA / 2, y: cy - BULLET_DIA / 2, w: BULLET_DIA, h: BULLET_DIA };
       const envelope = expandRect(ideal, ROUGH_ENVELOPE);
-      const paths = roughFit(seed + 7 * (i + 1), envelope, (r) => roughEllipse(r, cx, cy, BULLET_DIA, BULLET_DIA));
+      // rough.circle's radius jitter (≈6 %) is negligible at bullet size, so the native circle is used here
+      const paths = roughFit(seed + 7 * (i + 1), envelope, (r) => r.circle(cx, cy, BULLET_DIA));
       strokes.push(...roughStrokes(paths, color, { marker: true, item: i, lineWidth: 2 }));
       extraBounds.push(envelope);
     }

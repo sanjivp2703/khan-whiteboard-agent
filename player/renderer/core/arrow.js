@@ -67,7 +67,8 @@ export function placeLabel(p1, p2, w, h, rects) {
   const ux = (p2.x - p1.x) / len, uy = (p2.y - p1.y) / len;
   let nx = -uy, ny = ux;                 // perpendicular
   if (Math.abs(ny) >= Math.abs(nx) ? ny > 0 : nx < 0) { nx = -nx; ny = -ny; } // prefer up / right
-  const base = LABEL_GAP + h / 2;
+  // far enough along the normal that the label box clears the shaft whatever its angle
+  const base = LABEL_GAP + Math.abs(nx) * (w / 2) + Math.abs(ny) * (h / 2);
   const candidates = [];
   for (const side of [1, -1]) for (let d = base; d <= 220; d += 8) candidates.push({ side, d });
   let fallback = null;

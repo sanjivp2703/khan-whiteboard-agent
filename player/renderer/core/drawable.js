@@ -204,7 +204,7 @@ export function lineStrokes(text, style, x, y, color, seed, extraMeta = {}) {
   for (const g of glyphs) {
     if (g.d) {
       const d = glyphOutline(g.char, style, g.x, y) || g.d;
-      strokes.push({ d, kind: 'glyph', color, char: g.char, ...extraMeta });
+      strokes.push({ d, kind: 'glyph', color, char: g.char, x: g.x, advance: g.advance, baseline: y, ...extraMeta });
     } else if (g.char.trim() !== '' && isMissingGlyph(g.char)) {
       const size = fontSize(style);
       const side = Math.max(4, Math.min(g.advance * 0.8, size * 0.4));
@@ -212,7 +212,7 @@ export function lineStrokes(text, style, x, y, color, seed, extraMeta = {}) {
       const sy = y - side - 2;
       const envelope = expandRect({ x: sx, y: sy, w: side, h: side }, ROUGH_ENVELOPE);
       const paths = roughFit(seed + 101 * (n + 1), envelope, (r) => roughRect(r, sx, sy, side, side));
-      for (const d of paths) strokes.push({ d, kind: 'glyph', color, char: g.char, fallback: true, ...extraMeta });
+      for (const d of paths) strokes.push({ d, kind: 'glyph', color, char: g.char, x: g.x, advance: g.advance, baseline: y, fallback: true, ...extraMeta });
     }
     n++;
   }

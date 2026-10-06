@@ -1,0 +1,11 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-core-dense",
+  "title": "Core elements at their caps",
+  "scenes": [
+    { "sceneId": "s001", "title": "Code and list", "goal": "Fourteen code lines beside six eight-word items" },
+    { "sceneId": "s002", "title": "Table, math, box, arrow, highlight", "goal": "A six by six table in a box, five math lines, an arrow and a highlighted code line" },
+    { "sceneId": "s003", "title": "Text at the cap", "goal": "Forty body words, an eight word title, a ten word note, a labelled box, a labelled arrow and three highlights" }
+  ],
+  "producer": { "kind": "fixture", "version": "1" }
+}

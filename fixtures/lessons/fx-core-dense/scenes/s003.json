@@ -1,0 +1,73 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-core-dense",
+  "sceneId": "s003",
+  "title": "Text at the cap",
+  "narration": "After a wipe the text caps are exercised together: forty body words across four cells, an eight word title across the row, a ten word note in one cell, a six word box label, and a four word arrow label.",
+  "board": { "mode": "wipe" },
+  "elements": [
+    {
+      "id": "para40",
+      "type": "text",
+      "slot": "A1:D1",
+      "style": "body",
+      "text": "A response cache stores the full answer to a request keyed by its inputs, so when the same inputs arrive again the server can return the stored answer immediately, skipping the database, the templates, and every other expensive step entirely.",
+      "color": "accent4"
+    },
+    {
+      "id": "note10",
+      "type": "text",
+      "slot": "E1",
+      "style": "note",
+      "text": "one two three four five six seven eight nine ten",
+      "color": "muted"
+    },
+    {
+      "id": "title8",
+      "type": "text",
+      "slot": "A2:F2",
+      "style": "title",
+      "text": "Eight words is the longest title allowed here",
+      "color": "accent5"
+    },
+    {
+      "id": "memory",
+      "type": "box",
+      "slot": "A3:C4",
+      "label": "bounded memory with a label",
+      "color": "accent2"
+    },
+    {
+      "id": "flow",
+      "type": "arrow",
+      "from": "para40",
+      "to": "memory",
+      "label": "four words of label",
+      "color": "accent4"
+    },
+    {
+      "id": "under",
+      "type": "highlight",
+      "target": "title8",
+      "style": "underline",
+      "color": "accent5",
+      "at": 0.6
+    },
+    {
+      "id": "point",
+      "type": "highlight",
+      "target": "note10",
+      "style": "pointer",
+      "at": 0.75
+    },
+    {
+      "id": "cross",
+      "type": "highlight",
+      "target": "note10",
+      "style": "strike",
+      "color": "accent3",
+      "at": 0.85
+    }
+  ],
+  "final": true
+}
