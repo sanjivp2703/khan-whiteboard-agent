@@ -352,3 +352,63 @@ twelve types in 10 scenes — the QA demo). `fixtures/invalid/`: 100 single-scen
 including ones later slices add (`fx-core-*`, `fx-pic-*`, `fx-eng-*`, `fx-cli-*`). Test helpers:
 `test/foundation/helpers/fixtures.js` (`listFixtureLessons`, `validateLesson`, …) and
 `helpers/server.js` (`startTestServer`, `openSse`).
+
+## CLI and skill (slice 05)
+
+The producer side: `bin/khan` (implementation in `cli/`, registered as `"bin": {"khan": "bin/khan"}` in
+`package.json`) and the Claude Code skill `.claude/skills/khan/SKILL.md`. Run the CLI as `./bin/khan`
+from the repo root (or `npm link` once to get `khan` on your PATH). Every command prints **one JSON
+line** (`--pretty` indents it); exit code 0 = ok (a rejected scene is still 0: the skill reads the
+JSON), 1 = usage / validation / IO error, 2 = server unreachable. `khan --help` and
+`khan <command> --help` describe the options.
+
+| Command | What it does | Output |
+|---|---|---|
+| `khan serve [--port N] [--lessons-dir D] [--cache-dir C] [--foreground]` | Reuses a healthy server (pidfile + `GET /api/health`) or spawns `node server/index.js` **detached** (stdout/stderr → `.khan/server.log`), waits ≤ 5 s for health, writes the pidfile. `--foreground` runs it in this process. | `{"ok":true,"port":7777,"host":"127.0.0.1","url":"http://127.0.0.1:7777","pid":123,"lessonsDir":"…","tts":{"provider":"openai","ready":false,"reason":"OPENAI_API_KEY not set"},"spawned":true}` |
+| `khan outline <lessonId\|-> < outline.json` | `-` generates the id `YYYYMMDD-HHMMSS-<slug>` (slug from the title: lower-case, accents stripped, non-alphanumerics collapsed to `-`, whole id ≤ 64 chars, `lesson` when the title has no latin characters). Shape-checks the outline (schema, title, 3–12 scenes, `s001, s002…` in sequence), creates `<lessonsDir>/<id>/scenes/`, writes `outline.json` atomically, waits ≤ 3 s for the server to ingest it, then opens the browser. | `{"ok":true,"lessonId":"20261006-142207-caching","url":"http://127.0.0.1:7777/lesson/…","lessonsDir":"…","dir":"…","scenes":6,"server":true,"ingested":true,"opened":true}` — or `{"ok":false,"code":"BAD_OUTLINE","details":[{code,message}]}` exit 1 |
+| `khan scene <lessonId> <sceneId> < scene.json` | Fills `schema`/`lessonId`/`sceneId` when absent (refuses mismatches: `ID_MISMATCH`), writes `<sceneId>.json.tmp` then renames, then polls the playlist ≤ 3 s (`--timeout-ms`) for a status observed **after this write was ingested** (`producer.lastWriteAt` changes), and summarizes `control/inbox.json`. | `{"ok":true,"lessonId":"…","sceneId":"s003","status":"ready\|voicing\|rejected\|degraded","degraded":false,"droppedElementIds":[],"errors":[{elementId,code,message}],"durationMs":12000,"readyAhead":2,"inbox":{"pending":0,"questions":0,"rejects":0},"notices":[{"kind":"degraded",…}],"waitedMs":610}` |
+| `khan wait <lessonId> [--timeout S]` | `GET /api/lesson/<id>/wait?timeout=S` (default 540, max 600) over `node:http` (no client timeout shorter than the long-poll) and prints the server's object verbatim. | `{"event":"question\|reject\|continue\|finished\|player-closed\|timeout",…,"notices":[…]}`; server down → `{"event":"error","code":"SERVER_DOWN","message":"…"}` exit 2 |
+| `khan status <lessonId>` | `/api/lesson/<id>/status` plus the lesson URL. | `{"ok":true,"lessonId","title","tts":{…,"ready":true},"producer":{…},"counts":{planned,scenes,ready,degraded,rejected,answerScenes,questions,svgElements},"buffer":{readyAhead},"player":{connected,position},"ended":false,"url":"…"}`; unknown lesson → `UNKNOWN_LESSON` exit 1 |
+| `khan play <lessonId> [--lessons-dir D] [--no-open]` | Replays a finished lesson folder with no model: ensures the server (spawning it if needed), checks that `<lessonsDir>/<id>/outline.json` exists (`NO_LESSON` otherwise), waits until the server has ingested the outline (startup ingest re-validates and re-voices from the TTS cache, so no network when cached), opens the browser. | `{"ok":true,"lessonId":"fx-full-tour","url":"http://127.0.0.1:7777/lesson/fx-full-tour","port":7777,"lessonsDir":"…","spawned":true,"ingested":true,"opened":true,"tts":{…}}` |
+
+**State and the pidfile.** The CLI keeps its state under `KHAN_HOME` (default `<repo>/.khan`):
+`server.json` `{port, host, pid, startedAt, lessonsDir, cacheDir, url}` (the pidfile), `server.log`,
+and the default `lessons/` and `cache/tts/` dirs. A server counts as running when its pid is alive
+(or unknown) **and** `/api/health` answers; a stale pidfile (dead pid, nothing listening) is simply
+overwritten by the next spawn. A server started by hand on the requested port (`npm run serve`) is
+adopted with `pid: null`. The lessons dir resolves as `--lessons-dir` > the running server's
+`lessonsDir` > `KHAN_LESSONS_DIR` > `<KHAN_HOME>/lessons`; asking for a different `--lessons-dir`
+while a server runs is refused (`LESSONS_DIR_MISMATCH`) rather than silently writing where the
+server is not looking. Port: `--port` > `KHAN_PORT` > `.khan/config.json` `port` > 7777.
+
+**Browser opening is owned by the CLI**, not the server: the spawned server gets `KHAN_NO_OPEN=1`
+and the CLI opens the lesson URL itself — `outline` once the server has ingested the new outline,
+`play` for a replay — honouring `KHAN_NO_OPEN=1` / `--no-open`. Reason (verified, reported to the
+foundation): the server opens a tab for **every** lesson folder present at startup, which over an
+accumulated `.khan/lessons` would open one tab per old lesson each time the server starts.
+
+**The skill** (`.claude/skills/khan/SKILL.md`) triggers on `/khan`, "khan, explain this",
+"whiteboard this", "turn this into a video" and similar; no argument = explain the last response,
+free text = focus plus optional audience/length hints. It calls `${CLAUDE_PROJECT_DIR}/bin/khan`:
+`serve` (stops with a clear message when `tts.ready` is false), `outline -`, then one `scene` per
+Bash call followed by `wait`, acting on `continue`/`reject`/`question`/`timeout`/`finished`/
+`player-closed`/`error`, and ends the turn with a one-line summary from `status`. Its authoring rules,
+cap cheat-sheet, error-code table and one worked example per element type are linted by
+`test/cli/skill.test.js`, which runs every fenced JSON example through `shared/schema/validate.js`.
+
+**Tests.** `test/cli/*.test.js` (24 tests, in `npm test`): arg parsing and help, lessonId
+generation, atomic writes under `fs.watch` and the real watcher, `serve` spawn / reuse / stale
+pidfile / adoption, `outline`, `scene`, `wait` latencies and events, two scripted productions
+(one with a mid-lesson question; playlist order per §4.1), degrade visibility, `status` without a
+key, `play fx-full-tour`, and the skill lint. They spawn real detached servers on random ports under
+a temp `KHAN_HOME` and kill them afterwards.
+
+**Manual check for QA (once slices 01 and 04 are merged).** In a Claude Code session in this repo
+with `OPENAI_API_KEY` exported: ask any explanatory question, then type `/khan` (or "whiteboard
+this"). Expect: one line stating the focus; the browser opens on the lesson; first audio within
+about 8 s of the trigger; scenes keep arriving while earlier ones play; a typed question in the
+player pauses the lesson and is answered with inserted scenes; on finish Claude prints a one-line
+summary and ends its turn. Record the first-audio latency and the typical gap between scenes
+(spec §11: gaps > 5 s typical is the trigger for the option-2 producer). Replay later with
+`./bin/khan play <lessonId>`. Without a key, `/khan` must stop at step 1 with the "OpenAI key
+required" message and write nothing.
