@@ -1,0 +1,27 @@
+/* player/tokens.css — CSS custom properties mirrored from shared/layout-core/tokens.js.
+   The JS file is the single source of truth: app.js (and harness.js) write every token onto
+   :root at load, overriding the defaults below. The names here are frozen; values are
+   placeholders until the design pass (pipeline-status row `design-tokens`). */
+:root {
+  --khan-board-bg: #1e272d;
+  --khan-chalk: #f3efe4;
+  --khan-muted: #8e9aa0;
+  --khan-accent1: #ffd166;
+  --khan-accent2: #7fd1e8;
+  --khan-accent3: #f28b82;
+  --khan-accent4: #9be39f;
+  --khan-accent5: #d3b4f0;
+  --khan-page-bg: #121a1f;
+  --khan-panel-bg: #17222a;
+  --khan-panel-text: #e6e2d8;
+  --khan-panel-muted: #8e9aa0;
+  --khan-font-hand: PatrickHand;
+  --khan-font-hand-file: /vendor/fonts/PatrickHand-Regular.ttf;
+  --khan-font-hand-fallback: "Comic Sans MS", "Segoe Print", cursive;
+}
+
+@font-face {
+  font-family: PatrickHand;
+  src: url("/vendor/fonts/PatrickHand-Regular.ttf") format("truetype");
+  font-display: swap;
+}

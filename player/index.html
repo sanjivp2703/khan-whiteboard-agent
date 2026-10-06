@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>khan</title>
+  <link rel="stylesheet" href="/player/tokens.css">
+  <link rel="stylesheet" href="/player/renderer/core/core.css">
+  <link rel="stylesheet" href="/player/renderer/pictures/pictures.css">
+  <link rel="stylesheet" href="/player/engine/engine.css">
+  <style>
+    /* Foundation shell styles: the 1600×900 board letterboxed to the window. Slices add their
+       own CSS in their own files (engine.css, core.css, pictures.css); never edit this file. */
+    html, body { margin: 0; height: 100%; background: var(--khan-page-bg); color: var(--khan-panel-text); font-family: system-ui, sans-serif; }
+    #stage { position: relative; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    #board-wrap { position: relative; width: min(100vw, calc(100vh * 16 / 9)); aspect-ratio: 16 / 9; background: var(--khan-board-bg); }
+    #board-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    #pen { pointer-events: none; }
+    #engine-root { position: absolute; inset: 0; pointer-events: none; }
+    #engine-root > * { pointer-events: auto; }
+    #debug { position: fixed; right: 0; top: 0; max-height: 100vh; overflow: auto; width: 20rem; padding: 0.75rem; background: var(--khan-panel-bg); color: var(--khan-panel-text); font: 12px/1.4 ui-monospace, monospace; border-left: 1px solid var(--khan-panel-muted); }
+    #debug h2 { margin: 0 0 0.5rem; font-size: 13px; }
+    #debug ul { list-style: none; margin: 0; padding: 0; }
+    #debug li { display: flex; justify-content: space-between; gap: 0.5rem; border-bottom: 1px solid var(--khan-panel-muted); padding: 2px 0; }
+    #debug li[data-status="ready"] { color: var(--khan-accent4); }
+    #debug li[data-status="rejected"] { color: var(--khan-accent3); }
+    #debug li[data-degraded="true"]::after { content: " (degraded)"; color: var(--khan-accent1); }
+    #debug pre { white-space: pre-wrap; margin: 0.5rem 0 0; color: var(--khan-panel-muted); }
+  </style>
+</head>
+<body>
+  <main id="stage">
+    <div id="board-wrap">
+      <canvas id="board" width="1600" height="900" aria-label="whiteboard"></canvas>
+      <canvas id="pen" width="1600" height="900" aria-hidden="true"></canvas>
+      <div id="engine-root"></div>
+    </div>
+  </main>
+  <aside id="debug" hidden aria-label="debug panel">
+    <h2>khan debug</h2>
+    <div id="debug-meta"></div>
+    <ul id="debug-playlist"></ul>
+    <pre id="debug-log"></pre>
+  </aside>
+  <script type="module" src="/player/app.js"></script>
+</body>
+</html>
