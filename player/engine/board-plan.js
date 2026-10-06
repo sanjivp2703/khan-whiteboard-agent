@@ -61,6 +61,31 @@ export function planBoardAt(entries, scenesById, sceneId, t = 0, opts = {}) {
   return { ids, trackIds, wipeIndex, historyScenes: scenes.slice(wipeIndex, targetIndex).filter(Boolean) };
 }
 
+/**
+ * The playlist entry that plays after `afterSceneId` on the lesson track (spec §7 step 5 and the
+ * rewind rule). Lesson scenes always follow in playlist order. Answer scenes sit after their
+ * `insertAfter` scene for replay purposes, so they play in position EXCEPT when they already
+ * played in the current pass (the live question flow: the answer ran, the interrupted scene
+ * resumed and ended — the lesson must continue with the next lesson scene, not replay the
+ * answer). A manual rewind/skip starts a new pass, so answers replay in position after it.
+ * @param {Array<{sceneId:string}>} entries playlist entries in order
+ * @param {string|null} afterSceneId the scene that just completed (null → the first entry)
+ * @param {Set<string>|Iterable<string>} [playedThisPass] sceneIds completed since the last manual jump
+ * @returns {object|null} the next entry, or null when nothing (unplayed) follows
+ */
+export function nextEntryAfter(entries, afterSceneId, playedThisPass = new Set()) {
+  const list = entries || [];
+  const played = playedThisPass instanceof Set ? playedThisPass : new Set(playedThisPass || []);
+  let idx = afterSceneId == null ? -1 : list.findIndex((e) => e.sceneId === afterSceneId);
+  if (afterSceneId != null && idx < 0) return null;
+  for (idx += 1; idx < list.length; idx++) {
+    const e = list[idx];
+    if (kindOfScene(e.sceneId) === 'answer' && played.has(e.sceneId)) continue;
+    return e;
+  }
+  return null;
+}
+
 /** Ids of every element on the board at the START of `sceneId` (its history only). */
 export function boardIdsBefore(entries, scenesById, sceneId) {
   return planBoardAt(entries, scenesById, sceneId, 0).ids.filter((x) => x.sceneId !== sceneId).map((x) => x.id);

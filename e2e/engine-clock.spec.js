@@ -40,38 +40,57 @@ test('criterion 3: drawnElementIds grows in `at` order and never before at × D 
   expect(errors).toEqual([]);
 });
 
+/** Draw progress of every timeline element under the engine's last painted clock (1 = complete). */
+const progressNow = (page) => page.evaluate(() => {
+  const c = window.__khan.engine.current;
+  return c.timeline.map((it) => (c.forced.has(it.id) || c.lastPaintT >= it.drawEnd ? 1 : Math.max(0, Math.min(1, (c.lastPaintT - it.start) / (it.drawEnd - it.start)))));
+});
+
+/** Spec §6 "audio yields to the pen": completion no earlier than audio end, no later than audio end + cap (+ tolerance), every element at u = 1. */
+async function expectYieldRule(page, events, sceneId, cap, toleranceMs = 200) {
+  const endedAt = events.find((e) => e.type === 'audio-ended' && e.sceneId === sceneId).at;
+  const complete = events.find((e) => e.type === 'scene-complete' && e.sceneId === sceneId);
+  expect(complete.at).toBeGreaterThanOrEqual(endedAt);
+  expect(complete.at - endedAt).toBeLessThanOrEqual(cap + toleranceMs);
+  expect(complete.holdMs).toBeLessThanOrEqual(cap + toleranceMs);
+  // the pen was never cut off: when the scene completed every element had reached u = 1 (held to the end or snapped at the cap)
+  const u = await progressNow(page);
+  expect(u.length).toBeGreaterThan(0);
+  expect(u).toEqual(u.map(() => 1));
+  return { endedAt, complete };
+}
+
 test('criterion 4: yield rule — fx-long-stroke completes no earlier than audio end and no later than audio end + YIELD_CAP + 200 ms; all ids drawn; then ended', async ({ page }) => {
   test.setTimeout(90_000);
   const errors = collectErrors(page);
   const lesson = makeLesson('fx-long-stroke');
   lesson.writeAll();
-  // stretch natural stroke durations ×20 so the pen outruns the (6 s) narration of s003 and the cap engages
+  // stretch natural stroke durations ×20 so the pen outruns the (6 s) narration of s003 by far and the cap must decide
   await openLesson(page, lesson.lessonId, { config: { playbackRate: 4, naturalMsScale: 20 } });
   await engine.waitForStatuses(page, { s001: 'ready', s002: 'ready', s003: 'ready' });
   await page.getByTestId('start-button').click();
   await engine.waitForState(page, 'ended', 60_000);
-  const events = await engine.events(page);
-  const endedAt = events.find((e) => e.type === 'audio-ended' && e.sceneId === 's003').at;
-  const completeAt = events.find((e) => e.type === 'scene-complete' && e.sceneId === 's003').at;
   const cap = await page.evaluate(() => window.__khan.engine.config.yieldCapMs);
   expect(cap).toBe(1500);
-  expect(completeAt).toBeGreaterThanOrEqual(endedAt);
-  expect(completeAt - endedAt).toBeLessThanOrEqual(cap + 200);
-  expect(completeAt - endedAt).toBeGreaterThanOrEqual(cap - 100); // the strokes were far from done: the cap decided
+  const { endedAt, complete } = await expectYieldRule(page, await engine.events(page), 's003', cap);
+  expect(complete.at - endedAt).toBeGreaterThanOrEqual(cap - 100); // the strokes were far from done: the cap decided
+  expect(complete.snap).toBe(true);
   expect(await engine.drawn(page)).toEqual(['para', 'grid']);
   expect(await engine.state(page)).toBe('ended');
-  // without stretched strokes the fallback rectangles finish inside their windows: completion lands at audio end
+  // unstretched strokes: whether the real drawables (para ≈ 8.1 s, grid ≈ 12.4 s of natural drawing against a 6 s
+  // narration, QA finding 3) finish inside the hold or hit the cap is a property of the renderers, not of the
+  // engine — so assert the spec rule itself: never before audio end, never past audio end + cap, nothing cut short
   const lesson2 = makeLesson('fx-long-stroke');
   lesson2.writeAll();
   await openLesson(page, lesson2.lessonId, { config: { playbackRate: 4 } });
   await engine.waitForStatuses(page, { s001: 'ready', s002: 'ready', s003: 'ready' });
   await page.getByTestId('start-button').click();
   await engine.waitForState(page, 'ended', 60_000);
-  const ev2 = await engine.events(page);
-  const e2 = ev2.find((e) => e.type === 'audio-ended' && e.sceneId === 's003').at;
-  const c2 = ev2.find((e) => e.type === 'scene-complete' && e.sceneId === 's003').at;
-  expect(c2).toBeGreaterThanOrEqual(e2);
-  expect(c2 - e2).toBeLessThanOrEqual(200);
+  const r2 = await expectYieldRule(page, await engine.events(page), 's003', cap);
+  // a snap (hold ≥ cap) and a natural finish (hold < cap) are both legal; whichever happened, it is self-consistent
+  expect(r2.complete.snap).toBe(r2.complete.holdMs >= cap);
+  expect(await engine.drawn(page)).toEqual(['para', 'grid']);
+  expect(await engine.state(page)).toBe('ended');
   expect(errors).toEqual([]);
 });
 

@@ -4,15 +4,17 @@
    fonts come from the --khan-* tokens (names frozen, values pending the design pass); class names
    and data-testids are a frozen markup contract — a design pass adds, never renames. */
 
-.eng { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--khan-panel-text); font-size: clamp(11px, 1.1vw, 15px); }
+.eng { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--khan-panel-text); font-size: clamp(11px, 1.1vw, 15px);
+  overflow: hidden; overflow: clip; } /* the chrome never widens the page: anything that would leak past the board box is clipped (no horizontal scroll at 320 px) */
 .eng button { font: inherit; }
 .eng [hidden] { display: none !important; }
 
 /* top bar ---------------------------------------------------------------------------------- */
 .eng-top { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 0.75em;
   padding: 0.3em 0.6em; background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0)); min-height: 2.6em; box-sizing: border-box; }
-.eng-top-left, .eng-top-mid, .eng-top-right { display: flex; align-items: center; gap: 0.5em; min-width: 0; }
-.eng-top-mid { flex: 1; justify-content: center; }
+.eng-top-left, .eng-top-mid, .eng-top-right { display: flex; align-items: center; gap: 0.5em; min-width: 0; flex-shrink: 1; }
+.eng-top-mid { flex: 1; justify-content: center; overflow: hidden; }
+.eng-top .eng-btn { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* buttons shrink (ellipsis) before the toolbar overflows; aria-labels keep the full names */
 .eng-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.9; max-width: 22em; }
 .eng-state { font: 600 0.8em ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.04em; text-transform: lowercase; padding: 0.15em 0.6em; border-radius: 999px;
   background: var(--khan-panel-bg); border: 1px solid var(--khan-panel-muted); color: var(--khan-panel-text); }
@@ -92,6 +94,16 @@
 .eng-summary dt { color: var(--khan-panel-muted); }
 .eng-summary dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .eng-summary-hint { margin: 0.9em 0 0; color: var(--khan-panel-muted); font-size: 0.85em; }
+
+/* narrow boards (phones, QA finding 10): tighter toolbar, drop the duplicated state label and the
+   title so Pause / Ask / Transcript stay whole and inside a 320 px board */
+@media (max-width: 480px) {
+  .eng-top { gap: 0.35em; padding: 0.3em 0.4em; }
+  .eng-top-left, .eng-top-mid, .eng-top-right { gap: 0.3em; }
+  .eng-top .eng-btn { padding: 0.3em 0.5em; }
+  .eng-state-label, .eng-title { display: none; }
+  .eng-side[data-expanded="true"], .eng-side:hover, .eng-side:focus-within { width: min(19em, 70%); }
+}
 
 /* no flashing anywhere: the only motion is the pen (canvas) and width changes of the rail */
 @media (prefers-reduced-motion: reduce) { .eng * { transition: none !important; } }
