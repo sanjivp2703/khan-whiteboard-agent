@@ -227,3 +227,63 @@ test('replay: a lesson folder present at startup is ingested and audio comes fro
   const { mkdtempSync } = await import('node:fs');
   void mkdtempSync;
 });
+
+test('a ready scene rewritten invalid gets its reject round before degrading (QA finding 6): invalid attempts count, not ingests', async () => {
+  const srv = await startTestServer({ KHAN_REJECT_GRACE_MS: '60000' });
+  const L = 'fx-degrade-flow';
+  try {
+    srv.copyFixture(L, { from: 'degrade', onlyScenes: ['s001', 's003'] });
+    await srv.waitForStatuses(L, { s001: 'ready', s003: 'ready' });
+    const entry = () => srv.info.store.get(L).scenes.get('s003');
+    assert.equal(entry().attempts, 1);
+    assert.equal(entry().invalidAttempts, 0);
+
+    // rewrite the valid s003 with a scene-level fault (a region over cells s001 occupies) → rejected, not degraded
+    const original = JSON.parse(readFileSync(join(srv.lessonsDir, L, 'scenes', 's003.json'), 'utf8'));
+    const s001 = JSON.parse(readFileSync(join(srv.lessonsDir, L, 'scenes', 's001.json'), 'utf8'));
+    const occupiedSlot = s001.elements.find((e) => e.slot).slot;
+    const invalid = { ...original, board: { mode: 'region', slots: occupiedSlot }, elements: [{ id: 'late', type: 'text', slot: occupiedSlot, style: 'body', text: 'late text' }] };
+    const seen = new Set();
+    const poll = setInterval(async () => { const p = await srv.playlist(L); const e = p && p.entries.find((x) => x.sceneId === 's003'); if (e) seen.add(e.status); }, 15);
+    srv.writeScene(L, invalid);
+    const p1 = await srv.waitForStatuses(L, { s003: 'rejected' });
+    clearInterval(poll);
+    const rej = p1.entries.find((e) => e.sceneId === 's003');
+    assert.ok(rej.errors.some((e) => e.code === 'REGION_OCCUPIED'), JSON.stringify(rej.errors));
+    assert.equal(rej.degraded, false);
+    assert.ok(!seen.has('degraded'), `went through degraded without a reject round: ${[...seen]}`);
+    assert.equal(entry().attempts, 2);
+    assert.equal(entry().invalidAttempts, 1);
+    const rejectFile = join(srv.lessonsDir, L, 'control', 'reject-s003.json');
+    await srv.waitFor(() => existsSync(rejectFile), { what: 'reject file' });
+    assert.equal(JSON.parse(readFileSync(rejectFile, 'utf8')).attempt, 1, 'first invalid attempt of this revision');
+    const w = await srv.get(`/api/lesson/${L}/wait?timeout=1`);
+    assert.equal(w.body.event, 'reject');
+    assert.equal(w.body.sceneId, 's003');
+    assert.equal(w.body.attempt, 1);
+    assert.equal((await srv.get(`/api/lesson/${L}/scene/s003`)).status, 404, 'no effective scene while rejected');
+
+    // second invalid rewrite → degraded (narration-only: the fault is scene-level)
+    srv.writeScene(L, { ...invalid, title: 'Still broken' });
+    const p2 = await srv.waitForStatuses(L, { s003: 'ready' });
+    const deg = p2.entries.find((e) => e.sceneId === 's003');
+    assert.equal(deg.degraded, true);
+    assert.deepEqual(deg.droppedElementIds, ['late']);
+    assert.equal(entry().invalidAttempts, 2);
+    const eff = (await srv.get(`/api/lesson/${L}/scene/s003`)).body;
+    assert.deepEqual(eff.elements, []);
+    assert.equal(eff.board.mode, 'region');
+    assert.notEqual(eff.board.slots, occupiedSlot);
+
+    // a valid rewrite resets the cycle: the next invalid write is rejected again, not degraded
+    srv.writeScene(L, original);
+    await srv.waitFor(async () => { const p = await srv.playlist(L); const e = p.entries.find((x) => x.sceneId === 's003'); return e.status === 'ready' && !e.degraded; }, { what: 'valid again' });
+    assert.equal(entry().invalidAttempts, 0);
+    srv.writeScene(L, invalid);
+    await srv.waitForStatuses(L, { s003: 'rejected' });
+    assert.equal(entry().invalidAttempts, 1);
+    assert.equal(entry().attempts, 5);
+  } finally {
+    await srv.close();
+  }
+});

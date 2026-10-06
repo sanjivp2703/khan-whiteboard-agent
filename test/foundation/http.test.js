@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { startTestServer } from './helpers/server.js';
+import http from 'node:http';
+import { startTestServer, openSse, sleep } from './helpers/server.js';
 
 test('route guards (criterion 13): bad ids → 400, foreign Origin → 403, own origin / no origin → ok', async () => {
   const srv = await startTestServer();
@@ -50,7 +51,8 @@ test('404s, static serving, pages, audio Content-Type, health', async () => {
     assert.equal((await srv.get('/api/lesson/fx-no-such-lesson/status')).status, 404);
     assert.equal((await srv.get('/api/lesson/fx-no-such-lesson/scene/s001')).status, 404);
     assert.equal((await srv.get('/api/lesson/fx-no-such-lesson/audio/s001')).status, 404);
-    assert.equal((await srv.get('/api/lesson/fx-no-such-lesson/events')).status, 404);
+    assert.equal((await srv.get('/api/lesson/fx-no-such-lesson/wait?timeout=1')).status, 404);
+    // (events on an unknown but well-formed id is a 200 `waiting` stream — see the SSE-before-ingest test)
     assert.equal((await srv.get('/api/nope')).status, 404);
     assert.equal((await srv.get('/player/does-not-exist.js')).status, 404);
     assert.equal((await srv.get('/player/../package.json')).status, 404);
@@ -105,6 +107,103 @@ test('404s, static serving, pages, audio Content-Type, health', async () => {
     assert.equal(status.body.counts.ready, 3);
     assert.equal(status.body.counts.planned, 3);
     assert.equal(status.body.ended, false);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('SSE before ingest (QA finding 7): a well-formed unknown lessonId gets a 200 stream with `waiting`, then `playlist` once the lesson appears; malformed ids stay rejected', async () => {
+  const srv = await startTestServer();
+  const L = 'fx-type-text'; // the folder does not exist yet; it is copied in below
+  try {
+    assert.equal((await srv.get(`/api/lesson/${L}/playlist`)).status, 404, 'the lesson does not exist yet');
+    const sse = await openSse(srv.url(`/api/lesson/${L}/events`), { until: 'waiting' });
+    assert.equal(sse.status, 200);
+    assert.ok(sse.headers.get('content-type').startsWith('text/event-stream'));
+    assert.equal(sse.events[0].event, 'waiting');
+    assert.equal(sse.events[0].data.lessonId, L);
+    assert.equal(srv.info.store.get(L), null, 'no phantom lesson is created by the pending stream');
+    await sleep(300);
+    assert.ok(sse.events.every((e) => e.event === 'waiting'), 'nothing but waiting until the lesson exists');
+    // the outline lands → the same connection switches to playlist snapshots
+    const playlistEv = sse.next('playlist');
+    srv.copyFixture(L);
+    const first = await playlistEv;
+    assert.equal(first.data.lessonId, L);
+    assert.equal(first.data.outline.lessonId, L);
+    await srv.waitForStatuses(L, { s001: 'ready', s002: 'ready', s003: 'ready' });
+    await sleep(100);
+    const last = sse.events[sse.events.length - 1];
+    assert.equal(last.event, 'playlist');
+    assert.equal(last.data.entries.every((e) => e.status === 'ready'), true);
+    assert.equal((await srv.playlist(L)).player.connected, true, 'the attached stream counts as the player');
+    sse.close();
+    await srv.waitFor(async () => (await srv.playlist(L)).player.connected === false, { what: 'disconnect' });
+    // malformed ids are still rejected before anything else
+    assert.equal((await srv.get('/api/lesson/UPPER-CASE/events')).status, 400);
+    assert.equal((await srv.get('/api/lesson/short/events')).status, 400);
+    // an abandoned pending stream is dropped cleanly
+    const abandoned = await openSse(srv.url('/api/lesson/fx-never-arrives/events'), { until: 'waiting' });
+    assert.equal(srv.info.store.get('fx-never-arrives'), null);
+    abandoned.close();
+    await sleep(100);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('body cap (QA finding 11): a POST body over 64 KB → 413 JSON, declared or chunked; the server stays healthy', async () => {
+  const srv = await startTestServer();
+  try {
+    srv.copyFixture('fx-type-text');
+    await srv.waitForStatuses('fx-type-text', { s001: 'ready' });
+    const big = JSON.stringify({ sceneId: 's001', event: 'start', pad: 'x'.repeat(70 * 1024) });
+    // declared Content-Length over the cap
+    const r1 = await fetch(srv.url('/api/lesson/fx-type-text/position'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: big });
+    assert.equal(r1.status, 413);
+    assert.match((await r1.json()).error, /too large/);
+    // chunked transfer (no Content-Length): the cap is hit while streaming
+    const r2 = await new Promise((resolve, reject) => {
+      const u = new URL(srv.url('/api/lesson/fx-type-text/question'));
+      const req = http.request({ host: u.hostname, port: u.port, path: u.pathname, method: 'POST', headers: { 'content-type': 'application/json', 'transfer-encoding': 'chunked' } }, (res) => {
+        let text = '';
+        res.on('data', (d) => { text += d; });
+        res.on('end', () => resolve({ status: res.statusCode, body: text }));
+      });
+      req.on('error', reject);
+      const piece = 'y'.repeat(8 * 1024);
+      req.write('{"text":"');
+      let sent = 0;
+      const pump = () => { if (req.destroyed) return; if (sent >= 10) { req.end('"}'); return; } sent++; req.write(piece, pump); };
+      pump();
+    });
+    assert.equal(r2.status, 413);
+    assert.match(JSON.parse(r2.body).error, /too large/);
+    // still serving, and an in-range body still works
+    assert.equal((await srv.get('/api/health')).status, 200);
+    assert.equal((await srv.post('/api/lesson/fx-type-text/position', { sceneId: 's001', event: 'start' })).status, 204);
+    const ok = await fetch(srv.url('/api/lesson/fx-type-text/question'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: 'z'.repeat(500), atSceneId: 's001', atTime: 1, pad: 'p'.repeat(60 * 1024) }) });
+    assert.equal(ok.status, 200);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('wait on an unknown lesson → 404 and no phantom lesson (QA finding 13); wait on a known lesson still works', async () => {
+  const srv = await startTestServer();
+  try {
+    const r = await srv.get('/api/lesson/zzzz-not-here-either/wait?timeout=1');
+    assert.equal(r.status, 404);
+    assert.equal(r.body.error, 'unknown lesson');
+    assert.equal(srv.info.store.get('zzzz-not-here-either'), null);
+    assert.equal((await srv.get('/api/lesson/zzzz-not-here-either/playlist')).status, 404, 'still unknown afterwards');
+    assert.equal((await srv.get('/api/lesson/zzzz-not-here-either/status')).status, 404);
+    srv.copyFixture('fx-type-text', { onlyScenes: ['s001'] });
+    await srv.waitForStatuses('fx-type-text', { s001: 'ready' });
+    const w = await srv.get('/api/lesson/fx-type-text/wait?timeout=1');
+    assert.equal(w.status, 200);
+    assert.equal(w.body.event, 'continue');
+    assert.equal(w.body.readyAhead, 1);
   } finally {
     await srv.close();
   }

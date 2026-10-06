@@ -33,14 +33,34 @@ export function createHttpHandler({ store, ingest, sse, wait, repoRoot, port, ho
     return undefined;
   }
 
+  const httpError = (status, message) => Object.assign(new Error(message), { status });
+
+  /**
+   * Read a JSON body of at most MAX_BODY bytes. Too large → a 413 error (declared Content-Length
+   * is checked up front; a chunked body is cut off once the cap is crossed and the rest is
+   * drained, so the client gets a real response instead of a destroyed socket — QA finding 11).
+   */
   function readBody(req) {
     return new Promise((resolvePromise, reject) => {
+      const declared = Number(req.headers['content-length']);
+      if (Number.isFinite(declared) && declared > MAX_BODY) {
+        req.resume(); // drain whatever arrives; the response goes out regardless
+        reject(httpError(413, `body too large (max ${MAX_BODY} bytes)`));
+        return;
+      }
       let size = 0;
+      let tooLarge = false;
       const chunks = [];
-      req.on('data', (c) => { size += c.length; if (size > MAX_BODY) { reject(new Error('body too large')); req.destroy(); return; } chunks.push(c); });
+      req.on('data', (c) => {
+        if (tooLarge) return;
+        size += c.length;
+        if (size > MAX_BODY) { tooLarge = true; chunks.length = 0; reject(httpError(413, `body too large (max ${MAX_BODY} bytes)`)); return; }
+        chunks.push(c);
+      });
       req.on('end', () => {
+        if (tooLarge) return;
         if (!chunks.length) return resolvePromise({});
-        try { resolvePromise(JSON.parse(Buffer.concat(chunks).toString('utf8'))); } catch { reject(new Error('body is not JSON')); }
+        try { resolvePromise(JSON.parse(Buffer.concat(chunks).toString('utf8'))); } catch { reject(httpError(400, 'body is not JSON')); }
       });
       req.on('error', reject);
     });
@@ -121,7 +141,9 @@ export function createHttpHandler({ store, ingest, sse, wait, repoRoot, port, ho
         }
         case 'events': {
           if (method !== 'GET') return error(res, 405, 'method not allowed');
-          if (!lesson) return error(res, 404, 'unknown lesson');
+          // a well-formed id the server has not ingested yet: keep the stream open (`waiting`),
+          // it switches to `playlist` snapshots as soon as the lesson appears (QA finding 7)
+          if (!lesson) return sse.addPending(lessonId, req, res);
           return sse.add(lesson, req, res);
         }
         case 'position': {
@@ -144,9 +166,9 @@ export function createHttpHandler({ store, ingest, sse, wait, repoRoot, port, ho
         }
         case 'wait': {
           if (method !== 'GET') return error(res, 405, 'method not allowed');
-          const target = lesson || store.ensure(lessonId);
+          if (!lesson) return error(res, 404, 'unknown lesson'); // never materialise a phantom lesson (QA finding 13)
           const timeout = Math.min(600, Math.max(0, Number(url.searchParams.get('timeout') ?? 30) || 0));
-          const ev = await wait.wait(target, timeout);
+          const ev = await wait.wait(lesson, timeout);
           return json(res, 200, ev);
         }
         default:
@@ -154,7 +176,7 @@ export function createHttpHandler({ store, ingest, sse, wait, repoRoot, port, ho
       }
     } catch (e) {
       log('http error', e);
-      if (!res.headersSent) return error(res, e && /body/.test(e.message) ? 400 : 500, e && e.message ? e.message : 'error');
+      if (!res.headersSent) return error(res, (e && e.status) || 500, e && e.message ? e.message : 'error');
       try { res.end(); } catch { /* ignore */ }
       return undefined;
     }

@@ -53,6 +53,45 @@ test('in-process: a new outline opens the browser unless KHAN_NO_OPEN=1 (opener 
   }
 });
 
+test('startup scan never opens the browser (QA finding 5): lesson folders present at start → 0 opener calls; an outline appearing afterwards → exactly 1', async () => {
+  const present = ['fx-type-text', 'fx-type-box', 'fx-type-list'];
+  const srv = await startTestServer({ KHAN_NO_OPEN: '' }, {
+    populate: (lessonsDir) => { for (const id of present) cpSync(join(FIXTURES, 'lessons', id), join(lessonsDir, id), { recursive: true }); },
+  });
+  try {
+    for (const id of present) await srv.waitForStatuses(id, { s001: 'ready' });
+    await sleep(300);
+    assert.deepEqual(srv.opened, [], 'no tab for lessons ingested by the startup scan');
+    assert.deepEqual(srv.info.lifecycle.opened, []);
+    // the lessons are fully served (this is the replay path)
+    assert.equal((await srv.get('/api/lesson/fx-type-text/outline')).status, 200);
+    // a startup lesson's outline rewritten later still does not open (it is not a new lesson)
+    const outline = JSON.parse((await import('node:fs')).readFileSync(join(srv.lessonsDir, 'fx-type-text', 'outline.json'), 'utf8'));
+    srv.writeOutline('fx-type-text', { ...outline, title: 'Renamed' });
+    await srv.waitFor(async () => (await srv.get('/api/lesson/fx-type-text/outline')).body.title === 'Renamed', { what: 'outline rewrite ingested' });
+    await sleep(200);
+    assert.deepEqual(srv.opened, []);
+    // a NEW outline after startup opens exactly once
+    srv.copyFixture('fx-type-code');
+    await srv.waitFor(() => srv.opened.length > 0, { what: 'opener for the new lesson' });
+    await srv.waitForStatuses('fx-type-code', { s001: 'ready', s002: 'ready', s003: 'ready' });
+    await sleep(300);
+    assert.deepEqual(srv.opened, [`${srv.base}/lesson/fx-type-code`]);
+  } finally {
+    await srv.close();
+  }
+  // KHAN_NO_OPEN=1 still suppresses the opener for new lessons (the CLI relies on it)
+  const srv2 = await startTestServer({ KHAN_NO_OPEN: '1' });
+  try {
+    srv2.copyFixture('fx-type-code');
+    await srv2.waitForStatuses('fx-type-code', { s001: 'ready' });
+    await sleep(200);
+    assert.deepEqual(srv2.opened, []);
+  } finally {
+    await srv2.close();
+  }
+});
+
 function spawnServer(lessonsDir, cacheDir, env) {
   const child = spawn(process.execPath, [join(REPO_ROOT, 'server', 'index.js'), '--port', '0', '--lessons-dir', lessonsDir, '--cache-dir', cacheDir], {
     env: { ...process.env, KHAN_TTS: 'silent', KHAN_NO_OPEN: '1', KHAN_WATCH_INTERVAL_MS: '80', KHAN_WATCH_STABLE_MS: '100', ...env },
