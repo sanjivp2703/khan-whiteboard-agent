@@ -89,8 +89,10 @@ uniformly by measurement (`measure.js`) and must be by drawables (`grid.rectInse
 
 **Colors.** Element `color` accepts exactly `COLOR_TOKENS = accent1 … accent5, muted`. Also defined
 (not element-selectable): `chalk` (default stroke/text), `boardBg`, chrome tokens `pageBg`,
-`panelBg`, `panelText`, `panelMuted`. **Names are frozen; values are placeholders** until a design
-pass (pipeline-status row `design-tokens`). `player/tokens.css` mirrors them as `--khan-*` custom
+`panelBg`, `panelText`, `panelMuted`. **Names are frozen.** Values were set by design cycle 1
+(approved 2026-10-12, see design/01-khan-look-research.md and changes/archive): pure black board,
+Khan Academy's on-black palette, white chalk, KA grey for `muted`; `test/foundation/tokens.test.js`
+pins them and their contrast. `player/tokens.css` mirrors them as `--khan-*` custom
 properties and `app.js`/`harness.js` write the JS values onto `:root` at load (JS is the source of
 truth). Never hard-code a color; read `tokens`.
 
