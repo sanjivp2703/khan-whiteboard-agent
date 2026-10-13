@@ -27,3 +27,5 @@ Post-v1 work, per `iteration-guide.md` (agent_pipeline root). One row per change
 
 | Change | Lane | Status | Notes |
 |--------|------|--------|-------|
+| fix: player chrome outside the board; dedupe skipped notes (backlog #19 #20) | fix | done 2026-10-13, merge 41f1bd1 | 289/0 → 291/0 unit (+0), 52 → 55 e2e; criterion 18 test MODIFIED (board = letterbox inside the board area, per spec §10) |
+| fix: diagram edge labels clear of edges, nodes, labels (backlog #21) | fix | done 2026-10-13, merge 71a57f6 | 291/0 → 294/0 unit, 55 → 56 e2e; new fixture fx-pic-labels |
