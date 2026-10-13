@@ -28,13 +28,16 @@ test('criterion 14: a ready entry with audioUrl null is skipped with a visible n
     entries: snap.entries.map((e) => (e.sceneId === 's002' ? { ...e, audioUrl: null, errors: [...e.errors, { elementId: null, code: 'TTS_FAILED', message: 'simulated TTS failure' }] } : e)),
   }));
   await openLesson(page, lesson.lessonId, { config: { playbackRate: 4 } });
-  await expect(page.getByTestId('sidebar-item-s002')).toContainText('no audio');
+  // change-player-ui: the chapters panel shows no badges; the "no audio" fact stays as a data attribute
+  await expect(page.getByTestId('sidebar-item-s002')).toHaveAttribute('data-no-audio', 'true');
+  await expect(page.getByTestId('sidebar-item-s002')).not.toContainText('no audio');
   await page.getByTestId('start-button').click();
   await engine.waitForScene(page, 's003', 40_000);
   const note = page.getByTestId('scene-skipped-note');
   await expect(note).toBeVisible();
-  await expect(note).toContainText('s002');
-  await expect(note).toContainText('skipped: audio unavailable');
+  // change-player-ui wording: one plain line, no scene id (the id is in the scene-skipped event)
+  await expect(note).toHaveText('Skipped one chapter that had no voice.');
+  expect((await engine.events(page)).some((e) => e.type === 'scene-skipped' && e.sceneId === 's002')).toBe(true);
   // the skipped scene's board content is still on the board for the region scenes after it
   expect(await engine.drawn(page)).toEqual(expect.arrayContaining(['before', 'silent']));
   await engine.waitForState(page, 'ended', 40_000);
@@ -44,7 +47,7 @@ test('criterion 14: a ready entry with audioUrl null is skipped with a visible n
   expect(errors).toEqual([]);
 });
 
-test('criterion 15: tts.ready=false → prominent "OpenAI key required" note with the reason; Start disabled; clicking does not arm', async ({ page }) => {
+test('criterion 15 (MODIFIED, change-player-ui): tts.ready=false → one plain "No voice yet" banner, never the provider reason; Start disabled; clicking does not arm', async ({ page }) => {
   const errors = collectErrors(page);
   const lesson = makeLesson('fx-eng-short');
   lesson.writeAll();
@@ -53,8 +56,8 @@ test('criterion 15: tts.ready=false → prominent "OpenAI key required" note wit
   await openLesson(page, lesson.lessonId);
   const note = page.getByTestId('tts-missing-note');
   await expect(note).toBeVisible();
-  await expect(note).toContainText('OpenAI key required');
-  await expect(note).toContainText('OPENAI_API_KEY not set');
+  await expect(note).toHaveText('No voice yet — add your OpenAI key to hear khan speak. The board still plays silently.');
+  await expect(note).not.toContainText('OPENAI_API_KEY'); // the provider's reason is never shown (spec §6 "Player chrome")
   await expect(page.getByTestId('start-button')).toBeDisabled();
   await page.getByTestId('start-gate').click({ position: { x: 12, y: 12 } });
   await page.locator('body').focus();
@@ -83,10 +86,12 @@ test('criterion 16b: a degraded scene is marked in the sidebar and transcript an
   expect(entry.degraded).toBe(true);
   expect(entry.droppedElementIds).toEqual(['bad']);
   await expect(page.getByTestId('sidebar-item-s002')).toHaveAttribute('data-degraded', 'true');
-  await expect(page.getByTestId('sidebar-item-s002')).toContainText('degraded');
+  await expect(page.getByTestId('sidebar-item-s002')).not.toContainText('degraded'); // change-player-ui: a developer signal, not a badge
   await page.getByTestId('start-button').click();
   await engine.waitForScene(page, 's002', 30_000);
-  await expect(page.getByTestId('transcript-degraded')).toBeVisible();
+  // change-player-ui: the degraded meta stays in the DOM (hidden) with its count, for tests and debugging
+  await expect(page.getByTestId('transcript-degraded')).toBeHidden();
+  await expect(page.getByTestId('transcript-degraded')).toHaveAttribute('data-degraded', 'true');
   await expect(page.getByTestId('transcript-degraded')).toContainText('1 element dropped');
   await page.waitForFunction(() => window.__khan.engine.drawnElementIds().length >= 2);
   expect(await engine.drawn(page)).not.toContain('bad');
@@ -94,6 +99,6 @@ test('criterion 16b: a degraded scene is marked in the sidebar and transcript an
   await expect(page.getByTestId('summary')).toHaveAttribute('data-degraded', '1');
   await expect(page.getByTestId('summary')).toHaveAttribute('data-scenes', '3');
   await expect(page.getByTestId('summary-degraded')).toHaveText('1');
-  await expect(page.getByTestId('transcript-degraded')).toBeHidden(); // s003 is fine
+  await expect(page.getByTestId('transcript-degraded')).toHaveAttribute('data-degraded', 'false'); // s003 is fine
   expect(errors).toEqual([]);
 });

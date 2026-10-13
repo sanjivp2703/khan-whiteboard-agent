@@ -59,7 +59,6 @@ export function start(opts) {
   let run = 0;                     // bumps on every scene start; stale async work checks it
   let waitingSince = null;         // performance.now() when a stall/thinking wait began
   let beatTimer = null;
-  let playlistReceivedAt = 0;
   let sidebarPinned = false;
   const played = new Set();        // sceneIds with a posted `end` (end summary)
   const passPlayed = new Set();    // sceneIds completed since the last manual jump: answer scenes in here are not replayed (spec §7 step 5)
@@ -82,8 +81,10 @@ export function start(opts) {
     onCancelAsk: () => cancelAsk(),
     onSubmitAsk: (text) => submitAsk(text),
     onToggleSidebar: () => { sidebarPinned = !sidebarPinned; ui.setSidebarPinned(sidebarPinned); updateUi(); },
-    onToggleTranscript: () => ui.setTranscriptVisible(!ui.isTranscriptVisible()),
+    onToggleTranscript: () => ui.setTranscriptExpanded(!ui.isTranscriptExpanded()),
+    onReplay: () => { const first = entries()[0]; if (first) jump(first.sceneId); }, // end card: back to the first scene (the existing jump)
   }, { boardWrap: board.parentElement }); // the foundation's #board-wrap moves into the engine's board area (chrome outside the board)
+  let progressPaintedAt = 0;       // the chrome's elapsed/total text and bar fill refresh at ~4 Hz, not every frame
   const boardCtx = board.getContext('2d');
   const bg = document.createElement('canvas');
   bg.width = board.width; bg.height = board.height;
@@ -133,8 +134,26 @@ export function start(opts) {
       ttsReady: ttsReady(),
     });
     renderSidebar();
-    if (fsm.state === 'ended') ui.setSummary(summaryCounts());
+    renderProgress(true);
+    if (fsm.state === 'ended') ui.setSummary({ ...summaryCounts(), chapters: lessonChapterCount() });
     if (fsm.state !== 'stalled' && fsm.state !== 'thinking' && fsm.state !== 'armed') ui.setCaption('');
+  }
+
+  /** Chrome progress (elapsed / total, bar fill): at most every 250 ms unless forced by a state change. */
+  function renderProgress(force = false) {
+    const now = nowMs();
+    if (!force && now - progressPaintedAt < 250) return;
+    progressPaintedAt = now;
+    ui.setProgress({ currentId: current ? current.entry.sceneId : null, currentMs: audioTimeS() * 1000 });
+  }
+  /** Number of lesson chapters (outline scenes merged with the playlist's lesson scenes). */
+  function lessonChapterCount() { return sidebarItems().filter((i) => i.kind !== 'answer').length; }
+  /** Start-gate hint: chapters from the outline; minutes from known durations, 10 s per scene not yet voiced. */
+  function lessonInfo() {
+    const items = sidebarItems().filter((i) => i.kind !== 'answer');
+    const outline = playlist && playlist.outline && Array.isArray(playlist.outline.scenes) ? playlist.outline.scenes.length : 0;
+    const estimateMs = items.reduce((sum, i) => sum + (Number.isFinite(i.durationMs) && i.durationMs > 0 ? i.durationMs : 10_000), 0);
+    return { chapters: outline || items.length, estimateMs };
   }
 
   async function postPosition(sceneId, event, t = audioTimeS()) {
@@ -148,7 +167,6 @@ export function start(opts) {
   // playlist (SSE)
   function onPlaylist(snapshot) {
     playlist = snapshot;
-    playlistReceivedAt = nowMs();
     log('playlist', { ready: snapshot.entries.filter((e) => e.status === 'ready').map((e) => e.sceneId), ended: !!snapshot.ended });
     for (const e of snapshot.entries) {
       const prev = sceneStatus.get(e.sceneId);
@@ -157,6 +175,7 @@ export function start(opts) {
       if (EFFECTIVE_STATUSES.has(e.status) && !scenes.has(e.sceneId)) ensureScene(e.sceneId).catch(() => {});
     }
     ui.setTitle(snapshot.title || lessonId);
+    ui.setLessonInfo(lessonInfo());
     ui.setTtsMissing(ttsReady() ? null : (snapshot.tts && snapshot.tts.reason) || 'TTS provider not ready');
     renderDebug(snapshot);
     updateUi();
@@ -191,15 +210,26 @@ export function start(opts) {
 
   /** Outline scenes merged with playlist entries, in playlist order (planned scenes slot in by number). */
   function sidebarItems() {
-    const items = entries().map((e) => ({
-      sceneId: e.sceneId, title: e.title || outlineTitle(e.sceneId), status: e.status, kind: e.kind || kindOfScene(e.sceneId),
-      degraded: !!e.degraded, ready: isReady(e), planned: false, final: !!e.final,
-      noAudio: e.status === 'ready' && !e.audioUrl,
-    }));
+    const questions = (playlist && playlist.questions) || [];
+    const firstAnswerOf = new Set(); // the first answer scene of each question carries the question's text in the chrome
+    const items = entries().map((e) => {
+      const kind = e.kind || kindOfScene(e.sceneId);
+      let questionText;
+      if (kind === 'answer') {
+        const qId = e.questionId || e.sceneId.slice(0, 4);
+        if (!firstAnswerOf.has(qId)) { firstAnswerOf.add(qId); const q = questions.find((x) => x && x.qId === qId); questionText = q && typeof q.text === 'string' ? q.text : undefined; }
+      }
+      return {
+        sceneId: e.sceneId, title: e.title || outlineTitle(e.sceneId), status: e.status, kind,
+        degraded: !!e.degraded, ready: isReady(e), planned: false, final: !!e.final,
+        noAudio: e.status === 'ready' && !e.audioUrl,
+        durationMs: Number.isFinite(e.durationMs) && e.durationMs > 0 ? e.durationMs : null, questionText,
+      };
+    });
     const outline = playlist && playlist.outline && Array.isArray(playlist.outline.scenes) ? playlist.outline.scenes : [];
     for (const o of outline) {
       if (!o || typeof o.sceneId !== 'string' || items.some((i) => i.sceneId === o.sceneId)) continue;
-      const item = { sceneId: o.sceneId, title: o.title || '', status: 'planned', kind: 'lesson', degraded: false, ready: false, planned: true, final: false, noAudio: false };
+      const item = { sceneId: o.sceneId, title: o.title || '', status: 'planned', kind: 'lesson', degraded: false, ready: false, planned: true, final: false, noAudio: false, durationMs: null };
       let idx = items.findIndex((i) => i.kind === 'lesson' && sNum(i.sceneId) > sNum(o.sceneId));
       if (idx < 0) idx = items.length;
       items.splice(idx, 0, item);
@@ -451,7 +481,7 @@ export function start(opts) {
   function skipCurrent(reason) {
     if (!current || current.skipped) return;
     current.skipped = true;
-    ui.addNote('scene-skipped-note', `scene ${current.entry.sceneId} skipped: ${reason}`, `skipped:${current.entry.sceneId}`); // one note per (scene, kind), whatever the pass
+    ui.addNote('scene-skipped-note', 'Skipped one chapter that had no voice.', 'skipped'); // one quiet line, however many scenes or passes (backlog #20; the scene id is in the event log)
     log('scene-skipped', { sceneId: current.entry.sceneId, reason });
     for (const item of current.timeline) current.forced.add(item.id);
     paintCurrent(Infinity);
@@ -570,7 +600,7 @@ export function start(opts) {
       return true;
     } catch (e) {
       log('ask-failed', { error: String(e && e.message) });
-      ui.addNote('question-failed-note', `question could not be sent: ${e && e.message ? e.message : e}`);
+      ui.addNote('question-failed-note', 'Your question didn\'t go through — try again.', 'question-failed'); // the error itself is in the event log
       const a = dispatch({ type: 'ABORT_ASK' });
       if (a.ok && fsm.state === 'playing' && current && !current.skipped && !current.audioEnded) audio.play().catch(() => {});
       return false;
@@ -590,7 +620,7 @@ export function start(opts) {
     else if (ev.key === 'ArrowLeft') { ev.preventDefault(); skipBack(); }
     else if (ev.key === '?') { ev.preventDefault(); openAsk(); }
     else if (ev.key === 's' && !ev.metaKey && !ev.ctrlKey) { sidebarPinned = !sidebarPinned; ui.setSidebarPinned(sidebarPinned); updateUi(); }
-    else if (ev.key === 't' && !ev.metaKey && !ev.ctrlKey) { ui.setTranscriptVisible(!ui.isTranscriptVisible()); }
+    else if (ev.key === 't' && !ev.metaKey && !ev.ctrlKey) { ui.setTranscriptExpanded(!ui.isTranscriptExpanded()); }
   });
   // clicking anywhere arms audio while waiting (the browser gesture requirement)
   document.addEventListener('pointerdown', () => { if (fsm.state === 'waiting') arm('click'); }, true);
@@ -624,6 +654,7 @@ export function start(opts) {
       pen.frame(now);
     }
     updateCaption(now);
+    renderProgress();
   }
 
   function updatePen(t, now) {
@@ -668,16 +699,10 @@ export function start(opts) {
     if (s !== 'stalled' && s !== 'armed') return;
     if (waitingSince === null) { ui.setCaption(''); return; }
     const waited = now - waitingSince;
-    if (waited >= Number(config.stuckCaptionMs)) ui.setCaption(`generation seems stuck · ${producerAge(now)}`);
+    // viewer wording (change-player-ui): no ages or counts; the producer's last-write age stays in the playlist hook
+    if (waited >= Number(config.stuckCaptionMs)) ui.setCaption('Still thinking… this is taking longer than usual.');
     else if (waited >= Number(config.stallCaptionMs)) ui.setCaption('khan is thinking…');
     else ui.setCaption('');
-  }
-  function producerAge(now) {
-    const p = playlist && playlist.producer;
-    if (!p || !Number.isFinite(p.lastWriteAgeMs)) return 'no producer write yet';
-    const age = p.lastWriteAgeMs + (now - playlistReceivedAt);
-    const s = Math.round(age / 1000);
-    return `last write ${s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${s % 60} s`} ago`;
   }
 
   function summaryCounts() {
