@@ -295,11 +295,18 @@ Voice: `KHAN_TTS_VOICE` > `.khan/config.json` `{ "tts": {"voice": "..."}, "port"
 default (`null`). Cache (`server/tts/cache.js`):
 `<cacheDir>/<sha256(provider|voice|model|sha256(instructions)|text)>.<ext>` + `.json` sidecar
 `{durationMs, mime, ext, provider, voice, model, instructionsHash}`; a hit never calls `synthesize`;
-concurrent identical requests share one call; `audio/<sceneId>.<ext>` is a copy. Cache dir
-`.khan/cache/tts` (`KHAN_CACHE_DIR` / `--cache-dir`). Secrets only from env; the key is never
-written to the lesson folder, cache or any response (tested with a sentinel).
+concurrent identical requests share one call; `audio/<sceneId>.<ext>` is a copy. Writes go through
+a temp name unique to the writer (`<key>.<ext>.<pid>.<random>.tmp`), so two writers of one key
+(identical narration voiced at the same time, or two servers over one cache dir) never rename the
+same file, and a rename that loses the race counts as a hit, not an error. At most
+`KHAN_TTS_CONCURRENCY` (default 3) `synthesize` calls run at once, so a restart that re-voices
+several lessons queues the rest instead of opening dozens of 30-second requests; hits never wait
+for a slot. Each scene's `audio/<sceneId>.<ext>` is likewise copied through a per-voicing temp name
+and only the latest voicing of a scene writes it (a re-validated track voices later scenes again).
+Cache dir `.khan/cache/tts` (`KHAN_CACHE_DIR` / `--cache-dir`). Secrets only from env; the key is
+never written to the lesson folder, cache or any response (tested with a sentinel).
 
-Environment variables: `KHAN_TTS`, `KHAN_TTS_VOICE`, `KHAN_TTS_MODEL`, `KHAN_TTS_INSTRUCTIONS`, `KHAN_NO_PLAY`, `OPENAI_API_KEY`, `KHAN_PORT`, `KHAN_HOST`,
+Environment variables: `KHAN_TTS`, `KHAN_TTS_VOICE`, `KHAN_TTS_MODEL`, `KHAN_TTS_INSTRUCTIONS`, `KHAN_TTS_TIMEOUT_MS`, `KHAN_TTS_BACKOFF_MS`, `KHAN_TTS_CONCURRENCY`, `KHAN_NO_PLAY`, `OPENAI_API_KEY`, `KHAN_PORT`, `KHAN_HOST`,
 `KHAN_LESSONS_DIR`, `KHAN_CACHE_DIR`, `KHAN_NO_OPEN`, `KHAN_IDLE_EXIT_MS`, `KHAN_REJECT_GRACE_MS`,
 `KHAN_PLAYER_CLOSED_MS`, `KHAN_WATCH_INTERVAL_MS`, `KHAN_WATCH_STABLE_MS`.
 
@@ -408,8 +415,16 @@ to one person at a kitchen table; never emotionless, never salesy). Request:
 `{model, voice, input, response_format: "mp3", instructions}` — `instructions` is sent only when
 the model accepts it; the API reference states it "does not work with `tts-1` or `tts-1-hd`"
 (URL in the header of `server/tts/openai.js`), so with those models the field is omitted and
-`provider.instructions` is `null`. 20 s timeout per attempt; up to 3 attempts on
-network errors / 408 / 429 / 5xx with 1 s then 3 s backoff. 401/403 fail at once with
+`provider.instructions` is `null`. **90 s timeout per attempt** (`TIMEOUT_MS`; `KHAN_TTS_TIMEOUT_MS`
+overrides): the body is one non-streamed MP3 and `gpt-4o-mini-tts` produces it in roughly real time
+or slower, so the earlier 20 s limit (tuned for `tts-1`) aborted every 80–90-word scene while short
+ones got through (backlog #25); the schema's 90-word cap is ≈ 40 s of audio, and 90 s is a little
+over twice that with room for queueing. An abort that fires while the body is still streaming in is
+the same timeout (`TTS_TIMEOUT`), not a bare "This operation was aborted". Up to 3 attempts on
+network errors / 408 / 429 / 5xx with 1 s then 3 s backoff, but at most 2 attempts may end in a
+timeout (`MAX_TIMEOUT_ATTEMPTS`): a timed-out attempt has already cost 90 s, so the worst case per
+scene is ≈ 3 min rather than 4.6. Streaming the response (`stream_format`) so a "nothing arrived"
+timeout could be much tighter is a noted follow-up, not part of this fix. 401/403 fail at once with
 `code: "TTS_AUTH"`, other 4xx with `"TTS_BAD_REQUEST"`, a non-audio or empty or undecodable body
 with `"TTS_BAD_RESPONSE"`; after the last retry the rejection carries `code: "TTS_FAILED"` and
 `cause`. The foundation then marks the scene `ready` with `audioUrl: null` and a `TTS_FAILED` entry
@@ -454,8 +469,9 @@ With no key the server still starts; `ready()` is `{ok:false, reason:"OPENAI_API
 and every scene becomes `ready` with `audioUrl: null` and no network call is made.
 
 **Logging and test knobs.** `KHAN_TTS_LOG=1` prints one `[khan tts] …` line per attempt/result to
-stderr. `KHAN_TTS_TIMEOUT_MS` and `KHAN_TTS_BACKOFF_MS="1000,3000"` override the timing (used by
-the integration tests, which inject zero delays through the foundation's `selectProvider`).
+stderr. `KHAN_TTS_TIMEOUT_MS` (default 90000) and `KHAN_TTS_BACKOFF_MS="1000,3000"` override the
+timing (used by the integration tests, which inject zero delays through the foundation's
+`selectProvider`); `KHAN_TTS_CONCURRENCY` (default 3) caps simultaneous synthesis calls.
 Tests: `test/tts/` — unit (recording `fetch` mock; asserts `instructions` is sent for
 `gpt-4o-mini-tts` and absent for `tts-1`/`tts-1-hd`, and that the cache key changes with model and
 instructions), `mp3-duration`, integration against the

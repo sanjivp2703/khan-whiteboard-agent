@@ -28,7 +28,24 @@ export const DEFAULT_VOICE = 'ash';
 export const DEFAULT_MODEL = 'gpt-4o-mini-tts';
 export const MAX_ATTEMPTS = 3;
 export const BACKOFF_MS = [1000, 3000];
-export const TIMEOUT_MS = 20000;
+/**
+ * Per-attempt timeout (backlog #25, 2026-10-13). The response is one non-streamed MP3 body and
+ * gpt-4o-mini-tts produces it in roughly real time or slower: in two real lessons every 80–90-word
+ * scene (≈ 35–40 s of audio) was aborted by the old 20 s limit, which had been tuned for tts-1,
+ * while 20–50-word scenes got through. The schema caps narration at 90 words ≈ 40 s of audio, so
+ * 90 s is a little over twice the longest audio the server will ever ask for, with room for queueing
+ * on OpenAI's side. `KHAN_TTS_TIMEOUT_MS` overrides it. Follow-up (not done here): the speech
+ * endpoint can stream the body (`stream_format`), which would let the first bytes mark progress and
+ * allow a much tighter "nothing arrived" timeout instead of one that has to cover the whole body.
+ */
+export const TIMEOUT_MS = 90000;
+/**
+ * How many of the attempts may end in a timeout before giving up. A timed-out attempt already cost
+ * TIMEOUT_MS, so with MAX_ATTEMPTS timeouts the worst case would be 3 × 90 s + backoff ≈ 4.6 min
+ * for one scene; two timeouts (≈ 3 min) is enough to tell a hiccup from a stuck model. Fast failures
+ * (network errors, 408/429/5xx) keep all MAX_ATTEMPTS.
+ */
+export const MAX_TIMEOUT_ATTEMPTS = 2;
 export const NO_KEY_REASON = 'OPENAI_API_KEY not set';
 
 /**
@@ -122,8 +139,9 @@ async function readErrorMessage(res, key) {
  * @param {string} [o.instructions]    explicit delivery instructions; default resolveInstructions(env, config). Sent only when the model supports them.
  * @param {function} [o.fetch]         fetch implementation; default = globalThis.fetch looked up per call (tests swap it)
  * @param {number[]} [o.backoffMs]     delays between attempts (default [1000, 3000]; env KHAN_TTS_BACKOFF_MS="a,b")
- * @param {number} [o.timeoutMs]       per-attempt timeout (default 20000; env KHAN_TTS_TIMEOUT_MS)
- * @param {number} [o.maxAttempts]
+ * @param {number} [o.timeoutMs]       per-attempt timeout (default TIMEOUT_MS = 90000; env KHAN_TTS_TIMEOUT_MS)
+ * @param {number} [o.maxAttempts]     attempts in total (default 3)
+ * @param {number} [o.maxTimeoutAttempts] attempts that may end in a timeout before giving up (default 2)
  * @param {function} [o.log]           log(line: string); default: console.error when env.KHAN_TTS_LOG is set, else silent
  * @param {function} [o.sleep]
  */
@@ -138,6 +156,7 @@ export function createOpenAIProvider({
   backoffMs,
   timeoutMs,
   maxAttempts = MAX_ATTEMPTS,
+  maxTimeoutAttempts = MAX_TIMEOUT_ATTEMPTS,
   log,
   sleep = (ms) => new Promise((r) => setTimeout(r, ms)),
 } = {}) {
@@ -150,6 +169,7 @@ export function createOpenAIProvider({
   const delays = backoffMs || numberList(safeEnv.KHAN_TTS_BACKOFF_MS) || BACKOFF_MS;
   const perAttemptTimeout = Number.isFinite(timeoutMs) ? timeoutMs : (Number(safeEnv.KHAN_TTS_TIMEOUT_MS) > 0 ? Number(safeEnv.KHAN_TTS_TIMEOUT_MS) : TIMEOUT_MS);
   const attemptsMax = Math.max(1, Number(maxAttempts) || MAX_ATTEMPTS);
+  const timeoutAttemptsMax = Math.max(1, Number(maxTimeoutAttempts) || MAX_TIMEOUT_ATTEMPTS);
   const logLine = typeof log === 'function'
     ? log
     : (safeEnv.KHAN_TTS_LOG ? (line) => console.error(`[khan tts] ${line}`) : () => {});
@@ -176,6 +196,11 @@ export function createOpenAIProvider({
   async function attempt(text, key, n) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), perAttemptTimeout);
+    // Any failure after our own abort fired is the timeout, whatever shape fetch gives it: during the
+    // request it is an AbortError; during the body read (where a slow model actually spends its time)
+    // undici rejects with the signal's DOMException "This operation was aborted" (backlog #25).
+    const timedOut = (e) => controller.signal.aborted || (e && e.name === 'AbortError');
+    const timeoutError = (e) => ttsError('TTS_TIMEOUT', `attempt ${n}: timed out after ${perAttemptTimeout} ms`, { cause: e });
     try {
       let res;
       try {
@@ -192,7 +217,7 @@ export function createOpenAIProvider({
           signal: controller.signal,
         });
       } catch (e) {
-        if (e && e.name === 'AbortError') throw ttsError('TTS_TIMEOUT', `attempt ${n}: timed out after ${perAttemptTimeout} ms`, { cause: e });
+        if (timedOut(e)) throw timeoutError(e);
         throw ttsError('TTS_NETWORK', `attempt ${n}: network error: ${e && e.message ? e.message : String(e)}`, { cause: e });
       }
       const status = res.status;
@@ -212,7 +237,13 @@ export function createOpenAIProvider({
       if (contentType && !/^(audio\/|application\/octet-stream)/.test(contentType)) {
         throw ttsError('TTS_BAD_RESPONSE', `unexpected content-type "${contentType.slice(0, 60)}"`, { status, attempts: n });
       }
-      const bytes = new Uint8Array(await res.arrayBuffer());
+      let bytes;
+      try {
+        bytes = new Uint8Array(await res.arrayBuffer());
+      } catch (e) {
+        if (timedOut(e)) throw timeoutError(e);
+        throw ttsError('TTS_NETWORK', `attempt ${n}: body read failed: ${e && e.message ? e.message : String(e)}`, { cause: e });
+      }
       if (bytes.length === 0) throw ttsError('TTS_BAD_RESPONSE', 'empty audio body', { status, attempts: n });
       let durationMs;
       try {
@@ -233,7 +264,10 @@ export function createOpenAIProvider({
     if (typeof text !== 'string' || !text.trim()) throw ttsError('TTS_BAD_REQUEST', 'synthesize: text must be a non-empty string', { attempts: 0 });
     const key = getKey();
     let last = null;
+    let timeouts = 0;
+    let made = 0;
     for (let n = 1; n <= attemptsMax; n++) {
+      made = n;
       try {
         const { bytes, durationMs } = await attempt(text, key, n);
         logLine(`provider=openai voice=${resolvedVoice} model=${resolvedModel} instructions=${resolvedInstructions !== null ? 'sent' : 'omitted'} chars=${text.length} durationMs=${Math.round(durationMs)} bytes=${bytes.length} attempts=${n}`);
@@ -247,13 +281,17 @@ export function createOpenAIProvider({
           e.attempts = n;
           throw e;
         }
-        logLine(`provider=openai voice=${resolvedVoice} chars=${text.length} attempt=${n}/${attemptsMax} retryable failure: ${e.message}`);
-        if (n < attemptsMax) await sleep(delays[Math.min(n - 1, delays.length - 1)] ?? 0);
+        if (e.code === 'TTS_TIMEOUT') timeouts++;
+        // a timed-out attempt already cost a full TIMEOUT_MS: stop after MAX_TIMEOUT_ATTEMPTS of them
+        const more = n < attemptsMax && timeouts < timeoutAttemptsMax;
+        logLine(`provider=openai voice=${resolvedVoice} chars=${text.length} attempt=${n}/${attemptsMax} retryable failure: ${e.message}${more ? '' : ' (giving up)'}`);
+        if (!more) break;
+        await sleep(delays[Math.min(n - 1, delays.length - 1)] ?? 0);
       }
     }
-    const failed = ttsError('TTS_FAILED', `openai tts failed after ${attemptsMax} attempts: ${last && last.message ? last.message : 'unknown error'}`, { cause: last, attempts: attemptsMax });
+    const failed = ttsError('TTS_FAILED', `openai tts failed after ${made} attempts: ${last && last.message ? last.message : 'unknown error'}`, { cause: last, attempts: made });
     if (last && last.status !== undefined) failed.status = last.status;
-    logLine(`provider=openai voice=${resolvedVoice} model=${resolvedModel} chars=${text.length} failed code=TTS_FAILED attempts=${attemptsMax}`);
+    logLine(`provider=openai voice=${resolvedVoice} model=${resolvedModel} chars=${text.length} failed code=TTS_FAILED attempts=${made}`);
     throw failed;
   }
 

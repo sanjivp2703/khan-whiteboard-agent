@@ -50,7 +50,8 @@ export async function startServer(opts = {}) {
   await prepareValidator({ font: true, math: false });
 
   const provider = opts.provider || await selectProvider(env, config);
-  const cache = createTtsCache({ dir: cacheDir });
+  // KHAN_TTS_CONCURRENCY: provider calls in flight at once (default 3) — bounds startup re-voicing
+  const cache = createTtsCache({ dir: cacheDir, concurrency: Number(env.KHAN_TTS_CONCURRENCY) > 0 ? Number(env.KHAN_TTS_CONCURRENCY) : undefined });
   const store = createStore({ lessonsDir, provider });
   const control = createControl(store);
   const wait = createWait({ store, env });

@@ -2,6 +2,7 @@
 // degrade, voice through the TTS cache, questions, positions, `ended`. Spec §5/§6/§7, brief 00 C1–C3.
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { validateScene, validateOutline, dropElements, badElementIds } from '../shared/schema/validate.js';
 import { createOccupancy, toJSON, freeCells, applyScene } from '../shared/layout-core/occupancy.js';
 import { kindOf } from './playlist.js';
@@ -221,31 +222,42 @@ export function createIngest({ store, cache, control, provider, env = {}, onChan
   }
 
   // ---------- voicing ----------
+  // A scene can be sent to voicing more than once per generation: re-validating a track (an earlier
+  // scene rewritten or degraded) runs validateEntry again on every later scene whose input occupancy
+  // changed, and each valid result starts a voicing. Only the latest voicing of an entry may write
+  // its audio (`voiceSeq`), and each voicing copies through its own temp name — two of them used to
+  // race on audio/<sceneId>.<ext>.tmp and the loser recorded TTS_FAILED "ENOENT … rename" although
+  // the audio existed (backlog #26, 2026-10-13).
   function startVoicing(lesson, entry) {
     const gen = entry.generation;
+    entry.voiceSeq = (entry.voiceSeq || 0) + 1;
+    const seq = entry.voiceSeq;
     entry.status = 'voicing';
     changed(lesson);
-    voice(lesson, entry, gen).catch((e) => log('voice error', e));
+    voice(lesson, entry, gen, seq).catch((e) => log('voice error', e));
   }
 
-  async function voice(lesson, entry, gen) {
+  async function voice(lesson, entry, gen, seq) {
     const text = entry.effective.narration;
     const estimate = estimateDurationMs(text);
     const ready = provider.ready();
+    const superseded = () => gen !== entry.generation || seq !== entry.voiceSeq;
     try {
       if (!ready.ok) { const e = new Error(ready.reason || 'TTS not ready'); e.code = 'TTS_FAILED'; throw e; }
       const hit = await cache.getOrSynthesize(provider, text);
-      if (gen !== entry.generation) return;
+      if (superseded()) return;
       const audioDir = join(lesson.dir, 'audio');
       await fs.mkdir(audioDir, { recursive: true });
       const dest = join(audioDir, `${entry.sceneId}.${hit.ext}`);
-      await fs.copyFile(hit.path, `${dest}.tmp`);
-      await fs.rename(`${dest}.tmp`, dest);
-      if (gen !== entry.generation) return;
+      const tmp = `${dest}.${process.pid}.${seq}.${randomBytes(4).toString('hex')}.tmp`;
+      await fs.copyFile(hit.path, tmp);
+      if (superseded()) { await fs.rm(tmp, { force: true }).catch(() => {}); return; }
+      await fs.rename(tmp, dest);
+      if (superseded()) return;
       entry.audio = { ext: hit.ext, mime: hit.mime, path: dest, cached: hit.cached };
       entry.durationMs = Math.round(hit.durationMs);
     } catch (e) {
-      if (gen !== entry.generation) return;
+      if (superseded()) return;
       entry.audio = null;
       entry.durationMs = estimate;
       entry.errors = [...entry.errors.filter((x) => x.code !== 'TTS_FAILED'), err(null, 'TTS_FAILED', e && e.message ? e.message : String(e))];
