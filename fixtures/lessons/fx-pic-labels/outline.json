@@ -1,0 +1,26 @@
+{
+  "schema": "khan-outline/1",
+  "lessonId": "fx-pic-labels",
+  "title": "Diagram edge labels",
+  "scenes": [
+    {
+      "sceneId": "s001",
+      "title": "Wide slot, top down",
+      "goal": "Reproduce the first real lesson's label collisions (backlog 21)"
+    },
+    {
+      "sceneId": "s002",
+      "title": "Label on a short vertical edge",
+      "goal": "A wide label beside the short Orchestrator to Assessor edge"
+    },
+    {
+      "sceneId": "s003",
+      "title": "Same pipeline left to right",
+      "goal": "Diagonal fan-out edges carry labels without touching nodes"
+    }
+  ],
+  "producer": {
+    "kind": "fixture",
+    "version": "1"
+  }
+}

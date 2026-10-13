@@ -1,0 +1,19 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-pic-labels",
+  "sceneId": "s003",
+  "title": "Same pipeline left to right",
+  "narration": "Left to right, the monitor fans out diagonally to search and the event queue. The labels on those diagonal edges sit on the open side of each arrow and never overlap the event queue's corner.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "pipeline",
+      "type": "diagram",
+      "slot": "A1:F3",
+      "mermaid": "flowchart LR\nP[Poller] --> M[Monitor]\nM -->|web search| S(Search)\nM -->|materiality| Q(Event queue)\nS --> O[Orchestrator]\nQ -->|interrupt or wait| O\nO --> A[Assessor]\nA -->|briefing| R[Reader]\nA -->|evidence| L(Concept ledger)"
+    }
+  ],
+  "final": true
+}
