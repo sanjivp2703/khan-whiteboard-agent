@@ -18,7 +18,7 @@ Repo: https://github.com/sanjivp2703/khan-whiteboard-agent (this folder is its w
 
 Parallel group after foundation: openai-tts, renderer-core, renderer-pictures, player-engine, skill-cli (no dependencies between them).
 
-QA: passed 2026-10-06 (see qa/02-verification-report.md)
+QA: passed 2026-10-12 (see qa/03-change-khan-look.md; human gate pending)
 Deploy: https://github.com/sanjivp2703/khan-whiteboard-agent/releases/tag/v0.1.0 (2026-10-06)
 
 ## Changes
