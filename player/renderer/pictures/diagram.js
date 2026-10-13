@@ -2,7 +2,7 @@
 // deterministic layered layout (diagram-layout.js) → rough nodes, rough edges with arrowheads,
 // hand-written labels. Parts: nodes (source order) then edges (source order).
 import { parse as parseMermaid } from '../../../shared/mermaid-subset.js';
-import { layout } from './diagram-layout.js';
+import { layout, LAYOUT } from './diagram-layout.js';
 import {
   pictureRects, roughFor, tokenColor, roughStrokes, fitText, writeLines, buildDrawable, STROKE_WIDTH,
 } from './common.js';
@@ -10,8 +10,13 @@ import {
 const PAD = Object.freeze({ body: { x: 16, y: 9 }, note: { x: 12, y: 7 } });
 const ARROW_LEN = 13;
 const ARROW_ANGLE = (28 * Math.PI) / 180;
-const EDGE_LABEL_OFFSET = 13;
 const PARALLEL_OFFSET = 11;
+// Edge-label placement (backlog #21): minimum clearances of a label box from the other geometry.
+export const LABEL_GAP = 6;         // ↔ any edge shaft or arrowhead, its own edge included
+export const LABEL_NODE_GAP = 4;    // ↔ any node outline (rect, or the diamond/circle/stadium polygon)
+export const LABEL_LABEL_GAP = 4;   // ↔ another edge label
+const LABEL_SLIDE_STEPS = 6;        // slides tried toward the source (then toward the target) per side
+const LABEL_PROBE_DEPTH = 64;       // px probed along the normal to judge which side has more room
 const DASH_DOTTED = [7, 6];
 const THICK_WIDTH = 4.2;
 
@@ -77,6 +82,153 @@ const pointInRect = (p, r) => p[0] >= r.x && p[0] <= r.x + r.w && p[1] >= r.y &&
 const expand = (r, m) => ({ x: r.x - m, y: r.y - m, w: r.w + 2 * m, h: r.h + 2 * m });
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 const DETOUR_GAP = 24;
+
+// ---------- label geometry ----------
+
+function pointSegmentDistance(p, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const len2 = dx * dx + dy * dy;
+  const t = len2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2)) : 0;
+  return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+}
+
+function segmentsDistance(a, b, c, d) {
+  if (segIntersect(a, b, c, d) !== null) return 0;
+  return Math.min(pointSegmentDistance(a, c, d), pointSegmentDistance(b, c, d), pointSegmentDistance(c, a, b), pointSegmentDistance(d, a, b));
+}
+
+/** Euclidean distance between segment a–b and rect r (0 when they touch or cross). */
+export function segmentRectDistance(a, b, r) {
+  if (segmentHitsRect(a, b, r)) return 0;
+  const c = [[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]];
+  let best = Infinity;
+  for (let i = 0; i < 4; i++) best = Math.min(best, segmentsDistance(a, b, c[i], c[(i + 1) % 4]));
+  return best;
+}
+
+/** Euclidean distance between two rects (0 when they overlap or touch). */
+export function rectsDistance(a, b) {
+  const dx = Math.max(0, Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w));
+  const dy = Math.max(0, Math.max(a.y, b.y) - Math.min(a.y + a.h, b.y + b.h));
+  return Math.hypot(dx, dy);
+}
+
+function pointInPolygon(p, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > p[1]) !== (yj > p[1]) && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/** Euclidean distance between a closed polygon (a node outline) and rect r (0 when they overlap or touch). */
+export function polygonRectDistance(poly, r) {
+  if (pointInPolygon([r.x + r.w / 2, r.y + r.h / 2], poly)) return 0;
+  let best = Infinity;
+  for (let i = 0; i < poly.length; i++) {
+    best = Math.min(best, segmentRectDistance(poly[i], poly[(i + 1) % poly.length], r));
+    if (best === 0) break;
+  }
+  return best;
+}
+
+const polylineLength = (pts) => pts.reduce((s, p, i) => (i ? s + dist(pts[i - 1], p) : 0), 0);
+
+/** Point at arc length `s` along a polyline and the unit direction of the segment it lies on. */
+function pointAlong(pts, s) {
+  let acc = 0;
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const L = dist(pts[i], pts[i + 1]);
+    if (s <= acc + L || i + 2 === pts.length) {
+      const t = L ? Math.max(0, Math.min(1, (s - acc) / L)) : 0;
+      const d = L ? [(pts[i + 1][0] - pts[i][0]) / L, (pts[i + 1][1] - pts[i][1]) / L] : [1, 0];
+      return { p: [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * t, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * t], d };
+    }
+    acc += L;
+  }
+  return { p: [...pts[0]], d: [1, 0] };
+}
+
+/**
+ * Place a lw×lh label box beside `route` (backlog #21). The anchor starts at the midpoint of the
+ * route's longest segment; the box is pushed off the shaft along the segment normal so that its
+ * nearest point clears the line by LABEL_GAP (centre ≥ half the label height + LABEL_GAP away).
+ * The side with more free room wins (ties → right-hand normal). If the box then touches any edge
+ * shaft or arrowhead (`segments`), any node outline (`nodePolygons`), or an already placed label,
+ * the anchor slides toward the source in steps, then the other side is tried, then both sides
+ * toward the target, and finally the box is pushed farther from the shaft (up to 24 px more) at
+ * the default anchor. Every candidate is clamped into `safe` first, so a label never leaves the
+ * slot. When nothing is clear, the least bad candidate wins — node overlaps count worst, then
+ * labels, then edges — and `clear` is false so the caller can count it. Deterministic: candidates
+ * are enumerated in a fixed order and the first clear (else best) one is taken.
+ * @returns {{box:{x,y,w,h}, clear:boolean, side:1|-1}}
+ */
+export function placeEdgeLabel(route, lw, lh, { segments, nodePolygons, labelBoxes }, safe) {
+  const total = polylineLength(route);
+  let longest = -1, s0 = total / 2, acc = 0;
+  for (let i = 0; i + 1 < route.length; i++) {
+    const L = dist(route[i], route[i + 1]);
+    if (L > longest) { longest = L; s0 = acc + L / 2; }
+    acc += L;
+  }
+  const step = Math.max(10, total * 0.08);
+  const sMin = Math.min(s0, total * 0.12), sMax = Math.max(s0, total * 0.88);
+  const clampBox = (b) => ({
+    x: Math.max(safe.x, Math.min(b.x, safe.x + safe.w - lw)),
+    y: Math.max(safe.y, Math.min(b.y, safe.y + safe.h - lh)),
+    w: lw, h: lh,
+  });
+  const rawBoxAt = (s, side, extra = 0) => {
+    const { p, d } = pointAlong(route, s);
+    const n = [-d[1] * side, d[0] * side];
+    const support = Math.abs(n[0]) * (lw / 2) + Math.abs(n[1]) * (lh / 2);
+    const off = Math.max(lh / 2, support) + LABEL_GAP + extra;
+    return { x: p[0] + n[0] * off - lw / 2, y: p[1] + n[1] * off - lh / 2, w: lw, h: lh };
+  };
+  const hits = (box) => {
+    let edges = 0, nodes = 0, labels = 0;
+    for (const sg of segments) if (segmentRectDistance(sg[0], sg[1], box) < LABEL_GAP - 0.5) edges++;
+    for (const poly of nodePolygons) if (polygonRectDistance(poly, box) < LABEL_NODE_GAP - 0.5) nodes++;
+    for (const r of labelBoxes) if (rectsDistance(box, r) < LABEL_LABEL_GAP - 0.5) labels++;
+    return { edges, nodes, labels, total: edges + nodes + labels };
+  };
+  const inside = (b) => b.x >= safe.x - 1e-6 && b.y >= safe.y - 1e-6 && b.x + b.w <= safe.x + safe.w + 1e-6 && b.y + b.h <= safe.y + safe.h + 1e-6;
+  // free room on each side of the default anchor: how deep along the normal the box stays clear and inside the slot
+  const room = (side) => {
+    let depth = 0;
+    for (let extra = 0; extra <= LABEL_PROBE_DEPTH; extra += 8) {
+      const raw = rawBoxAt(s0, side, extra);
+      if (!inside(raw) || hits(raw).total > 0) break;
+      depth = extra + 8;
+    }
+    return depth;
+  };
+  const sides = room(-1) > room(1) ? [-1, 1] : [1, -1];
+  const positions = [];
+  for (let k = 0; k <= LABEL_SLIDE_STEPS; k++) positions.push(Math.max(sMin, s0 - k * step)); // toward the source
+  const towardTarget = [];
+  for (let k = 1; k <= LABEL_SLIDE_STEPS; k++) towardTarget.push(Math.min(sMax, s0 + k * step));
+  const seen = new Set();
+  const candidates = [];
+  const add = (s, side, extra = 0) => {
+    const key = `${side}:${s.toFixed(3)}:${extra}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    candidates.push({ box: clampBox(rawBoxAt(s, side, extra)), side });
+  };
+  for (const side of sides) for (const s of positions) add(s, side);
+  for (const side of sides) for (const s of towardTarget) add(s, side);
+  for (const extra of [8, 16, 24]) for (const side of sides) add(s0, side, extra);
+  let best = null;
+  for (const c of candidates) {
+    const h = hits(c.box);
+    if (h.total === 0) return { box: c.box, clear: true, side: c.side };
+    const rank = h.nodes * 1e6 + h.labels * 1e3 + h.edges;
+    if (!best || rank < best.rank) best = { ...c, rank };
+  }
+  return { box: best.box, clear: false, side: best.side };
+}
 
 /**
  * Route an edge from node `a` to node `b` (virtual centres ca/cb may be offset for parallel edges).
@@ -154,7 +306,6 @@ export function nodeBoxSize(shape, labelW, labelH, style) {
 export function prepareDiagram(element, ctx, ast = null) {
   const tree = ast || parseMermaid(element.mermaid);
   const { inner, safe, outer } = pictureRects(element.slot);
-  const r = roughFor(ctx, element);
   const chalk = tokenColor('chalk');
   const style = tree.nodes.length > 4 ? 'note' : 'body';
   const maxLabelW = Math.max(60, safe.w * 0.45);
@@ -167,81 +318,15 @@ export function prepareDiagram(element, ctx, ast = null) {
     labels.set(n.id, fit);
     sizes.set(n.id, nodeBoxSize(n.shape, fit.width, fit.height, fit.style));
   }
-  const lay = layout(tree, sizes, safe);
-  const s = lay.scale;
-
-  // nodes
-  const nodeInfo = new Map();
-  const parts = [];
-  for (const n of tree.nodes) {
-    const box = lay.nodes.get(n.id);
-    const rect = { x: box.x, y: box.y, w: box.w, h: box.h };
-    const fit = labels.get(n.id);
-    const strokes = nodeStrokes(n.shape, rect, r, chalk);
-    const lw = fit.width * s, lh = fit.height * s;
-    const written = writeLines(fit.lines, fit.style, rect.x + (rect.w - lw) / 2, rect.y + (rect.h - lh) / 2, lw, chalk, { align: 'center', scale: s });
-    strokes.push(...written.strokes);
-    const info = { id: n.id, shape: n.shape, rect, center: [rect.x + rect.w / 2, rect.y + rect.h / 2], polygon: nodePolygon(n.shape, rect), label: { text: n.label, style: fit.style, lines: fit.lines, box: written.box }, rank: box.rank, order: box.order };
-    nodeInfo.set(n.id, info);
-    parts.push({ kind: 'node', strokes, meta: info });
+  // Pass 1 lays out with the normal gaps. When a label cannot be placed clear of everything (backlog
+  // #21) — typically a cramped slot whose rank gap is shorter than a label — pass 2 keeps the gaps at
+  // their defaults and scales the whole diagram down instead; it is kept only when it does better.
+  let built = build({});
+  if (built.labelCollisions > 0) {
+    const roomy = build({ rankGapMin: LAYOUT.rankGap, nodeGapMin: LAYOUT.nodeGap });
+    if (roomy.labelCollisions < built.labelCollisions) built = roomy;
   }
-
-  // edges
-  const groups = new Map();
-  tree.edges.forEach((e, i) => { const k = [e.from, e.to].sort().join('|'); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); });
-  const edgeInfos = [];
-  tree.edges.forEach((e, i) => {
-    const a = nodeInfo.get(e.from), b = nodeInfo.get(e.to);
-    if (!a || !b) return;
-    const group = groups.get([e.from, e.to].sort().join('|'));
-    const j = group.indexOf(i);
-    let ca = a.center.slice(), cb = b.center.slice();
-    if (group.length > 1) {
-      // perpendicular taken from the canonical (sorted) direction so an edge and its reverse get distinct offsets
-      const [lo, hi] = [a, b].sort((p, q) => (p.id < q.id ? -1 : 1));
-      const dx = hi.center[0] - lo.center[0], dy = hi.center[1] - lo.center[1], len = Math.hypot(dx, dy) || 1;
-      const off = (j - (group.length - 1) / 2) * PARALLEL_OFFSET;
-      const nx = (-dy / len) * off, ny = (dx / len) * off;
-      ca = [ca[0] + nx, ca[1] + ny]; cb = [cb[0] + nx, cb[1] + ny];
-    }
-    const others = tree.nodes.filter((n) => n.id !== e.from && n.id !== e.to).map((n) => expand(nodeInfo.get(n.id).rect, 3));
-    const route = routeEdge(a, b, ca, cb, others, safe, tree.direction !== 'LR');
-    const width = e.style === 'thick' ? THICK_WIDTH : STROKE_WIDTH;
-    const dash = e.style === 'dotted' ? DASH_DOTTED : null;
-    const strokes = roughStrokes(route.length === 2 ? r.line(route[0][0], route[0][1], route[1][0], route[1][1]) : r.linearPath(route), chalk, { width, dash });
-    // arrowhead
-    const tip = route[route.length - 1], prev = route[route.length - 2];
-    if (e.style !== 'line') {
-      const ang = Math.atan2(tip[1] - prev[1], tip[0] - prev[0]);
-      const len = e.style === 'thick' ? ARROW_LEN + 2 : ARROW_LEN;
-      const l = [tip[0] - len * Math.cos(ang - ARROW_ANGLE), tip[1] - len * Math.sin(ang - ARROW_ANGLE)];
-      const rr = [tip[0] - len * Math.cos(ang + ARROW_ANGLE), tip[1] - len * Math.sin(ang + ARROW_ANGLE)];
-      strokes.push(...roughStrokes(r.linearPath([l, tip, rr]), chalk, { width }));
-    }
-    // label at the midpoint of the longest segment, offset perpendicular, clamped into the safe rect
-    let labelBox = null;
-    if (e.label) {
-      let seg = [route[0], route[1]];
-      for (let k = 1; k + 1 < route.length; k++) if (dist(route[k], route[k + 1]) > dist(seg[0], seg[1])) seg = [route[k], route[k + 1]];
-      const mx = (seg[0][0] + seg[1][0]) / 2, my = (seg[0][1] + seg[1][1]) / 2;
-      const dx = seg[1][0] - seg[0][0], dy = seg[1][1] - seg[0][1], len = Math.hypot(dx, dy) || 1;
-      const fit = fitText(e.label, Math.max(40, safe.w * 0.3), { styles: ['note'], maxLines: 2 });
-      const lw = fit.width * s, lh = fit.height * s;
-      // unit perpendicular (nx, ny); push the label clear of the line by its own half extent
-      const nx = -dy / len, ny = dx / len;
-      const off = EDGE_LABEL_OFFSET / 2 + Math.abs(nx) * (lw / 2) + Math.abs(ny) * (lh / 2);
-      let lx = mx + nx * off - lw / 2;
-      let ly = my + ny * off - lh / 2;
-      lx = Math.max(safe.x, Math.min(lx, safe.x + safe.w - lw));
-      ly = Math.max(safe.y, Math.min(ly, safe.y + safe.h - lh));
-      const written = writeLines(fit.lines, 'note', lx, ly, lw, chalk, { align: 'center', scale: s });
-      strokes.push(...written.strokes);
-      labelBox = written.box;
-    }
-    const info = { from: e.from, to: e.to, style: e.style, label: e.label || '', points: route, labelBox, index: i };
-    edgeInfos.push(info);
-    parts.push({ kind: 'edge', strokes, meta: info });
-  });
+  const { lay, s, parts, nodeInfo, edgeInfos, labelCollisions } = built;
 
   return buildDrawable({
     id: element.id,
@@ -258,8 +343,100 @@ export function prepareDiagram(element, ctx, ast = null) {
       reversedEdges: [...lay.reversed],
       nodes: tree.nodes.map((n) => nodeInfo.get(n.id)),
       edges: edgeInfos,
+      /** Number of edge labels for which no position clear of every shaft, node and label existed (backlog #21). */
+      labelCollisions,
+      /** True when the roomy second layout pass was needed to place the labels. */
+      relaidForLabels: built.roomy,
       slotRect: outer,
       safeRect: safe,
     },
   });
+
+  /** Nodes, edges and labels for one layout; a fresh seeded rough generator keeps each pass deterministic. */
+  function build(layoutOpts) {
+    const r = roughFor(ctx, element);
+    const lay = layout(tree, sizes, safe, layoutOpts);
+    const s = lay.scale;
+
+    // nodes
+    const nodeInfo = new Map();
+    const parts = [];
+    for (const n of tree.nodes) {
+      const box = lay.nodes.get(n.id);
+      const rect = { x: box.x, y: box.y, w: box.w, h: box.h };
+      const fit = labels.get(n.id);
+      const strokes = nodeStrokes(n.shape, rect, r, chalk);
+      const lw = fit.width * s, lh = fit.height * s;
+      const written = writeLines(fit.lines, fit.style, rect.x + (rect.w - lw) / 2, rect.y + (rect.h - lh) / 2, lw, chalk, { align: 'center', scale: s });
+      strokes.push(...written.strokes);
+      const info = { id: n.id, shape: n.shape, rect, center: [rect.x + rect.w / 2, rect.y + rect.h / 2], polygon: nodePolygon(n.shape, rect), label: { text: n.label, style: fit.style, lines: fit.lines, box: written.box }, rank: box.rank, order: box.order };
+      nodeInfo.set(n.id, info);
+      parts.push({ kind: 'node', strokes, meta: info });
+    }
+
+    // edges
+    const groups = new Map();
+    tree.edges.forEach((e, i) => { const k = [e.from, e.to].sort().join('|'); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); });
+    const edgeInfos = [];
+    tree.edges.forEach((e, i) => {
+      const a = nodeInfo.get(e.from), b = nodeInfo.get(e.to);
+      if (!a || !b) return;
+      const group = groups.get([e.from, e.to].sort().join('|'));
+      const j = group.indexOf(i);
+      let ca = a.center.slice(), cb = b.center.slice();
+      if (group.length > 1) {
+        // perpendicular taken from the canonical (sorted) direction so an edge and its reverse get distinct offsets
+        const [lo, hi] = [a, b].sort((p, q) => (p.id < q.id ? -1 : 1));
+        const dx = hi.center[0] - lo.center[0], dy = hi.center[1] - lo.center[1], len = Math.hypot(dx, dy) || 1;
+        const off = (j - (group.length - 1) / 2) * PARALLEL_OFFSET;
+        const nx = (-dy / len) * off, ny = (dx / len) * off;
+        ca = [ca[0] + nx, ca[1] + ny]; cb = [cb[0] + nx, cb[1] + ny];
+      }
+      const others = tree.nodes.filter((n) => n.id !== e.from && n.id !== e.to).map((n) => expand(nodeInfo.get(n.id).rect, 3));
+      const route = routeEdge(a, b, ca, cb, others, safe, tree.direction !== 'LR');
+      const width = e.style === 'thick' ? THICK_WIDTH : STROKE_WIDTH;
+      const dash = e.style === 'dotted' ? DASH_DOTTED : null;
+      const strokes = roughStrokes(route.length === 2 ? r.line(route[0][0], route[0][1], route[1][0], route[1][1]) : r.linearPath(route), chalk, { width, dash });
+      // arrowhead
+      const tip = route[route.length - 1], prev = route[route.length - 2];
+      let arrow = null;
+      if (e.style !== 'line') {
+        const ang = Math.atan2(tip[1] - prev[1], tip[0] - prev[0]);
+        const len = e.style === 'thick' ? ARROW_LEN + 2 : ARROW_LEN;
+        const l = [tip[0] - len * Math.cos(ang - ARROW_ANGLE), tip[1] - len * Math.sin(ang - ARROW_ANGLE)];
+        const rr = [tip[0] - len * Math.cos(ang + ARROW_ANGLE), tip[1] - len * Math.sin(ang + ARROW_ANGLE)];
+        arrow = [l, tip, rr];
+        strokes.push(...roughStrokes(r.linearPath(arrow), chalk, { width }));
+      }
+      const info = { from: e.from, to: e.to, style: e.style, label: e.label || '', points: route, arrow, labelBox: null, labelClear: true, index: i };
+      edgeInfos.push(info);
+      parts.push({ kind: 'edge', strokes, meta: info });
+    });
+
+    // edge labels, placed after every edge is routed so each one can avoid all shafts and arrowheads
+    // (backlog #21): in source order, each label also avoids the labels placed before it.
+    const segments = [];
+    for (const info of edgeInfos) {
+      for (let k = 0; k + 1 < info.points.length; k++) segments.push([info.points[k], info.points[k + 1]]);
+      if (info.arrow) segments.push([info.arrow[0], info.arrow[1]], [info.arrow[1], info.arrow[2]]);
+    }
+    const nodePolygons = tree.nodes.map((n) => nodeInfo.get(n.id).polygon);
+    const placedBoxes = [];
+    let labelCollisions = 0;
+    edgeInfos.forEach((info, k) => {
+      if (!info.label) return;
+      const fit = fitText(info.label, Math.max(40, safe.w * 0.3), { styles: ['note'], maxLines: 2 });
+      const lw = fit.width * s, lh = fit.height * s;
+      const placed = placeEdgeLabel(info.points, lw, lh, { segments, nodePolygons, labelBoxes: placedBoxes }, safe);
+      const written = writeLines(fit.lines, 'note', placed.box.x, placed.box.y, lw, chalk, { align: 'center', scale: s });
+      parts[tree.nodes.length + k].strokes.push(...written.strokes);
+      info.labelBox = written.box;
+      info.labelClear = placed.clear;
+      info.labelSide = placed.side;
+      placedBoxes.push(written.box);
+      if (!placed.clear) labelCollisions++;
+    });
+
+    return { lay, s, parts, nodeInfo, edgeInfos, labelCollisions, roomy: Object.keys(layoutOpts).length > 0 };
+  }
 }

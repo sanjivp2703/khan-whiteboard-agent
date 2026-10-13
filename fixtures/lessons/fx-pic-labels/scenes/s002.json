@@ -1,0 +1,19 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-pic-labels",
+  "sceneId": "s002",
+  "title": "Label on a short vertical edge",
+  "narration": "The same pipeline with the widest label on the short vertical edge between the orchestrator and the assessor. The label sits beside the shaft, not across it, and does not touch either node.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "pipeline",
+      "type": "diagram",
+      "slot": "A1:F3",
+      "mermaid": "flowchart TD\nP[Poller] --> M[Monitor]\nM -->|web search| S(Search)\nM -->|materiality| Q(Event queue)\nS --> O[Orchestrator]\nQ --> O\nO -->|interrupt or wait| A[Assessor]\nA -->|briefing| R[Reader]\nA -->|evidence| L(Concept ledger)"
+    }
+  ],
+  "final": false
+}

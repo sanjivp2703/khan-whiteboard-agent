@@ -8,9 +8,21 @@ import { layout, findBackEdges, rankNodes } from '../../player/renderer/pictures
 import { parse as parseMermaid, MermaidError } from '../../shared/mermaid-subset.js';
 import { slotRect } from '../../shared/layout-core/grid.js';
 import { STROKE_WIDTH } from '../../player/renderer/pictures/common.js';
-import { ensureFont, ctxFor, insideSlot, rectInside, signature, distToPolygon, pointInPolygon, REPO_ROOT } from './helpers.js';
+import { ensureFont, ctxFor, insideSlot, rectInside, signature, distToPolygon, pointInPolygon, diagramLabelCollisions, REPO_ROOT } from './helpers.js';
+import { listFixtureLessons, loadScenes } from '../foundation/helpers/fixtures.js';
 
 before(ensureFont);
+
+/** Every diagram element of every fixture lesson (auto-covers later fixtures): [{tag, el}]. */
+const allFixtureDiagrams = () => {
+  const out = [];
+  for (const l of listFixtureLessons()) {
+    for (const { scene } of loadScenes(l.dir)) {
+      for (const el of scene.elements) if (el.type === 'diagram') out.push({ tag: `${l.lessonId}/${scene.sceneId}/${el.id}`, el });
+    }
+  }
+  return out;
+};
 
 const el = (mermaid, slot = 'A1:C3', id = 'dg') => ({ id, type: 'diagram', slot, mermaid });
 const prep = (e) => prepareDiagram(e, ctxFor([e]));
@@ -175,4 +187,59 @@ test('antiparallel edges do not overlap and a labelled edge keeps its label clea
   const x = edge.points[0][0];
   const box = edge.labelBox;
   assert.ok(box.x > x || box.x + box.w < x, 'label box does not straddle a vertical edge line');
+});
+
+// ---------- backlog #21: edge labels clear of arrows, nodes and other labels ----------
+
+test('backlog #21: in every fixture diagram no edge label intersects an edge shaft or arrowhead (own edge included), a node rect or another label; labelCollisions is 0', () => {
+  const all = allFixtureDiagrams();
+  const repro = all.filter((x) => x.tag.startsWith('fx-pic-labels/'));
+  assert.equal(repro.length, 3, 'the reproduction fixture fx-pic-labels has three diagram scenes');
+  let labelled = 0;
+  for (const { tag, el } of all) {
+    const d = prep(el);
+    const p = d.picture;
+    const problems = diagramLabelCollisions(p, { edgeGap: 5, nodeGap: 2, labelGap: 2 });
+    assert.deepEqual(problems, [], `${tag}:\n  ${problems.join('\n  ')}`);
+    assert.equal(typeof p.labelCollisions, 'number', `${tag}: picture.labelCollisions is recorded`);
+    assert.equal(p.labelCollisions, 0, `${tag}: no unplaceable labels`);
+    for (const e of p.edges) {
+      if (!e.label) continue;
+      labelled++;
+      assert.ok(rectInside(slotRect(el.slot), e.labelBox, 0.5), `${tag}: label "${e.label}" stays inside the slot`);
+      assert.ok(Array.isArray(e.arrow) || e.style === 'line', `${tag}: arrowhead geometry is exposed for ${e.from}->${e.to}`);
+    }
+  }
+  const s001 = prep(repro.find((x) => x.tag.endsWith('/s001/pipeline')).el);
+  assert.deepEqual(s001.picture.edges.filter((e) => e.label).map((e) => e.label), ['web search', 'materiality', 'interrupt or wait', 'briefing', 'evidence']);
+  assert.ok(labelled >= 20, `exercised ${labelled} labelled edges`);
+});
+
+test('backlog #21: a label sits beside its own shaft (centre at least half its height + 6 px from the line, box 6 px clear) and stays put across 20 layouts', () => {
+  const { el } = allFixtureDiagrams().find((x) => x.tag === 'fx-pic-labels/s002/pipeline');
+  const d = prep(el);
+  const own = d.picture.edges.find((e) => e.label === 'interrupt or wait');
+  const [a, b] = [own.points[0], own.points[own.points.length - 1]];
+  assert.ok(Math.abs(a[0] - b[0]) < 1e-6, 'Orchestrator->Assessor is a vertical edge in TD');
+  const box = own.labelBox;
+  const cx = box.x + box.w / 2;
+  assert.ok(Math.abs(cx - a[0]) >= box.h / 2 + 6, `label centre ${cx.toFixed(1)} is at least ${(box.h / 2 + 6).toFixed(1)} px from the shaft at x=${a[0].toFixed(1)}`);
+  assert.ok(box.x >= a[0] + 6 || box.x + box.w <= a[0] - 6, 'the box itself clears the shaft by 6 px');
+  const ref = signature(d);
+  for (let i = 0; i < 20; i++) assert.equal(signature(prep(el)), ref, `run ${i}`);
+});
+
+test('backlog #21: when no clear position exists the label still stays inside the slot and labelCollisions counts it', () => {
+  // twelve labelled edges among eight nodes in the smallest allowed slot: more label area than free board
+  const e = el('graph LR\nA[Req] -->|waiting for quorum| B[Edge]\nB -->|waiting for quorum| C[Cache]\nC -->|waiting for quorum| D[Resp]\nC -->|waiting for quorum| E[App]\nE -->|waiting for quorum| F[(DB)]\nF -->|waiting for quorum| E\nE -->|waiting for quorum| C\nB -->|waiting for quorum| G[Auth]\nG -->|waiting for quorum| E\nA -->|waiting for quorum| H[Log]\nB -->|waiting for quorum| H\nE -->|waiting for quorum| H', 'A1:B2');
+  const d = prep(e);
+  assert.ok(insideSlot(d, 'A1:B2'));
+  for (const ed of d.picture.edges) assert.ok(rectInside(slotRect('A1:B2'), ed.labelBox, 0.5), `label of ${ed.from}->${ed.to} clamped into the slot`);
+  assert.ok(d.picture.labelCollisions >= 1, `overcrowded diagram records its collisions (${d.picture.labelCollisions})`);
+  assert.ok(d.picture.labelCollisions <= 12);
+  // a collision never puts a label over a node when any node-free spot exists: count node overlaps vs edge overlaps
+  const problems = diagramLabelCollisions(d.picture, { edgeGap: 0, nodeGap: 0, labelGap: 0 });
+  const overNodes = problems.filter((s) => s.includes('overlaps node')).length;
+  assert.ok(overNodes <= d.picture.labelCollisions, 'labels over nodes are only the unplaceable ones');
+  assert.equal(signature(prep(e)), signature(d), 'fallback placement is deterministic');
 });

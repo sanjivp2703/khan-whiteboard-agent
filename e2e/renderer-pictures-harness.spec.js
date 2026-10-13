@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const SHOTS = join(root, 'test-results', 'renderer-pictures');
 const PICTURE_TYPES = ['sketch', 'diagram', 'plot', 'svg'];
-const LESSONS = ['fx-type-sketch', 'fx-type-diagram', 'fx-type-plot', 'fx-type-svg', 'fx-pic-dense', 'fx-pic-shapes'];
+const LESSONS = ['fx-type-sketch', 'fx-type-diagram', 'fx-type-plot', 'fx-type-svg', 'fx-pic-dense', 'fx-pic-shapes', 'fx-pic-labels'];
 
 function scenesOf(lessonId) {
   const dir = join(root, 'fixtures', 'lessons', lessonId, 'scenes');

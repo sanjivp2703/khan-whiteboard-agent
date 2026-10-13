@@ -81,3 +81,81 @@ export function pointInPolygon(p, poly) {
   }
   return inside;
 }
+
+// ---------- label-placement geometry (backlog #21) ----------
+
+/** Liang–Barsky: does segment a–b pass through (or touch) rect r? */
+export function segmentHitsRect(a, b, r) {
+  let t0 = 0, t1 = 1;
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const clip = (p, q) => {
+    if (p === 0) return q >= 0;
+    const t = q / p;
+    if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; }
+    else { if (t < t0) return false; if (t < t1) t1 = t; }
+    return true;
+  };
+  return clip(-dx, a[0] - r.x) && clip(dx, r.x + r.w - a[0]) && clip(-dy, a[1] - r.y) && clip(dy, r.y + r.h - a[1]);
+}
+
+/** Euclidean distance between two rects (0 when they overlap or touch). */
+export function rectsDistance(a, b) {
+  const dx = Math.max(0, Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w));
+  const dy = Math.max(0, Math.max(a.y, b.y) - Math.min(a.y + a.h, b.y + b.h));
+  return Math.hypot(dx, dy);
+}
+
+function pointToSegment(p, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const len2 = dx * dx + dy * dy;
+  const t = len2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2)) : 0;
+  return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+}
+
+/** Euclidean distance between segment a–b and rect r (0 when the segment touches or crosses it). */
+export function segmentRectDistance(a, b, r) {
+  if (segmentHitsRect(a, b, r)) return 0;
+  const c = [[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]];
+  let best = Infinity;
+  for (let i = 0; i < 4; i++) {
+    const p = c[i], q = c[(i + 1) % 4];
+    best = Math.min(best, pointToSegment(a, p, q), pointToSegment(b, p, q), pointToSegment(p, a, b), pointToSegment(q, a, b));
+  }
+  return best;
+}
+
+/** Distance between a node outline polygon and a rect (0 when they overlap or the rect sits inside). */
+export function polygonRectDistance(poly, r) {
+  if (pointInPolygon([r.x + r.w / 2, r.y + r.h / 2], poly)) return 0;
+  let best = Infinity;
+  for (let i = 0; i < poly.length; i++) best = Math.min(best, segmentRectDistance(poly[i], poly[(i + 1) % poly.length], r));
+  return best;
+}
+
+/**
+ * Collisions of a diagram's edge labels, from the drawable's `picture` metadata (independent oracle
+ * for backlog #21). A label box must stay at least `edgeGap` px from every edge shaft segment and
+ * arrowhead wing (its own edge included), `nodeGap` px from every node outline (the drawn polygon:
+ * the rect itself for rect/round nodes, the diamond/circle/stadium outline otherwise) and `labelGap`
+ * px from every other label. True Euclidean distances, so diagonal shafts are judged exactly.
+ * @returns {string[]} human-readable collision descriptions (empty when clean)
+ */
+export function diagramLabelCollisions(picture, { edgeGap = 4, nodeGap = 2, labelGap = 2 } = {}) {
+  const out = [];
+  const segments = [];
+  for (const e of picture.edges) {
+    for (let i = 0; i + 1 < e.points.length; i++) segments.push({ tag: `edge ${e.from}->${e.to} segment ${i}`, a: e.points[i], b: e.points[i + 1] });
+    if (e.arrow) for (let i = 0; i + 1 < e.arrow.length; i++) segments.push({ tag: `arrowhead ${e.from}->${e.to}`, a: e.arrow[i], b: e.arrow[i + 1] });
+  }
+  const labelled = picture.edges.filter((e) => e.labelBox);
+  for (const e of labelled) {
+    const who = `label "${e.label}" (${e.from}->${e.to})`;
+    for (const s of segments) {
+      const dd = segmentRectDistance(s.a, s.b, e.labelBox);
+      if (dd < edgeGap) out.push(`${who} is ${dd.toFixed(1)} px from ${s.tag}`);
+    }
+    for (const n of picture.nodes) if (polygonRectDistance(n.polygon, e.labelBox) < nodeGap) out.push(`${who} overlaps node ${n.id}`);
+    for (const o of labelled) if (o.index < e.index && rectsDistance(e.labelBox, o.labelBox) < labelGap) out.push(`${who} overlaps label "${o.label}" (${o.from}->${o.to})`);
+  }
+  return out;
+}

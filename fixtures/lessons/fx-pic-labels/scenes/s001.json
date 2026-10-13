@@ -1,0 +1,19 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-pic-labels",
+  "sceneId": "s001",
+  "title": "Wide slot, top down",
+  "narration": "An eight node pipeline laid out top to bottom in a wide, short slot. Five of its eight edges carry labels; each label must stay clear of every arrow, every node and every other label.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "pipeline",
+      "type": "diagram",
+      "slot": "A1:F2",
+      "mermaid": "flowchart TD\nP[Poller] --> M[Monitor]\nM -->|web search| S(Search)\nM -->|materiality| Q(Event queue)\nS --> O[Orchestrator]\nQ -->|interrupt or wait| O\nO --> A[Assessor]\nA -->|briefing| R[Reader]\nA -->|evidence| L(Concept ledger)"
+    }
+  ],
+  "final": false
+}

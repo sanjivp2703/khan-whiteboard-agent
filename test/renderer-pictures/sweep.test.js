@@ -34,7 +34,7 @@ test('exactly the four picture types are registered by importing player/renderer
 test('the slice fixtures (fx-pic-*) pass the shared validator', async () => {
   await prepareValidator();
   const mine = listFixtureLessons().filter((l) => l.lessonId.startsWith('fx-pic-'));
-  assert.deepEqual(mine.map((l) => l.lessonId), ['fx-pic-dense', 'fx-pic-shapes']);
+  assert.deepEqual(mine.map((l) => l.lessonId), ['fx-pic-dense', 'fx-pic-labels', 'fx-pic-shapes']);
   for (const l of mine) {
     const results = await validateLesson(l.dir, l.lessonId);
     for (const r of results) assert.ok(r.result.ok, `${l.lessonId}/${r.file}: ${JSON.stringify(r.result.errors)}`);

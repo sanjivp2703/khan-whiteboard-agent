@@ -98,7 +98,7 @@ export function orderRanks(ast, rank) {
  * `rect` up to the max gaps, centred otherwise; when the natural size exceeds `rect` the gaps
  * shrink to their minimums and, if still too large, everything is scaled by `scale` < 1.
  */
-export function layout(ast, sizes, rect, { direction = ast.direction } = {}) {
+export function layout(ast, sizes, rect, { direction = ast.direction, rankGapMin = LAYOUT.rankGapMin, nodeGapMin = LAYOUT.nodeGapMin } = {}) {
   const reversed = findBackEdges(ast);
   const rank = rankNodes(ast, reversed);
   const ranks = orderRanks(ast, rank);
@@ -117,7 +117,9 @@ export function layout(ast, sizes, rect, { direction = ast.direction } = {}) {
   let rankGap = LAYOUT.rankGap, nodeGap = LAYOUT.nodeGap;
   let scale = 1;
   if (naturalMain(rankGap) > availMain || naturalCross(nodeGap) > availCross) {
-    rankGap = LAYOUT.rankGapMin; nodeGap = LAYOUT.nodeGapMin;
+    // callers may raise the minimum gaps (e.g. to make room for edge labels); the layout then scales down instead
+    rankGap = Math.max(LAYOUT.rankGapMin, Math.min(rankGapMin, LAYOUT.rankGap));
+    nodeGap = Math.max(LAYOUT.nodeGapMin, Math.min(nodeGapMin, LAYOUT.nodeGap));
     const nm = naturalMain(rankGap), nc = naturalCross(nodeGap);
     scale = Math.min(1, availMain / nm, availCross / nc);
   }
