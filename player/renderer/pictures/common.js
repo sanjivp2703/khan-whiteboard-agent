@@ -9,7 +9,7 @@ import { slotRect, slotInnerRect, rectInset } from '../../../shared/layout-core/
 import { colorOf, tokens, COLOR_TOKENS } from '../../../shared/layout-core/tokens.js';
 import { ROUGH_OPTIONS, FONT_SIZES } from '../../../shared/layout-core/constants.js';
 import { pathBounds, pathLength, pointAt, drawPartial, naturalMs, rough, parsePath } from '../../../shared/strokes.js';
-import { glyphPaths, measure, wrap, lineHeight, getFont } from '../../../shared/handwriting.js';
+import { glyphPaths, measure, wrap, getFont } from '../../../shared/handwriting.js';
 
 /** Rough strokes wobble a few px beyond their nominal geometry; keep geometry this far inside the inner rect. */
 export const ROUGH_MARGIN = 8;
@@ -172,6 +172,53 @@ export function rectsIntersect(a, b) {
 }
 
 // ---------- handwriting ----------
+//
+// Picture labels have their own sizes (design/02-khan-video-study.md §2.6–2.7: doodle labels are one
+// word, tick numbers and axis names are roughly Sal's note size — his picture lettering is clearly
+// smaller than his prose). change-khan-feel raised the prose FONT_SIZES (body 28 → 38, note 22 → 28)
+// for the core renderer and the validator; picture labels deliberately do NOT follow that jump and
+// keep the sizes they were designed and fitted at. The style *names* (body/note) are the same as the
+// prose styles so the picture metadata contracts (`picture.style`, label `style`) are unchanged; only
+// the px differ. Glyph geometry comes from shared/handwriting at the reference prose style and is
+// scaled uniformly to the picture size (the font is linear: same outline, smaller).
+/** Picture label sizes (px): diagram nodes and sketch labels at `body`; edge labels, svg text, plot tick numbers and axis names at `note`. */
+export const PICTURE_LABEL_PX = Object.freeze({ body: 28, note: 22 });
+/** Line heights of the picture label styles (px). */
+export const PICTURE_LINE_HEIGHTS = Object.freeze({ body: 36, note: 28 });
+export const PICTURE_LABEL_STYLES = Object.freeze(Object.keys(PICTURE_LABEL_PX));
+/** Shared prose style whose glyph outlines and metrics are scaled to the picture sizes. */
+const REF_STYLE = 'body';
+
+function labelStyleScale(style) {
+  const px = PICTURE_LABEL_PX[style];
+  if (px === undefined) throw new Error(`pictures: unknown label style "${style}"`);
+  return px / FONT_SIZES[REF_STYLE];
+}
+
+/** Font size (px) of a picture label style. */
+export function fontPx(style) {
+  labelStyleScale(style);
+  return PICTURE_LABEL_PX[style];
+}
+
+/** Line height (px) of a picture label style. */
+export function labelLineHeight(style) {
+  labelStyleScale(style);
+  return PICTURE_LINE_HEIGHTS[style];
+}
+
+/** {width, ascent, descent, lineHeight} of one line of text at a picture label style. */
+export function labelMeasure(text, style) {
+  const k = labelStyleScale(style);
+  const m = measure(text, REF_STYLE);
+  return { width: m.width * k, ascent: m.ascent * k, descent: m.descent * k, lineHeight: PICTURE_LINE_HEIGHTS[style] };
+}
+
+/** Greedy word wrap at a picture label style (shared/handwriting.wrap at the reference style, width rescaled). */
+export function labelWrap(text, style, maxWidth) {
+  const k = labelStyleScale(style);
+  return wrap(text, REF_STYLE, Math.max(1, maxWidth) / k);
+}
 
 /** Serialize opentype path commands ({type, x, y, x1, y1, x2, y2}) to path data. */
 export function commandsToPath(commands) {
@@ -208,7 +255,24 @@ export function glyphOutlines(text, style, x, y) {
 }
 
 /**
- * Pick the largest style whose wrapped lines fit `maxWidth` in at most `maxLines` lines.
+ * Glyph fill strokes for one line at a picture label style: the glyph outlines of the reference
+ * prose style (origin at (0,0), already offset by each glyph's advance) are mapped to (ox, baselineY)
+ * and scaled by the style's size ratio times `scale`.
+ */
+function labelGlyphStrokes(text, style, ox, baselineY, color, scale) {
+  const k = labelStyleScale(style) * scale;
+  const strokes = [];
+  for (const g of glyphOutlines(String(text), REF_STYLE, 0, 0)) {
+    if (!g.d) continue;
+    const d = transformPath(g.d, ([px, py]) => [ox + px * k, baselineY + py * k]);
+    const s = stroke(d, color, { mode: 'fill', width: GLYPH_TRACE_WIDTH });
+    if (s) strokes.push(s);
+  }
+  return strokes;
+}
+
+/**
+ * Pick the largest picture label style whose wrapped lines fit `maxWidth` in at most `maxLines` lines.
  * Falls back to the smallest style wrapped (hard-split by handwriting.wrap, so every line fits the width).
  * @returns {{style:string, lines:string[], width:number, height:number}}
  */
@@ -216,17 +280,17 @@ export function fitText(text, maxWidth, { styles = ['body', 'note'], maxLines = 
   const str = String(text ?? '').trim();
   let chosen = null;
   for (const style of styles) {
-    const lines = wrap(str, style, Math.max(1, maxWidth));
-    const widest = Math.max(0, ...lines.map((l) => measure(l, style).width));
-    chosen = { style, lines, width: widest, height: lines.length * lineHeight(style) };
+    const lines = labelWrap(str, style, Math.max(1, maxWidth));
+    const widest = Math.max(0, ...lines.map((l) => labelMeasure(l, style).width));
+    chosen = { style, lines, width: widest, height: lines.length * labelLineHeight(style) };
     if (lines.length <= maxLines && widest <= maxWidth) break;
   }
   return chosen;
 }
 
-/** Metric height of one line of text (ascent + descent at that style). */
+/** Metric height of `lineCount` lines of text at a picture label style. */
 export function textBlockHeight(style, lineCount = 1) {
-  return lineCount * lineHeight(style);
+  return lineCount * labelLineHeight(style);
 }
 
 /**
@@ -235,32 +299,19 @@ export function textBlockHeight(style, lineCount = 1) {
  * @returns {{strokes: Stroke[], box: {x,y,w,h}}} box = nominal text block (metrics, not glyph bounds)
  */
 export function writeLines(lines, style, x, y, w, color, { align = 'center', scale = 1 } = {}) {
-  const lh = lineHeight(style) * scale;
-  const m0 = measure('Hg', style);
+  const lh = labelLineHeight(style) * scale;
+  const m0 = labelMeasure('Hg', style);
   const ascent = m0.ascent * scale;
   const descent = m0.descent * scale;
   const strokes = [];
   let widest = 0;
   lines.forEach((line, i) => {
-    const width = measure(line, style).width * scale;
+    const width = labelMeasure(line, style).width * scale;
     widest = Math.max(widest, width);
     const lx = align === 'left' ? x : align === 'right' ? x + w - width : x + (w - width) / 2;
     // baseline so that ascent+descent is centred in the line box
     const baseline = y + i * lh + (lh - (ascent + descent)) / 2 + ascent;
-    if (scale === 1) {
-      for (const g of glyphOutlines(line, style, lx, baseline)) {
-        const s = stroke(g.d, color, { mode: 'fill', width: GLYPH_TRACE_WIDTH });
-        if (s) strokes.push(s);
-      }
-    } else {
-      // glyph d from glyphOutlines(..., 0, 0) is already offset by the glyph's x advance
-      for (const g of glyphOutlines(line, style, 0, 0)) {
-        if (!g.d) continue;
-        const d = transformPath(g.d, ([px, py]) => [lx + px * scale, baseline + py * scale]);
-        const s = stroke(d, color, { mode: 'fill', width: GLYPH_TRACE_WIDTH });
-        if (s) strokes.push(s);
-      }
-    }
+    strokes.push(...labelGlyphStrokes(line, style, lx, baseline, color, scale));
   });
   const blockX = align === 'left' ? x : align === 'right' ? x + w - widest : x + (w - widest) / 2;
   return { strokes, box: { x: blockX, y, w: widest, h: lines.length * lh } };
@@ -268,20 +319,12 @@ export function writeLines(lines, style, x, y, w, color, { align = 'center', sca
 
 /** One line of text with its left/centre/right anchor at (ax, baselineY), optionally scaled from `style`. */
 export function writeAt(text, style, ax, baselineY, color, { anchor = 'start', scale = 1 } = {}) {
-  const width = measure(text, style).width * scale;
+  const width = labelMeasure(text, style).width * scale;
   const startX = anchor === 'middle' ? ax - width / 2 : anchor === 'end' ? ax - width : ax;
-  const strokes = [];
-  for (const g of glyphOutlines(String(text), style, 0, 0)) {
-    if (!g.d) continue;
-    const d = scale === 1 ? transformPath(g.d, ([px, py]) => [startX + px, baselineY + py]) : transformPath(g.d, ([px, py]) => [startX + px * scale, baselineY + py * scale]);
-    const s = stroke(d, color, { mode: 'fill', width: GLYPH_TRACE_WIDTH });
-    if (s) strokes.push(s);
-  }
-  const m = measure('Hg', style);
+  const strokes = labelGlyphStrokes(text, style, startX, baselineY, color, scale);
+  const m = labelMeasure('Hg', style);
   return { strokes, box: { x: startX, y: baselineY - m.ascent * scale, w: width, h: (m.ascent + m.descent) * scale }, width };
 }
-
-export const fontPx = (style) => FONT_SIZES[style];
 
 // ---------- Drawable ----------
 

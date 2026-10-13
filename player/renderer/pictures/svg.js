@@ -7,8 +7,8 @@
 // cubic arcs, polyline/polygon → lines, path → parsed with arcs converted to cubics), then every
 // point is mapped through the accumulated `g` transforms (shared/svg-subset.applyTransforms) and
 // the letterbox fit. Cubic Béziers are affine-invariant, so rotate/scale/translate all work.
-// `text` is handwriting at the anchor point; its size is the scaled font-size (capped to body,
-// floored at 10 px) or note when no font-size is given; rotation is not applied to text.
+// `text` is handwriting at the anchor point; its size is the scaled font-size (capped to the pictures body size,
+// floored at 10 px) or the pictures note size when no font-size is given (common.PICTURE_LABEL_PX); rotation is not applied to text.
 import { parse as parseSvg, SHAPE_TAGS, parseTransform, applyTransforms } from '../../../shared/svg-subset.js';
 import { pathBounds, parsePath } from '../../../shared/strokes.js';
 import {

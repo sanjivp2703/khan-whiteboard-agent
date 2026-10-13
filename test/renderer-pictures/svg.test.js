@@ -8,7 +8,7 @@ import { localPath } from '../../player/renderer/pictures/svg.js';
 import { parse as parseSvg } from '../../shared/svg-subset.js';
 import { slotRect, slotInnerRect } from '../../shared/layout-core/grid.js';
 import { tokens } from '../../shared/layout-core/tokens.js';
-import { ROUGH_MARGIN } from '../../player/renderer/pictures/common.js';
+import { ROUGH_MARGIN, PICTURE_LABEL_PX } from '../../player/renderer/pictures/common.js';
 import { ensureFont, ctxFor, insideSlot, rectInside, REPO_ROOT } from './helpers.js';
 
 before(ensureFont);
@@ -85,12 +85,13 @@ test('text becomes handwriting (glyph fills), counts as one part, honours text-a
   assert.ok(d.paths.length >= 20, 'one glyph stroke per non-space character');
   assert.ok(d.strokeInfo.every((s) => s.mode === 'fill' && s.color === tokens.accent1));
   const m = d.picture.partMeta[0];
-  assert.ok(m.size <= 28 + 1e-9, 'capped to body');
+  assert.ok(m.size <= PICTURE_LABEL_PX.body + 1e-9, 'capped to the pictures body size');
+  assert.ok(m.size > PICTURE_LABEL_PX.note, 'font-size 8 in a 100-unit viewBox asks for more than note, so the cap is what limits it');
   const anchorX = m.anchor[0];
   assert.ok(Math.abs(m.box.x + m.box.w / 2 - anchorX) < 2, 'middle anchor centres the text');
   assert.ok(insideSlot(d, 'A1:B2'));
   const noSize = prep(el(wrap('<text x="10" y="50" fill="chalk">plain</text>')));
-  assert.ok(Math.abs(noSize.picture.partMeta[0].size - 22) < 1e-9, 'no font-size → note');
+  assert.ok(Math.abs(noSize.picture.partMeta[0].size - PICTURE_LABEL_PX.note) < 1e-9, 'no font-size → the pictures note size');
   const end = prep(el(wrap('<text x="90" y="50" font-size="5" text-anchor="end" fill="chalk">right</text>')));
   const em = end.picture.partMeta[0];
   assert.ok(Math.abs(em.box.x + em.box.w - em.anchor[0]) < 2);

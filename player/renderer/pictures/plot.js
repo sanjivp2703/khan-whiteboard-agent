@@ -10,10 +10,9 @@
 // the optional `label` is written top-right and the hole is drawn in the element colour.
 import { CAPS } from '../../../shared/layout-core/constants.js';
 import { parse as parseExpr, sample } from '../../../shared/expr.js';
-import { measure } from '../../../shared/handwriting.js';
 import {
   pictureRects, roughFor, tokenColor, seriesToken, roughStrokes, stroke, writeAt, buildDrawable,
-  ellipsePath, polyPath, rectContains, rectsIntersect,
+  ellipsePath, polyPath, rectContains, rectsIntersect, labelMeasure as measure,
 } from './common.js';
 
 const DEFAULT_X_RANGE = [-10, 10];
