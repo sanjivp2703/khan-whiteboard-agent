@@ -5,6 +5,6 @@ Fast tier: `npm test` plus the builder's own e2e files.   Bootstrap: none yet (`
 
 - [x] 1. Platform study + mockup → design/03-player-ui-study.md, design/mockups/player-ui.html
 - [x] 2. Human sees the mockup (published 2026-10-13; build pre-approved)
-- [ ] 3. Build (ui.js, engine.css, index.html; minimal index.js wording)
+- [x] 3. Build (ui.js, engine.css, index.html; minimal index.js wording)
 - [ ] 4. Change-scoped QA
 - [ ] 5. Ratchet check and status update (always last)

@@ -5,6 +5,6 @@ Fast tier: `npm test` plus the builder's own e2e files.   Bootstrap: none yet (`
 
 - [x] 1. Video study → design/02-khan-video-study.md
 - [x] 2. Fill proposal deltas; human sees findings (2026-10-13)
-- [ ] 3. Build (worktree builders by area)
+- [x] 3. Build (worktree builders by area)
 - [ ] 4. Change-scoped QA
 - [ ] 5. Ratchet check and status update (always last)
