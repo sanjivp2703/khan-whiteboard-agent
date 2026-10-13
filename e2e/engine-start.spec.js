@@ -106,10 +106,11 @@ test('criterion 17: transcript is a live region equal to the narration at each s
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('state')).toHaveText('playing');
   // accessible names
-  for (const [id, name] of [['pause-button', /pause|resume/i], ['ask-button', /ask/i], ['sidebar-item-s001', /scene s001/i], ['sidebar-toggle', /scene list/i], ['transcript-toggle', /transcript/i]]) {
+  // (change-player-ui wording: chapters, not scenes; no scene ids in any name)
+  for (const [id, name] of [['pause-button', /pause|play/i], ['ask-button', /ask/i], ['sidebar-item-s001', /chapter 1 of 3, one/i], ['sidebar-toggle', /chapters/i], ['transcript-toggle', /transcript/i]]) {
     await expect(page.getByTestId(id)).toHaveAccessibleName(name);
   }
-  await expect(page.getByTestId('sidebar')).toHaveAttribute('aria-label', 'Scenes');
+  await expect(page.getByTestId('sidebar')).toHaveAttribute('aria-label', 'Chapters');
   expect(errors).toEqual([]);
 });
 

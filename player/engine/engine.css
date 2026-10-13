@@ -1,140 +1,224 @@
-/* player/engine/engine.css — SLICE 04 owns this file. The lesson page chrome, mounted inside
-   #engine-root. Layout (fix: chrome outside the board, backlog #19; spec §10 puts the transcript
-   UNDER the board and chrome must never hide board content):
+/* player/engine/engine.css — the lesson page chrome, mounted inside #engine-root (change-player-ui,
+   design/03-player-ui-study.md, redirected by the human on 2026-10-13: flat black chrome, sharp
+   corners, one accent — Khan Academy green — and nothing decorative: no blur, glow, gradient,
+   pill, pulse or idle fade).
 
-     ┌──────────────── toolbar (.eng-top) ────────────────┐
-     │ rail │            board area (.eng-board-area)      │   rail: ~24 px strip, ~300 px expanded
-     │(.eng-│   #board-wrap = largest 16:9 box that fits   │   (hover / pin / not-playing), the board
-     │ side)│   + .eng-overlay (gate, caption, ask, summary)│   re-letterboxes when it changes width
-     ├─────────────── transcript + notes (.eng-bottom) ───┤
-     └─────────────────────────────────────────────────────┘
+     ┌ top bar 44 px: khan · Lesson title ……………………………………… [Chapters] ┐
+     │ ┌──── board, largest 16:9 inside a 16 px gutter (.eng-board-pad) ────┐ │ chapters  │
+     │ │     only the pen canvas and .eng-overlay ever stack over it       │ │ 280 px    │
+     │ └──────────────────────────────────────────────────────────────────┘ │ (24 px    │
+     │ progress 4 px (6 px hover), 3 px gaps, one segment per scene          │  strip    │
+     │ row 48 px: [▶] 0:00 / 9:20 │ CHAPTER 3 OF 6 · title   [Ask khan] [Transcript] │ when     │
+     │ voice banner (only when there is no voice)                            │  collapsed)│
+     │ transcript strip: 2-line caption; `t` expands it (≤ 30 vh)            │           │
+     └───────────────────────────────────────────────────────────────────────┴───────────┘
 
-   Nothing stacks over the board canvas except the pen canvas and the overlay layer. Colors and
-   fonts come from the --khan-* tokens (names frozen, values pending the design pass); class names
-   and data-testids are a frozen markup contract — a design pass adds, never renames. */
+   The chrome never covers the board (spec §10): the overlay layer (start gate, thinking caption,
+   question form, end card) is the only thing stacked over it. Phones (≤ 640 px) stack one
+   scrolling column: top bar, board full width, controls, transcript, chapters.
 
-.eng { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--khan-panel-text); font-size: clamp(11px, 1.1vw, 15px);
-  display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;
-  width: 100%; height: 100%; min-width: 0; min-height: 0; box-sizing: border-box; background: var(--khan-page-bg);
+   Tokens: the frozen board tokens (player/tokens.css) are untouched; the chrome adds its own
+   --khan-chrome-* / --khan-progress-* set below (names from the study §5; values per the redirect).
+   Class names and data-testids are a frozen markup contract — a design pass adds, never renames. */
+
+.eng {
+  --khan-chrome-page: #000000;                  /* page / chrome background */
+  --khan-chrome-bg: #0A0A0A;                    /* surfaces that must separate from the board: card, form, tip */
+  --khan-chrome-border: #1F1F1F;                /* 1 px hairlines */
+  --khan-chrome-text: #FFFFFF;
+  --khan-chrome-muted: #B3B3B3;
+  --khan-chrome-hover: #141414;                 /* button hover */
+  --khan-chrome-active: #111111;                /* current chapter row, pressed toggles */
+  --khan-chrome-accent: #14BF96;                /* Khan Academy green (khanacademy.org bundle color token `teal`) */
+  --khan-chrome-font: system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --khan-progress-track: #3A3A3A;
+  --khan-progress-played: var(--khan-chrome-accent);
+  --khan-progress-pending: #161616;
+  --khan-overlay-scrim: rgba(0, 0, 0, 0.58);
+  --khan-focus: var(--khan-chrome-accent);
+  --khan-radius-sm: 0; --khan-radius-md: 0; --khan-radius-lg: 0; --khan-radius-pill: 0;
+  --khan-motion-fast: 160ms;                    /* only the chapters panel width and the bar height move */
+
+  font: 14px/1.4 var(--khan-chrome-font); color: var(--khan-chrome-text); -webkit-font-smoothing: antialiased;
+  display: grid; grid-template-rows: 44px minmax(0, 1fr);
+  width: 100%; height: 100%; min-width: 0; min-height: 0; box-sizing: border-box; background: var(--khan-chrome-page);
   overflow: hidden; overflow: clip; } /* the chrome never widens the page: no horizontal scroll at 320 px */
-.eng button { font: inherit; }
+.eng *, .eng *::before, .eng *::after { box-sizing: border-box; }
+:where(.eng button) { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; border-radius: 0; } /* zero specificity: the per-button rules below win */
+:where(.eng button:disabled) { cursor: default; }
+.eng button:focus-visible { outline: 2px solid var(--khan-focus); outline-offset: 2px; }
 .eng [hidden] { display: none !important; }
+.eng svg { display: block; }
+/* developer details stay in the DOM for the tests, visually hidden */
+.eng-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.eng-kbd { font: inherit; color: var(--khan-chrome-text); border: 1px solid var(--khan-chrome-border); padding: 0 5px; }
 
 /* top bar ---------------------------------------------------------------------------------- */
-.eng-top { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; justify-content: space-between; gap: 0.75em;
-  padding: 0.3em 0.6em; background: var(--khan-panel-bg); border-bottom: 1px solid color-mix(in srgb, var(--khan-panel-muted) 40%, transparent); min-height: 2.6em; box-sizing: border-box; }
-.eng-top-left, .eng-top-mid, .eng-top-right { display: flex; align-items: center; gap: 0.5em; min-width: 0; flex-shrink: 1; }
-.eng-top-mid { flex: 1; justify-content: center; overflow: hidden; }
-.eng-top .eng-btn { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* buttons shrink (ellipsis) before the toolbar overflows; aria-labels keep the full names */
-.eng-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.9; max-width: 22em; }
-.eng-state { font: 600 0.8em ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.04em; text-transform: lowercase; padding: 0.15em 0.6em; border-radius: 999px;
-  background: var(--khan-panel-bg); border: 1px solid var(--khan-panel-muted); color: var(--khan-panel-text); }
-.eng[data-state="playing"] .eng-state { border-color: var(--khan-accent4); color: var(--khan-accent4); }
-.eng[data-state="paused"] .eng-state { border-color: var(--khan-accent1); color: var(--khan-accent1); }
-.eng[data-state="stalled"] .eng-state, .eng[data-state="thinking"] .eng-state { border-color: var(--khan-accent2); color: var(--khan-accent2); }
-.eng[data-state="ended"] .eng-state { border-color: var(--khan-accent5); color: var(--khan-accent5); }
-.eng-state-label { color: var(--khan-panel-muted); font-size: 0.85em; white-space: nowrap; }
-.eng-answering { font-size: 0.8em; color: var(--khan-accent2); border: 1px dashed var(--khan-accent2); border-radius: 999px; padding: 0.1em 0.6em; white-space: nowrap; }
-.eng-btn { cursor: pointer; border: 1px solid var(--khan-panel-muted); background: var(--khan-panel-bg); color: var(--khan-panel-text); border-radius: 0.5em; padding: 0.3em 0.8em; line-height: 1.2; }
-.eng-btn:hover:not(:disabled) { border-color: var(--khan-panel-text); }
-.eng-btn:focus-visible, .eng-side-item:focus-visible, .eng-start-btn:focus-visible, .eng-ask-input:focus-visible { outline: 2px solid var(--khan-accent1); outline-offset: 2px; }
-.eng-btn:disabled { opacity: 0.45; cursor: default; }
-.eng-btn-quiet { background: transparent; border-color: transparent; color: var(--khan-panel-muted); }
-.eng-btn-quiet[aria-pressed="true"] { color: var(--khan-panel-text); border-color: var(--khan-panel-muted); }
+.eng-top { display: flex; align-items: center; gap: 12px; padding: 0 16px; min-width: 0; border-bottom: 1px solid var(--khan-chrome-border); }
+.eng-brand { font-family: var(--khan-font-hand), var(--khan-font-hand-fallback); font-size: 22px; line-height: 1; color: var(--khan-chrome-text); flex: none; }
+.eng-title { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.eng-spacer { flex: 1; }
+.eng-tbtn { height: 32px; padding: 0 12px; border: 1px solid var(--khan-chrome-border); color: var(--khan-chrome-muted); white-space: nowrap; flex: none; }
+.eng-tbtn:hover { background: var(--khan-chrome-hover); color: var(--khan-chrome-text); }
+.eng-tbtn[aria-pressed="true"] { color: var(--khan-chrome-text); border-color: var(--khan-chrome-muted); background: var(--khan-chrome-active); }
 
-/* sidebar: a rail beside the board (never over it) that expands while not playing, pinned, hovered
-   or focused; the board area re-letterboxes to the width that remains ---------------------- */
-.eng-side { grid-column: 1; grid-row: 2; position: relative; width: clamp(20px, 1.6em, 28px); min-height: 0; overflow: hidden; box-sizing: border-box;
-  background: var(--khan-panel-bg); border-right: 1px solid color-mix(in srgb, var(--khan-panel-muted) 50%, transparent); transition: width 160ms ease-out; }
-.eng-side[data-expanded="true"], .eng-side:hover, .eng-side:focus-within { width: min(20em, 70vw); overflow-y: auto; }
-.eng-side-head { font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.08em; color: var(--khan-panel-muted); padding: 0.6em 0.9em 0.3em; white-space: nowrap; }
-.eng-side-list { list-style: none; margin: 0; padding: 0; }
-.eng-side-row { border-bottom: 1px solid color-mix(in srgb, var(--khan-panel-muted) 25%, transparent); }
-.eng-side-item { display: grid; grid-template-columns: clamp(20px, 1.6em, 28px) auto 1fr auto; align-items: center; gap: 0.35em; width: 100%; min-height: 2.2em; padding: 0.3em 0.6em 0.3em 0; margin: 0; box-sizing: border-box;
-  background: transparent; border: 0; color: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
-.eng-side-item[data-ready="false"] { cursor: default; color: var(--khan-panel-muted); }
-.eng-side-item:hover[data-ready="true"] { background: color-mix(in srgb, var(--khan-panel-text) 8%, transparent); }
-.eng-side-row[data-current="true"] .eng-side-item { background: color-mix(in srgb, var(--khan-accent1) 14%, transparent); color: var(--khan-panel-text); }
-.eng-side-row[data-kind="answer"] .eng-side-item { padding-left: 0.6em; font-style: italic; }
-.eng-side-dot { width: 0.6em; height: 0.6em; border-radius: 50%; justify-self: center; background: var(--khan-panel-muted); opacity: 0.5; }
-.eng-side-row[data-status="ready"] .eng-side-dot { background: var(--khan-accent4); opacity: 1; }
-.eng-side-row[data-status="voicing"] .eng-side-dot, .eng-side-row[data-status="validating"] .eng-side-dot { background: var(--khan-accent2); opacity: 1; }
-.eng-side-row[data-status="rejected"] .eng-side-dot { background: var(--khan-accent3); opacity: 1; }
-.eng-side-row[data-degraded="true"] .eng-side-dot { background: var(--khan-accent1); opacity: 1; box-shadow: 0 0 0 2px color-mix(in srgb, var(--khan-accent1) 40%, transparent); }
-.eng-side-row[data-current="true"] .eng-side-dot { outline: 2px solid var(--khan-accent1); outline-offset: 1px; }
-.eng-side-id { font: 0.75em ui-monospace, Menlo, monospace; color: var(--khan-panel-muted); }
-.eng-side-title { overflow: hidden; text-overflow: ellipsis; }
-.eng-side-badge { font-size: 0.72em; color: var(--khan-panel-muted); border: 1px solid color-mix(in srgb, var(--khan-panel-muted) 50%, transparent); border-radius: 999px; padding: 0 0.5em; }
-.eng-side-row[data-degraded="true"] .eng-side-badge { color: var(--khan-accent1); border-color: var(--khan-accent1); }
-.eng-side-row[data-status="rejected"] .eng-side-badge { color: var(--khan-accent3); }
+/* body: stage + chapters panel beside it --------------------------------------------------- */
+.eng-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; min-height: 0; min-width: 0; }
+.eng-stage { display: grid; grid-template-rows: minmax(0, 1fr) auto auto auto; min-height: 0; min-width: 0; }
 
-/* board area: a size container; #board-wrap (index.html) letterboxes inside it as the largest 16:9
-   box, centred. The overlay layer shares the board box exactly and passes pointer events through
-   except on its own children ------------------------------------------------------------------ */
-.eng-board-area { grid-column: 2; grid-row: 2; position: relative; display: flex; min-width: 0; min-height: 0; container-type: size; background: var(--khan-page-bg); }
+/* board area: a 16 px gutter around a size container; #board-wrap (index.html) letterboxes inside
+   it as the largest 16:9 box, centred. The overlay layer shares the board box exactly and passes
+   pointer events through except on its own children ----------------------------------------- */
+.eng-board-pad { display: flex; min-height: 0; min-width: 0; padding: 16px 16px 0; }
+.eng-board-area { position: relative; display: flex; flex: 1 1 auto; min-width: 0; min-height: 0; container-type: size; }
+.eng #board-wrap { border-radius: var(--khan-radius-md); }
 .eng-overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; overflow: clip; }
 .eng-overlay > * { pointer-events: auto; }
 
-/* start gate (over the board only while waiting / armed) ----------------------------------- */
-.eng-gate { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.35); }
-.eng-gate-card { display: flex; flex-direction: column; align-items: center; gap: 0.8em; padding: 1.6em 2.4em; border-radius: 1em; background: var(--khan-panel-bg); border: 1px solid var(--khan-panel-muted); max-width: 32em; text-align: center; }
-.eng-start-btn { cursor: pointer; font-size: 1.6em; padding: 0.5em 2em; border-radius: 999px; border: 2px solid var(--khan-accent1); background: var(--khan-accent1); color: var(--khan-page-bg); font-weight: 600; }
-.eng-start-btn:disabled { opacity: 0.4; cursor: default; }
-.eng-start-hint { margin: 0; color: var(--khan-panel-muted); }
-.eng-tts-note { padding: 0.8em 1em; border-radius: 0.6em; border: 1px solid var(--khan-accent3); color: var(--khan-accent3); background: color-mix(in srgb, var(--khan-accent3) 12%, transparent); }
+/* control bar: directly under the board, never over it ------------------------------------ */
+.eng-controls { padding: 10px 16px 6px; min-width: 0; }
+.eng-progress { position: relative; height: 16px; display: flex; align-items: center; }
+.eng-segs { display: flex; gap: 3px; width: 100%; height: 4px; transition: height var(--khan-motion-fast); }
+.eng-progress:hover .eng-segs { height: 6px; }
+.eng-seg { position: relative; flex: var(--w, 1) 1 0; min-width: 6px; height: 100%; background: var(--khan-progress-track); }
+.eng-seg[data-ready="false"] { background: var(--khan-progress-pending); border-top: 4px dotted var(--khan-progress-track); cursor: default; } /* dotted = not ready yet */
+.eng-seg-fill { position: absolute; left: 0; top: 0; bottom: 0; width: var(--p, 0%); background: var(--khan-progress-played); }
+.eng-seg-knob { position: absolute; right: -5px; top: 50%; width: 10px; height: 10px; margin-top: -5px; background: var(--khan-progress-played); display: none; }
+.eng-progress:hover .eng-seg[data-current="true"] .eng-seg-knob { display: block; } /* scrubber only on the current segment, on hover */
+.eng-tip { position: absolute; bottom: 18px; left: 0; transform: translateX(-50%); padding: 4px 8px; background: var(--khan-chrome-bg); border: 1px solid var(--khan-chrome-border);
+  font-size: 12px; white-space: nowrap; pointer-events: none; display: none; max-width: 60vw; overflow: hidden; text-overflow: ellipsis; }
+.eng-progress[data-tip="true"] .eng-tip { display: block; }
+.eng-tip b { color: var(--khan-chrome-muted); font-weight: 500; margin-right: 8px; font-variant-numeric: tabular-nums; }
+.eng-row { display: flex; align-items: center; gap: 4px; height: 48px; min-width: 0; }
+.eng-play { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; color: var(--khan-chrome-text); flex: none; }
+.eng-play:hover:not(:disabled) { background: var(--khan-chrome-hover); }
+.eng-play:disabled { color: var(--khan-chrome-muted); opacity: 0.5; }
+.eng-play svg { width: 22px; height: 22px; }
+.eng-play .eng-ic-pause { display: none; }
+.eng-play[data-playing="true"] .eng-ic-pause { display: block; }
+.eng-play[data-playing="true"] .eng-ic-play { display: none; }
+.eng-time { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--khan-chrome-muted); padding: 0 8px; white-space: nowrap; flex: none; }
+.eng-time b { color: var(--khan-chrome-text); font-weight: 500; }
+.eng[data-state="waiting"] .eng-time b, .eng[data-state="armed"] .eng-time b, .eng[data-state="ended"] .eng-time b { color: var(--khan-chrome-muted); }
+.eng-scene { font-size: 14px; font-weight: 500; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 8px; border-left: 1px solid var(--khan-chrome-border); margin-left: 4px; }
+.eng-scene[data-empty="true"] { display: none; }
+.eng-scene small { display: block; font-size: 11px; font-weight: 400; color: var(--khan-chrome-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.eng-grow { flex: 1; }
+.eng-ask { height: 36px; padding: 0 14px; background: var(--khan-chrome-accent); color: #000000; font-weight: 600; font-size: 13px; white-space: nowrap; flex: none; }
+.eng-ask:hover:not(:disabled) { filter: brightness(1.08); }
+.eng-ask:disabled { background: none; border: 1px solid var(--khan-chrome-border); color: var(--khan-chrome-muted); }
+.eng-row .eng-tbtn { margin-left: 4px; }
 
-/* stall / thinking caption: small, translucent, in the board's bottom-right corner (the drawing
-   usually builds from the top-left; the pen idles over the last highlight) ------------------- */
-.eng-caption { position: absolute; right: 1.2%; bottom: 1.8%; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none;
-  font-style: italic; font-size: 0.9em; line-height: 1.3; padding: 0.15em 0.7em; border-radius: 999px;
-  color: var(--khan-panel-muted); background: color-mix(in srgb, var(--khan-board-bg) 55%, transparent); }
-.eng-caption:empty { display: none; }
+/* voice banner: one plain sentence, between the controls and the transcript ---------------- */
+.eng-banner { margin: 0 16px 8px; padding: 10px 14px; border: 1px solid var(--khan-chrome-border); background: var(--khan-chrome-bg); font-size: 13px; color: var(--khan-chrome-text); }
 
-/* transcript + notes: UNDER the board (spec §10) ------------------------------------------- */
-.eng-bottom { grid-column: 1 / -1; grid-row: 3; padding: 0.5em 1em 0.6em; box-sizing: border-box; max-height: 30vh; overflow: auto;
-  background: var(--khan-panel-bg); border-top: 1px solid color-mix(in srgb, var(--khan-panel-muted) 40%, transparent); }
-.eng-bottom[data-visible="false"] .eng-transcript-text, .eng-bottom[data-visible="false"] .eng-transcript-meta { display: none; }
-.eng-bottom[data-visible="false"] { padding-top: 0; padding-bottom: 0; border-top: 0; }
-.eng-bottom[data-visible="false"] .eng-notes:not(:empty) { padding: 0.4em 0; }
-.eng-transcript-meta { display: flex; gap: 0.8em; font: 0.75em ui-monospace, Menlo, monospace; color: var(--khan-panel-muted); }
-.eng-degraded { color: var(--khan-accent1); border: 1px solid var(--khan-accent1); border-radius: 999px; padding: 0 0.5em; }
-.eng-transcript-text { margin: 0.2em 0 0; line-height: 1.35; color: var(--khan-panel-text); }
-.eng-transcript-text:empty::before { content: "—"; color: var(--khan-panel-muted); }
-.eng-notes { list-style: none; margin: 0.3em 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4em; }
+/* transcript strip: a 2-line caption; expands to the full text (≤ 30 vh, scroll) ------------- */
+.eng-transcript { margin: 0 16px 12px; border-top: 1px solid var(--khan-chrome-border); padding-top: 10px; min-width: 0; }
+.eng[data-state="waiting"] .eng-transcript, .eng[data-state="armed"] .eng-transcript { display: none; }
+.eng-transcript-meta { display: none; margin: 0 0 4px; font-size: 12px; color: var(--khan-chrome-muted); }
+.eng-transcript[data-expanded="true"] .eng-transcript-meta { display: block; } /* chapter title only when expanded */
+.eng-degraded { display: none; }
+.eng-transcript-text { margin: 0; font-size: 15px; line-height: 1.5; color: var(--khan-chrome-text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.eng-transcript[data-expanded="true"] .eng-transcript-text { display: block; -webkit-line-clamp: unset; max-height: 30vh; overflow: auto; }
+.eng-transcript-text:empty::before { content: "—"; color: var(--khan-chrome-muted); }
+.eng-notes { list-style: none; margin: 6px 0 0; padding: 0; }
 .eng-notes:empty { display: none; }
-.eng-note { font-size: 0.8em; color: var(--khan-accent1); border: 1px solid color-mix(in srgb, var(--khan-accent1) 60%, transparent); border-radius: 0.4em; padding: 0.1em 0.5em; background: color-mix(in srgb, var(--khan-panel-bg) 85%, transparent); }
+.eng-note { font-size: 12px; color: var(--khan-chrome-muted); margin: 2px 0 0; }
 
-/* question field: a centred modal over the board while `thinking` ------------------------- */
-.eng-ask { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 0.6em; padding: 0.6em 0.8em; border-radius: 0.8em;
-  background: var(--khan-panel-bg); border: 1px solid var(--khan-accent2); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4); width: min(42em, 86%); box-sizing: border-box; }
-.eng-ask-input { flex: 1; font: inherit; font-size: 1.1em; padding: 0.45em 0.7em; border-radius: 0.5em; border: 1px solid var(--khan-panel-muted); background: var(--khan-page-bg); color: var(--khan-panel-text); min-width: 0; }
-.eng-ask-hint { color: var(--khan-panel-muted); font-size: 0.8em; white-space: nowrap; }
+/* chapters panel beside the board (never over it): 280 px; a 24 px strip while collapsed that
+   expands on hover / focus; the board re-letterboxes to the width that remains --------------- */
+.eng-side { position: relative; width: 280px; min-height: 0; overflow: auto; border-left: 1px solid var(--khan-chrome-border); background: var(--khan-chrome-page); transition: width var(--khan-motion-fast); }
+.eng-side[data-expanded="false"]:not(:hover):not(:focus-within) { width: 24px; overflow: hidden; }
+/* collapsed: the rows stay in the layout (clipped, transparent) so a hover or a click on the strip expands it; a vertical word marks the strip */
+.eng-side[data-expanded="false"]:not(:hover):not(:focus-within) .eng-side-inner { opacity: 0; }
+.eng-side[data-expanded="false"]:not(:hover):not(:focus-within)::before { content: "Chapters"; position: absolute; top: 14px; left: 0; width: 23px; writing-mode: vertical-rl; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--khan-chrome-muted); text-align: left; }
+.eng-side-inner { display: flex; flex-direction: column; min-height: 100%; }
+.eng-side-head { margin: 0; padding: 14px 16px 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--khan-chrome-muted); }
+.eng-side-list { list-style: none; margin: 0; padding: 0 8px 12px; }
+.eng-side-item { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 8px 10px 8px 7px; border-left: 3px solid transparent; text-align: left; color: var(--khan-chrome-text); }
+.eng-side-item:hover { background: var(--khan-chrome-hover); }
+.eng-side-row[data-current="true"] .eng-side-item { background: var(--khan-chrome-active); border-left-color: var(--khan-chrome-accent); } /* current chapter marker: a flat 3 px green bar */
+.eng-side-row[data-ready="false"] .eng-side-item { color: var(--khan-chrome-muted); cursor: default; }
+.eng-side-n { font-size: 12px; color: var(--khan-chrome-muted); font-variant-numeric: tabular-nums; }
+.eng-side-row[data-current="true"] .eng-side-n { color: var(--khan-chrome-accent); }
+.eng-side-title { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eng-side-row[data-played="true"] .eng-side-title { color: var(--khan-chrome-muted); }
+.eng-side-row[data-current="true"] .eng-side-title { color: var(--khan-chrome-text); font-weight: 500; }
+.eng-side-d { font-size: 12px; color: var(--khan-chrome-muted); font-variant-numeric: tabular-nums; }
+.eng-side-row[data-ready="false"] .eng-side-d { font-style: italic; }
+.eng-side-row[data-kind="answer"] .eng-side-title { font-style: italic; }
+.eng-side-keys { margin: auto 0 0; padding: 10px 16px 14px; font-size: 12px; color: var(--khan-chrome-muted); border-top: 1px solid var(--khan-chrome-border); white-space: nowrap; }
 
-/* end summary ------------------------------------------------------------------------------ */
-.eng-summary { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); min-width: 20em; max-width: 92%; box-sizing: border-box; padding: 1.2em 1.8em; border-radius: 1em;
-  background: color-mix(in srgb, var(--khan-panel-bg) 94%, transparent); border: 1px solid var(--khan-accent5); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); }
-.eng-summary h2 { margin: 0 0 0.6em; font-size: 1.3em; color: var(--khan-accent5); }
-.eng-summary dl { display: grid; grid-template-columns: auto auto; gap: 0.3em 1.5em; margin: 0; }
-.eng-summary dt { color: var(--khan-panel-muted); }
-.eng-summary dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
-.eng-summary-hint { margin: 0.9em 0 0; color: var(--khan-panel-muted); font-size: 0.85em; }
+/* overlays over the board: ONLY at modal moments ------------------------------------------ */
+.eng-gate { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: var(--khan-overlay-scrim); }
+.eng-gate-title { font-size: clamp(18px, 2.4cqw, 28px); font-weight: 600; letter-spacing: -0.01em; text-align: center; max-width: 70%; color: var(--khan-chrome-text); }
+.eng-start-btn { width: 88px; height: 88px; display: inline-flex; align-items: center; justify-content: center; color: var(--khan-chrome-accent); }
+.eng-start-btn svg { width: 88px; height: 88px; }
+.eng-start-btn:hover:not(:disabled) { filter: brightness(1.08); }
+.eng-start-btn:disabled { color: var(--khan-chrome-muted); opacity: 0.5; }
+.eng-start-hint { margin: 0; font-size: 13px; color: var(--khan-chrome-muted); text-align: center; }
 
-/* narrow windows (phones, QA finding 10): tighter toolbar, drop the duplicated state label and the
-   title so Pause / Ask / Transcript stay whole inside a 320 px window */
-@media (max-width: 480px) {
-  .eng-top { gap: 0.35em; padding: 0.3em 0.4em; }
-  .eng-top-left, .eng-top-mid, .eng-top-right { gap: 0.3em; }
-  .eng-top .eng-btn { padding: 0.3em 0.5em; }
-  .eng-state-label, .eng-title { display: none; }
-  /* a side rail would leave no room for the board: stack the rail ABOVE the board instead (still
-     never over it). Collapsed = the "Scenes" head only; expanded = up to 30 % of the window, scrollable. */
-  .eng { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; }
-  .eng-side { grid-column: 1; grid-row: 2; width: auto; max-height: 1.9em; border-right: 0; border-bottom: 1px solid color-mix(in srgb, var(--khan-panel-muted) 50%, transparent); transition: max-height 160ms ease-out; }
-  .eng-side[data-expanded="true"], .eng-side:hover, .eng-side:focus-within { width: auto; max-height: 30vh; overflow-y: auto; }
-  .eng-board-area { grid-column: 1; grid-row: 3; }
-  .eng-bottom { grid-row: 4; padding: 0.4em 0.6em 0.5em; }
-  .eng-ask { flex-wrap: wrap; }
+.eng-caption { position: absolute; right: 14px; bottom: 12px; padding: 6px 12px; background: var(--khan-chrome-bg); border: 1px solid var(--khan-chrome-border); color: var(--khan-chrome-muted); font-size: 13px; pointer-events: none; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eng-caption[data-empty="true"] { display: none; }
+
+.eng-ask-form { position: absolute; left: 50%; bottom: 14%; transform: translateX(-50%); width: min(560px, 86%); display: flex; gap: 8px; padding: 8px; background: var(--khan-chrome-bg); border: 1px solid var(--khan-chrome-border); }
+.eng-ask-input { flex: 1; min-width: 0; font: 15px/1.4 var(--khan-chrome-font); padding: 10px 14px; border: 1px solid var(--khan-chrome-border); background: var(--khan-chrome-page); color: var(--khan-chrome-text); border-radius: 0; }
+.eng-ask-input:focus, .eng-ask-input:focus-visible { outline: none; border-color: var(--khan-chrome-accent); } /* the green border is the focus ring */
+.eng-ask-send { padding: 0 14px; background: var(--khan-chrome-accent); color: #000000; font-weight: 600; }
+.eng-ask-cancel { padding: 0 10px; color: var(--khan-chrome-muted); border: 1px solid var(--khan-chrome-border); }
+.eng-ask-cancel:hover { background: var(--khan-chrome-hover); color: var(--khan-chrome-text); }
+
+.eng-end { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--khan-overlay-scrim); }
+.eng-end-card { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 28px 36px; background: var(--khan-chrome-bg); border: 1px solid var(--khan-chrome-border); min-width: min(360px, 90%); max-width: 92%; }
+.eng-end h2 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.eng-end-sub { margin: 0; color: var(--khan-chrome-muted); font-size: 14px; }
+.eng-end-actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; justify-content: center; }
+.eng-end-replay, .eng-end-ask { height: 40px; padding: 0 18px; font-weight: 600; }
+.eng-end-replay { border: 1px solid var(--khan-chrome-text); color: var(--khan-chrome-text); }
+.eng-end-replay:hover { background: var(--khan-chrome-hover); }
+.eng-end-ask { background: var(--khan-chrome-accent); color: #000000; }
+.eng-end-ask:disabled { background: none; border: 1px solid var(--khan-chrome-border); color: var(--khan-chrome-muted); }
+.eng-end-more { margin: 6px 0 0; font-size: 12px; color: var(--khan-chrome-muted); }
+
+/* phones (≤ 640 px): one scrolling column — top bar, board full width, controls, transcript,
+   chapters as a list. The chapter title and the "Ask khan" label give way to the essentials. */
+@media (max-width: 640px) {
+  .eng { grid-template-rows: 44px auto; overflow-y: auto; overflow-x: hidden; overflow-x: clip; }
+  .eng-top { padding: 0 12px; gap: 8px; }
+  .eng-title { font-size: 14px; }
+  .eng-body, .eng-stage { display: block; }
+  .eng-board-pad { display: block; padding: 12px 12px 0; }
+  .eng-board-area { display: block; container-type: normal; }
+  .eng #board-wrap { width: 100%; }
+  .eng-controls { padding: 8px 12px 4px; }
+  .eng-row { height: 44px; }
+  .eng-scene { display: none; }
+  .eng-ask { padding: 0 10px; }
+  .eng-banner { margin: 0 12px 8px; }
+  .eng-transcript { margin: 6px 12px 10px; }
+  .eng-side { width: auto; border-left: 0; border-top: 1px solid var(--khan-chrome-border); overflow: visible; }
+  .eng-side[data-expanded="false"]:not(:hover):not(:focus-within) { width: auto; display: none; }
+  .eng-side-inner { width: auto; min-height: 0; }
+  .eng-start-btn, .eng-start-btn svg { width: 72px; height: 72px; }
+  .eng-gate-title { font-size: 17px; max-width: 86%; }
+  .eng-ask-form { bottom: 8%; padding: 6px; }
+  .eng-end-card { padding: 14px 16px; gap: 4px; min-width: 80%; }
+  .eng-end h2 { font-size: 17px; }
+  .eng-end-sub { font-size: 12px; }
+  .eng-end-more { display: none; }
+  .eng-end-replay, .eng-end-ask { height: 34px; padding: 0 14px; font-size: 13px; }
 }
 
-/* no flashing anywhere: the only motion is the pen (canvas) and width changes of the rail */
-@media (prefers-reduced-motion: reduce) { .eng * { transition: none !important; } }
+/* very narrow phones (≤ 400 px, QA finding 10: whole buttons inside a 320 px window): elapsed time
+   only, tighter padding — every control keeps its word */
+@media (max-width: 400px) {
+  .eng-row { gap: 2px; }
+  .eng-time { padding: 0 4px; }
+  .eng-time span { display: none; } /* "/ total" — the total is still in the DOM for tests */
+  .eng-ask { padding: 0 8px; font-size: 12px; }
+  .eng-row .eng-tbtn { padding: 0 8px; margin-left: 2px; font-size: 12px; }
+  .eng-play { width: 36px; }
+}
+
+/* no flashing anywhere: the only motion is the pen (canvas), the panel width and the bar height */
+@media (prefers-reduced-motion: reduce) { .eng * { transition: none !important; animation: none !important; } }

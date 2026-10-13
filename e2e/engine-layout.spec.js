@@ -84,10 +84,13 @@ async function assertChromeOutsideBoard(page, label) {
   // the transcript is UNDER the board (spec §10), the toolbar above it, the rail to its left
   expect(transcript.y, `${label}: transcript below the board`).toBeGreaterThanOrEqual(board.y + board.height - 0.5);
   expect(toolbar.y + toolbar.height, `${label}: toolbar above the board`).toBeLessThanOrEqual(board.y + 0.5);
-  // the rail is beside the board (left) or, on a narrow window, stacked above it — never over it
+  // the rail is beside the board (change-player-ui: the Chapters panel sits to its RIGHT) or, on a
+  // phone, stacked under it as a list — entirely on one side, never over it
   const railLeft = rail.x + rail.width <= board.x + 0.5;
+  const railRight = rail.x >= board.x + board.width - 0.5;
   const railAbove = rail.y + rail.height <= board.y + 0.5;
-  expect(railLeft || railAbove, `${label}: rail ${fmt(rail)} is left of or above the board ${fmt(board)}`).toBe(true);
+  const railBelow = rail.y >= board.y + board.height - 0.5;
+  expect(railLeft || railRight || railAbove || railBelow, `${label}: rail ${fmt(rail)} is entirely beside, above or below the board ${fmt(board)}`).toBe(true);
   expect(await strangersOverBoard(page), `${label}: only the pen and the overlay layer may stack over the board`).toEqual([]);
   // the board is still a 16:9 canvas with no horizontal page scroll
   expect(Math.abs(board.width / board.height - 16 / 9), `${label}: board aspect`).toBeLessThan(0.02);
@@ -159,12 +162,15 @@ test('backlog #19: collapsing and expanding the rail re-letterboxes the board in
   const errors = collectErrors(page);
   const lesson = makeLesson('fx-eng-short');
   lesson.writeAll();
-  await page.setViewportSize({ width: 1280, height: 720 });
+  // change-player-ui: 1280×1000, not ×720 — the viewer chrome (gutter, progress bar, 48 px row, two
+  // caption lines) leaves a 720 px window height-bound in BOTH rail states, so the board could not
+  // grow on unpin; a taller window keeps the board width-bound and every assertion below meaningful
+  await page.setViewportSize({ width: 1280, height: 1000 });
   await openLesson(page, lesson.lessonId, { config: { playbackRate: 1 } });
   await engine.waitForStatuses(page, { s001: 'ready', s002: 'ready', s003: 'ready' });
   await page.getByTestId('start-button').click();
   await engine.waitForSceneTime(page, 's001', 0.3);
-  await page.mouse.move(640, 700); // away from the rail
+  await page.mouse.move(640, 980); // away from the rail
   // playing, unpinned → collapsed strip (~24 px); the board fills the rest of the area
   await expect(page.getByTestId('sidebar')).toHaveAttribute('data-expanded', 'false');
   await settled(page);
@@ -222,14 +228,14 @@ test('backlog #20: a scene skipped for missing audio gets ONE note per scene, ev
   await page.getByTestId('start-button').click();
   await engine.waitForScene(page, 's003', 40_000);
   await expect(page.getByTestId('scene-skipped-note')).toHaveCount(1);
-  await expect(page.getByTestId('scene-skipped-note')).toContainText('s002');
+  await expect(page.getByTestId('scene-skipped-note')).toHaveText('Skipped one chapter that had no voice.'); // change-player-ui wording: no scene id
   // rewind to s001: a second pass over s002 skips it again...
   await page.getByTestId('sidebar-item-s001').click();
   await page.waitForFunction(() => window.__khan.engine.events.filter((e) => e.type === 'scene-skipped' && e.sceneId === 's002').length >= 2, null, { timeout: 40_000 });
   await engine.waitForScene(page, 's003', 40_000);
   // ...but the note is not duplicated: notes are unique per (sceneId, kind)
   await expect(page.getByTestId('scene-skipped-note')).toHaveCount(1);
-  await expect(page.getByTestId('scene-skipped-note')).toContainText('scene s002 skipped: audio unavailable');
+  await expect(page.getByTestId('scene-skipped-note')).toHaveText('Skipped one chapter that had no voice.');
   // a third pass via ← ← from s003 also adds nothing
   await page.locator('body').focus();
   await page.keyboard.press('ArrowLeft');

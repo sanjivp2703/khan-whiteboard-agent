@@ -132,8 +132,9 @@ test('criterion 6: stall — pen idles, no spinner/buffering, captions at the co
   await sleep(Math.max(0, 600 - (Date.now() - stalledAt)));
   expect(await caption.textContent()).toBe('');
   await expect(caption).toHaveText('khan is thinking…', { timeout: 2_000 });
-  await expect(caption).toContainText('generation seems stuck', { timeout: 3_000 });
-  await expect(caption).toContainText(/last write \d+ s ago|no producer write yet/);
+  // change-player-ui wording: no ages or counts in the viewer's chrome
+  await expect(caption).toHaveText('Still thinking… this is taking longer than usual.', { timeout: 3_000 });
+  await expect(caption).not.toContainText(/last write|ago|stuck/);
   // the audio is silent during the stall
   expect((await engine.audio(page)).paused).toBe(true);
   // the producer catches up
