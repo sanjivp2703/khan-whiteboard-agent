@@ -16,7 +16,7 @@
 | 12 | Early open before ingest: `/outline` and `/playlist` still 404 until ingested (events fixed) | foundation fixer observation 2026-10-06 | fix | S | open |
 | 13 | After `→` to the next lesson scene, `←` lands on the just-heard answer scene (asymmetry, spec-conformant) | qa/02-verification-report.md nuance | change | S | open |
 | 14 | Ten retro proposals awaiting human apply/reject | lessons.md khan entry 2026-10-06 | | | open (human, at /triage) |
-| 15 | Promote v0.2.0 from pre-release to release after #1 and #2 | iteration-guide release gate | | S | open (human) |
+| 15 | Promote v0.2.0 (tagged pre-release 2026-10-13) to a full release after #1 and #2 | iteration-guide release gate | | S | open (human) |
 | 16 | First server restart after v0.2.0 re-voices every lesson folder in `.khan/lessons` under the new cache key (≈ $0.05–0.15 each); move old lessons out to avoid it | qa/03-change-khan-look.md finding 2 | | S | open (human, release note) |
 | 17 | Stroke pressure variation along a stroke (thick mid, thin ends) was deferred: needs per-segment stroking in both renderers | look builder report 2026-10-12 | change | S | open |
 | 18 | Box ink margin to slot edge is now 0.4 px; any stroke width > 4 px would cross the slot | qa/03 finding 3 | | S | open (note) |
