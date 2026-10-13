@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>khan player — UI mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+/* ------------------------------------------------------------------------------------------
+   khan player chrome — visual target (design/03-player-ui-study.md). Not working code.
+   Frozen tokens come from player/tokens.css; the --khan-chrome-* block is the proposed
+   chrome-only extension. Every frozen data-testid is present; "state" is visually hidden.
+   ------------------------------------------------------------------------------------------ */
+:root {
+  /* frozen (tokens.css) */
+  --khan-board-bg: #000000; --khan-chalk: #FFFFFF; --khan-muted: #717378;
+  --khan-accent1: #FFE066; --khan-accent2: #65D0FA; --khan-accent3: #FF8D71; --khan-accent4: #59F3CE; --khan-accent5: #FB73BE;
+  --khan-page-bg: #0B0C0F; --khan-panel-bg: #21242C; --khan-panel-text: #E8E9EB; --khan-panel-muted: #9A9CA3;
+  /* proposed chrome-only tokens */
+  --khan-chrome-bg: #15171C;
+  --khan-chrome-border: rgba(255,255,255,0.08);
+  --khan-chrome-hover: rgba(255,255,255,0.08);
+  --khan-chrome-active: rgba(255,224,102,0.14);
+  --khan-chrome-font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --khan-progress-track: rgba(255,255,255,0.18);
+  --khan-progress-played: var(--khan-accent1);
+  --khan-progress-pending: rgba(255,255,255,0.07);
+  --khan-overlay-scrim: rgba(0,0,0,0.58);
+  --khan-focus: var(--khan-accent2);
+  --khan-radius-sm: 6px; --khan-radius-md: 10px; --khan-radius-lg: 16px; --khan-radius-pill: 999px;
+  --khan-chrome-idle: 0.72;
+  --khan-motion-fast: 160ms; --khan-motion-slow: 320ms;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--khan-page-bg); color: var(--khan-panel-text); font: 14px/1.4 var(--khan-chrome-font); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--khan-focus); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+svg { display: block; }
+
+/* mockup-only state switcher ------------------------------------------------------------ */
+.mock { position: sticky; top: 0; z-index: 20; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 8px 16px; background: #000; border-bottom: 1px dashed var(--khan-accent5); font-size: 12px; color: var(--khan-panel-muted); }
+.mock strong { color: var(--khan-accent5); margin-right: 6px; }
+.mock button { padding: 4px 10px; border-radius: var(--khan-radius-pill); border: 1px solid var(--khan-chrome-border); color: var(--khan-panel-text); }
+.mock button[aria-pressed="true"] { background: var(--khan-accent5); color: #000; border-color: var(--khan-accent5); }
+.mock label { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+
+/* page frame ------------------------------------------------------------------------------ */
+.player { display: grid; grid-template-rows: 44px minmax(0, 1fr); height: calc(100dvh - 37px); min-height: 480px; }
+.player[data-phone="true"] { max-width: 390px; margin: 16px auto; height: 780px; border: 1px solid var(--khan-chrome-border); border-radius: 24px; overflow: hidden; }
+
+/* top bar: title only; everything playback-related lives under the board ------------------ */
+.top { display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--khan-page-bg); border-bottom: 1px solid var(--khan-chrome-border); }
+.top h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.top .brand { color: var(--khan-accent1); font-family: "Patrick Hand", cursive; font-size: 20px; line-height: 1; }
+.top .spacer { flex: 1; }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: var(--khan-radius-md); color: var(--khan-panel-muted); transition: background var(--khan-motion-fast), color var(--khan-motion-fast); }
+.icon-btn:hover { background: var(--khan-chrome-hover); color: var(--khan-panel-text); }
+.icon-btn[aria-pressed="true"] { color: var(--khan-panel-text); background: var(--khan-chrome-active); }
+.icon-btn svg { width: 20px; height: 20px; }
+
+/* body: stage + chapters panel beside it --------------------------------------------------- */
+.body { display: grid; grid-template-columns: minmax(0, 1fr) auto; min-height: 0; }
+.stage { display: grid; grid-template-rows: minmax(0, 1fr) auto auto auto; min-height: 0; min-width: 0; background: var(--khan-page-bg); }
+.board-area { position: relative; display: flex; min-height: 0; container-type: size; padding: 16px 16px 0; }
+.board { position: relative; margin: auto; width: min(100%, calc((100cqh - 16px) * 16 / 9)); aspect-ratio: 16/9; background: var(--khan-board-bg); border-radius: var(--khan-radius-md); overflow: hidden; }
+.board svg.strokes { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hand { font-family: "Patrick Hand", "Comic Sans MS", cursive; }
+
+/* control bar: directly under the board, never over it ------------------------------------ */
+.controls { padding: 10px 16px 6px; transition: opacity var(--khan-motion-slow); }
+.player[data-idle="true"] .controls { opacity: var(--khan-chrome-idle); }
+.player[data-idle="true"] .controls:hover, .player[data-idle="true"] .controls:focus-within { opacity: 1; }
+.progress { position: relative; height: 16px; display: flex; align-items: center; cursor: pointer; }
+.progress .segs { display: flex; gap: 3px; width: 100%; height: 4px; transition: height var(--khan-motion-fast); }
+.progress:hover .segs { height: 6px; }
+.seg { position: relative; flex: 1 1 0; background: var(--khan-progress-track); border-radius: 2px; overflow: hidden; }
+.seg[data-ready="false"] { background: var(--khan-progress-pending); background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.10) 0 4px, transparent 4px 8px); }
+.seg .fill { position: absolute; inset: 0; width: var(--p, 0%); background: var(--khan-progress-played); }
+.seg[data-current="true"] .fill::after { content: ""; position: absolute; right: -6px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--khan-progress-played); box-shadow: 0 0 0 3px rgba(0,0,0,0.6); transform: scale(0); transition: transform var(--khan-motion-fast); }
+.progress:hover .seg[data-current="true"] .fill::after { transform: scale(1); }
+.progress .tip { position: absolute; bottom: 20px; left: 62%; transform: translateX(-50%); padding: 4px 8px; border-radius: var(--khan-radius-sm); background: var(--khan-panel-bg); font-size: 12px; white-space: nowrap; box-shadow: 0 4px 16px rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: opacity var(--khan-motion-fast); }
+.progress:hover .tip { opacity: 1; }
+.progress .tip b { color: var(--khan-panel-muted); font-weight: 500; margin-right: 6px; font-variant-numeric: tabular-nums; }
+.row { display: flex; align-items: center; gap: 4px; height: 48px; }
+.row .time { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--khan-panel-muted); padding: 0 8px; white-space: nowrap; }
+.row .time b { color: var(--khan-panel-text); font-weight: 500; }
+.row .scene { font-size: 14px; font-weight: 500; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 8px; border-left: 1px solid var(--khan-chrome-border); margin-left: 4px; }
+.row .scene small { display: block; font-size: 11px; font-weight: 400; color: var(--khan-panel-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.row .grow { flex: 1; }
+.ask { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px 0 12px; border-radius: var(--khan-radius-pill); background: var(--khan-accent1); color: #0B0C0F; font-weight: 600; font-size: 13px; transition: filter var(--khan-motion-fast), transform var(--khan-motion-fast); }
+.ask:hover { filter: brightness(1.06); }
+.ask:active { transform: scale(0.98); }
+.ask:disabled { background: var(--khan-chrome-hover); color: var(--khan-panel-muted); cursor: default; }
+.ask svg { width: 18px; height: 18px; }
+.play { width: 40px; height: 40px; border-radius: var(--khan-radius-md); display: inline-flex; align-items: center; justify-content: center; color: var(--khan-panel-text); }
+.play:hover { background: var(--khan-chrome-hover); }
+.play svg { width: 22px; height: 22px; }
+.kbd { font: 11px/1 var(--khan-chrome-font); color: var(--khan-panel-muted); border: 1px solid var(--khan-chrome-border); border-radius: 4px; padding: 2px 5px; }
+
+/* voice banner (start state only) --------------------------------------------------------- */
+.banner { display: flex; align-items: center; gap: 10px; margin: 0 16px; padding: 10px 14px; border-radius: var(--khan-radius-md); background: var(--khan-panel-bg); border: 1px solid var(--khan-chrome-border); font-size: 13px; }
+.banner svg { width: 18px; height: 18px; color: var(--khan-accent3); flex: none; }
+.banner a { color: var(--khan-accent2); }
+.banner[hidden] { display: none; }
+
+/* transcript strip: one caption line; expands to the full text -------------------------- */
+.transcript { margin: 8px 16px 12px; border-top: 1px solid var(--khan-chrome-border); padding-top: 10px; }
+.transcript .line { margin: 0; font-size: 15px; line-height: 1.5; color: var(--khan-panel-text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.transcript[data-expanded="true"] .line { -webkit-line-clamp: unset; max-height: 30vh; overflow: auto; }
+.transcript .meta { font-size: 12px; color: var(--khan-panel-muted); margin: 0 0 4px; display: flex; gap: 12px; }
+.transcript .note { font-size: 12px; color: var(--khan-panel-muted); margin: 6px 0 0; display: flex; gap: 6px; align-items: center; }
+.transcript .note::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--khan-accent3); }
+
+/* chapters panel beside the board --------------------------------------------------------- */
+.chapters { width: 280px; border-left: 1px solid var(--khan-chrome-border); background: var(--khan-page-bg); overflow: auto; min-height: 0; transition: width var(--khan-motion-fast); }
+.chapters[data-expanded="false"] { width: 0; border: 0; overflow: hidden; }
+.chapters h2 { margin: 0; padding: 14px 16px 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--khan-panel-muted); }
+.chapters ol { list-style: none; margin: 0; padding: 0 8px 12px; }
+.chapters li button { display: grid; grid-template-columns: 22px minmax(0,1fr) auto; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 8px 10px; border-radius: var(--khan-radius-md); text-align: left; color: var(--khan-panel-text); transition: background var(--khan-motion-fast); }
+.chapters li button:hover { background: var(--khan-chrome-hover); }
+.chapters li[data-current="true"] button { background: var(--khan-chrome-active); box-shadow: inset 3px 0 0 var(--khan-accent1); }
+.chapters li[data-ready="false"] button { color: var(--khan-panel-muted); cursor: default; }
+.chapters .n { font-size: 12px; color: var(--khan-panel-muted); font-variant-numeric: tabular-nums; }
+.chapters li[data-current="true"] .n { color: var(--khan-accent1); }
+.chapters .t { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chapters li[data-played="true"] .t { color: var(--khan-panel-muted); }
+.chapters li[data-current="true"] .t { color: var(--khan-panel-text); font-weight: 500; }
+.chapters .d { font-size: 12px; color: var(--khan-panel-muted); font-variant-numeric: tabular-nums; }
+.chapters li[data-ready="false"] .d { font-style: italic; opacity: 0.8; }
+.chapters li[data-kind="answer"] .t { font-style: italic; }
+.chapters li[data-kind="answer"] .n { color: var(--khan-accent2); }
+
+/* overlays over the board: ONLY at modal moments ------------------------------------------ */
+.overlay { position: absolute; inset: 0; pointer-events: none; }
+.overlay > * { pointer-events: auto; }
+.gate { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: var(--khan-overlay-scrim); backdrop-filter: blur(2px); }
+.gate .lesson { font-size: clamp(18px, 2.4cqw, 28px); font-weight: 600; letter-spacing: -0.01em; text-align: center; max-width: 70%; text-shadow: 0 2px 12px rgba(0,0,0,0.8); }
+.gate .big { width: 88px; height: 88px; border-radius: 50%; background: var(--khan-accent1); color: #000; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 40px rgba(255,224,102,0.35), 0 0 0 0 rgba(255,224,102,0.4); transition: transform var(--khan-motion-fast), box-shadow var(--khan-motion-slow); }
+.gate .big:hover { transform: scale(1.06); box-shadow: 0 10px 40px rgba(255,224,102,0.45), 0 0 0 12px rgba(255,224,102,0.12); }
+.gate .big svg { width: 38px; height: 38px; margin-left: 4px; }
+.gate .big:disabled { background: var(--khan-panel-bg); color: var(--khan-panel-muted); box-shadow: none; cursor: default; }
+.gate .hint { font-size: 13px; color: var(--khan-panel-muted); }
+.gate .hint .kbd { margin: 0 2px; }
+
+.caption { position: absolute; right: 14px; bottom: 12px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 10px; border-radius: var(--khan-radius-pill); background: rgba(11,12,15,0.72); color: var(--khan-panel-muted); font-size: 13px; backdrop-filter: blur(6px); }
+.caption:empty { display: none; }
+.dots { display: inline-flex; gap: 3px; }
+.dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--khan-accent1); animation: pulse 1.2s ease-in-out infinite; }
+.dots i:nth-child(2) { animation-delay: 0.2s; } .dots i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes pulse { 0%, 80%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
+
+.askform { position: absolute; left: 50%; bottom: 14%; transform: translateX(-50%); width: min(560px, 86%); display: flex; gap: 8px; padding: 8px; border-radius: var(--khan-radius-lg); background: rgba(21,23,28,0.92); border: 1px solid var(--khan-chrome-border); box-shadow: 0 16px 48px rgba(0,0,0,0.6); backdrop-filter: blur(10px); }
+.askform input { flex: 1; min-width: 0; font: 15px/1.4 var(--khan-chrome-font); padding: 10px 14px; border-radius: var(--khan-radius-md); border: 1px solid transparent; background: var(--khan-page-bg); color: var(--khan-panel-text); }
+.askform input:focus { outline: none; border-color: var(--khan-accent2); }
+.askform .send { padding: 0 14px; border-radius: var(--khan-radius-md); background: var(--khan-accent1); color: #000; font-weight: 600; }
+.askform .cancel { padding: 0 10px; color: var(--khan-panel-muted); border-radius: var(--khan-radius-md); }
+.askform .cancel:hover { background: var(--khan-chrome-hover); color: var(--khan-panel-text); }
+
+.end { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--khan-overlay-scrim); backdrop-filter: blur(3px); }
+.end .card { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 28px 36px; border-radius: var(--khan-radius-lg); background: rgba(21,23,28,0.9); border: 1px solid var(--khan-chrome-border); box-shadow: 0 24px 64px rgba(0,0,0,0.6); min-width: min(360px, 90%); }
+.end .check { width: 48px; height: 48px; border-radius: 50%; background: var(--khan-accent4); color: #000; display: inline-flex; align-items: center; justify-content: center; }
+.end .check svg { width: 26px; height: 26px; }
+.end h2 { margin: 6px 0 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.end .sub { margin: 0; color: var(--khan-panel-muted); font-size: 14px; }
+.end .actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; justify-content: center; }
+.end .primary { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: var(--khan-radius-pill); background: var(--khan-accent1); color: #000; font-weight: 600; }
+.end .secondary { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: var(--khan-radius-pill); background: var(--khan-chrome-hover); color: var(--khan-panel-text); font-weight: 500; }
+.end .secondary:hover { background: rgba(255,255,255,0.14); }
+.end .actions svg { width: 18px; height: 18px; }
+.end .more { margin: 6px 0 0; font-size: 12px; color: var(--khan-panel-muted); }
+
+/* state switching (mockup; the engine does this with data-state on #engine-root) ---------- */
+.player[data-state="waiting"] .caption, .player[data-state="waiting"] .end, .player[data-state="waiting"] .askform { display: none; }
+.player[data-state="playing"] .gate, .player[data-state="playing"] .caption, .player[data-state="playing"] .end, .player[data-state="playing"] .askform, .player[data-state="playing"] .banner { display: none; }
+.player[data-state="thinking"] .gate, .player[data-state="thinking"] .end, .player[data-state="thinking"] .banner { display: none; }
+.player[data-state="ended"] .gate, .player[data-state="ended"] .caption, .player[data-state="ended"] .askform, .player[data-state="ended"] .banner { display: none; }
+.player[data-state="waiting"] .pause-ic, .player[data-state="ended"] .pause-ic, .player[data-state="thinking"] .pause-ic { display: none; }
+.player[data-state="playing"] .play-ic { display: none; }
+.player[data-state="waiting"] .strokes { opacity: 0.35; }
+
+/* phone: one stacked column that scrolls; the board keeps 16:9 at full width, controls and the
+   transcript sit directly under it, chapters become a list at the bottom ------------------- */
+.player[data-phone="true"] .body, .body.narrow { display: block; overflow: auto; }
+.player[data-phone="true"] .stage { display: block; }
+.player[data-phone="true"] .board-area { display: block; container-type: normal; padding: 12px 12px 0; }
+.player[data-phone="true"] .board { width: 100%; }
+.player[data-phone="true"] .controls { padding: 8px 12px 4px; }
+.player[data-phone="true"] .row { height: 44px; }
+.player[data-phone="true"] .row .scene { display: none; }
+.player[data-phone="true"] .ask span { display: none; }
+.player[data-phone="true"] .ask { padding: 0 10px; }
+.player[data-phone="true"] .banner { margin: 0 12px; }
+.player[data-phone="true"] .transcript { margin: 6px 12px 10px; }
+.player[data-phone="true"] .chapters { width: auto; border-left: 0; border-top: 1px solid var(--khan-chrome-border); }
+.player[data-phone="true"] .chapters[data-expanded="false"] { display: none; }
+.player[data-phone="true"] .gate .big { width: 72px; height: 72px; }
+.player[data-phone="true"] .gate .lesson { font-size: 17px; max-width: 86%; }
+.player[data-phone="true"] .top h1 { font-size: 14px; }
+.player[data-phone="true"] .askform { bottom: 8%; padding: 6px; }
+.player[data-phone="true"] .end .card { padding: 14px 16px; gap: 4px; min-width: 80%; }
+.player[data-phone="true"] .end .check { width: 32px; height: 32px; } .player[data-phone="true"] .end .check svg { width: 18px; height: 18px; }
+.player[data-phone="true"] .end h2 { font-size: 17px; } .player[data-phone="true"] .end .sub { font-size: 12px; } .player[data-phone="true"] .end .more { display: none; }
+.player[data-phone="true"] .end .primary, .player[data-phone="true"] .end .secondary { height: 34px; padding: 0 14px; font-size: 13px; }
+@media (max-width: 640px) {
+  .body { display: block; overflow: auto; }
+  .stage { display: block; }
+  .board-area { display: block; container-type: normal; padding: 12px 12px 0; }
+  .board { width: 100%; }
+  .row .scene { display: none; } .ask span { display: none; } .ask { padding: 0 10px; }
+  .chapters { width: auto; border-left: 0; border-top: 1px solid var(--khan-chrome-border); }
+  .chapters[data-expanded="false"] { display: none; }
+}
+/* state-specific details */
+.player[data-state="waiting"] .seg .fill { width: 0; }
+.player[data-state="waiting"] .seg[data-current="true"] .fill::after { display: none; }
+.player[data-state="waiting"] .transcript, .player[data-state="waiting"] .progress .tip { display: none; }
+.player[data-state="waiting"] .row .time b, .player[data-state="ended"] .row .time b { color: var(--khan-panel-muted); }
+.player[data-state="ended"] .seg .fill { width: 100%; }
+.player[data-state="ended"] .seg[data-ready="false"] .fill { width: 0; }
+.player[data-state="ended"] .transcript .note { display: none; }
+.transcript .meta { display: none; }
+.transcript[data-expanded="true"] .meta { display: flex; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="mock" role="group" aria-label="Mockup state switcher (not part of the product)">
+  <strong>MOCKUP</strong> state:
+  <button data-set="waiting" aria-pressed="true">Start gate</button>
+  <button data-set="playing">Playing</button>
+  <button data-set="thinking">Thinking</button>
+  <button data-set="ended">Ended</button>
+  <label><input type="checkbox" id="phone"> phone width (390px)</label>
+  <label><input type="checkbox" id="idle"> idle dim</label>
+</div>
+
+<main class="player" id="engine-root" data-state="waiting" data-idle="false">
+  <header class="top">
+    <span class="brand" aria-hidden="true">khan</span>
+    <h1 data-testid="lesson-title">How the response cache works</h1>
+    <span class="sr-only" data-testid="state" role="status" aria-live="off">waiting</span>
+    <span class="spacer"></span>
+    <button class="icon-btn" type="button" aria-label="Keyboard shortcuts" title="Keyboard shortcuts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg>
+    </button>
+    <button class="icon-btn" type="button" data-testid="sidebar-toggle" aria-pressed="true" aria-label="Show or hide chapters (s)" title="Chapters (s)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M4 12h16M4 17h12"/></svg>
+    </button>
+  </header>
+
+  <div class="body">
+    <section class="stage">
+      <div class="board-area" data-testid="board-area">
+        <div class="board" id="board-wrap" aria-label="whiteboard">
+          <!-- sample strokes standing in for the canvas -->
+          <svg class="strokes" viewBox="0 0 1600 900" aria-hidden="true">
+            <text x="60" y="110" class="hand" font-size="52" fill="#FFE066">How the response cache works</text>
+            <text x="60" y="290" class="hand" font-size="34" fill="#FF8D71">Same request, same expensive work, every single time.</text>
+            <text x="60" y="336" class="hand" font-size="34" fill="#FF8D71">The answer is recomputed and discarded.</text>
+            <g fill="none" stroke="#65D0FA" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M140 470 l0 230 q0 14 14 14 l330 0 q14 0 14 -14 l0 -230 q0 -14 -14 -14 l-330 0 q-14 0 -14 14 z"/>
+              <text x="200" y="600" class="hand" font-size="44" fill="#65D0FA" stroke="none">client</text>
+              <path d="M520 590 l300 0 m-30 -24 l30 24 l-30 24"/>
+              <ellipse cx="1120" cy="470" rx="150" ry="40"/>
+              <path d="M970 470 v230 a150 40 0 0 0 300 0 v-230"/>
+              <path d="M970 585 a150 40 0 0 0 300 0"/>
+              <text x="1070" y="800" class="hand" font-size="44" fill="#65D0FA" stroke="none">cache</text>
+            </g>
+            <text x="880" y="290" class="hand" font-size="28" fill="#717378">Most traffic repeats within a minute.</text>
+            <path d="M1272 560 l6 -8 l2 10 l8 -3 z" fill="#FFFFFF"/>
+          </svg>
+
+          <div class="overlay" data-testid="board-overlay">
+            <!-- start gate -->
+            <div class="gate" data-testid="start-gate">
+              <div class="lesson">How the response cache works</div>
+              <button class="big" type="button" data-testid="start-button" aria-label="Start the lesson">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              </button>
+              <div class="hint" data-testid="start-hint">6 chapters · about 9 min · press <span class="kbd">space</span> to start</div>
+            </div>
+            <!-- thinking caption -->
+            <div class="caption" data-testid="caption" role="status" aria-live="polite"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>khan is thinking…</div>
+            <!-- question form (thinking state) -->
+            <form class="askform" data-testid="question-form" aria-label="Ask a question">
+              <input type="text" data-testid="question-input" aria-label="Your question" placeholder="Ask khan anything about this lesson…" value="Why not just cache forever?">
+              <button class="send" type="submit">Ask</button>
+              <button class="cancel" type="button" data-testid="question-cancel" aria-label="Cancel the question">Esc</button>
+            </form>
+            <!-- end card -->
+            <section class="end" data-testid="summary" aria-label="Lesson summary" data-scenes="6" data-degraded="0" data-svg="41" data-questions="1">
+              <div class="card">
+                <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+                <h2>Lesson complete</h2>
+                <p class="sub">How the response cache works · 6 chapters · you asked 1 question</p>
+                <dl class="sr-only"><dt>scenes played</dt><dd data-testid="summary-scenes">6</dd><dt>degraded scenes</dt><dd data-testid="summary-degraded">0</dd><dt>svg elements</dt><dd data-testid="summary-svg">41</dd><dt>questions answered</dt><dd data-testid="summary-questions">1</dd></dl>
+                <div class="actions">
+                  <button class="primary" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>Replay</button>
+                  <button class="secondary" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.6L18.5 9.5l-4.7 1.9L12 16l-1.8-4.6L5.5 9.5l4.7-1.9z"/></svg>Ask khan</button>
+                </div>
+                <p class="more">or pick a chapter to watch it again</p>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <!-- control bar -->
+      <div class="controls" role="toolbar" aria-label="Playback controls">
+        <div class="progress" aria-label="Lesson progress">
+          <div class="segs">
+            <div class="seg" data-ready="true" data-current="false"><div class="fill" style="--p:100%"></div></div>
+            <div class="seg" data-ready="true" data-current="false"><div class="fill" style="--p:100%"></div></div>
+            <div class="seg" data-ready="true" data-current="true"><div class="fill" style="--p:45%"></div></div>
+            <div class="seg" data-ready="true" data-current="false"><div class="fill" style="--p:0%"></div></div>
+            <div class="seg" data-ready="false" data-current="false"><div class="fill" style="--p:0%"></div></div>
+            <div class="seg" data-ready="false" data-current="false"><div class="fill" style="--p:0%"></div></div>
+          </div>
+          <div class="tip"><b>5:12</b>Why hits are cheap</div>
+        </div>
+        <div class="row">
+          <button class="play" type="button" data-testid="pause-button" aria-label="Pause" aria-keyshortcuts="Space" title="Pause (space)">
+            <svg class="pause-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+            <svg class="play-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <span class="time"><b>3:48</b> / 9:20</span>
+          <span class="scene"><small>Chapter 3 of 6</small>What a lookup costs</span>
+          <span class="grow"></span>
+          <button class="ask" type="button" data-testid="ask-button" aria-label="Ask a question" aria-keyshortcuts="Shift+?" title="Ask khan (?)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.6L18.5 9.5l-4.7 1.9L12 16l-1.8-4.6L5.5 9.5l4.7-1.9z"/></svg><span>Ask khan</span>
+          </button>
+          <button class="icon-btn" type="button" data-testid="transcript-toggle" aria-pressed="false" aria-label="Show or hide the full transcript (t)" title="Transcript (t)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15h6M7 11h10"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- voice banner: start state only -->
+      <div class="banner" data-testid="tts-missing-note" role="alert">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M23 9l-6 6M17 9l6 6"/></svg>
+        <span>No voice yet — add your OpenAI key to hear khan speak. The board still plays silently.</span>
+      </div>
+
+      <!-- transcript strip -->
+      <div class="transcript" data-testid="transcript-panel" data-visible="true" data-expanded="false">
+        <p class="meta"><span data-testid="transcript-scene">What a lookup costs</span></p>
+        <p class="line" data-testid="transcript" aria-live="polite" aria-atomic="true">A region scene adds a client on the right and an arrow from the cache box drawn in the previous scene, with explicit timing so the arrow lands late in the narration.</p>
+        <ul class="notes sr-only" data-testid="notes" aria-label="Playback notes"></ul>
+        <p class="note" data-testid="scene-skipped-note" role="status">Skipped one chapter that had no voice.</p>
+      </div>
+    </section>
+
+    <!-- chapters panel -->
+    <nav class="chapters" data-testid="sidebar" aria-label="Chapters" data-expanded="true" data-pinned="false">
+      <h2>Chapters</h2>
+      <ol>
+        <li data-ready="true" data-played="true"><button type="button" data-testid="sidebar-item-s001"><span class="n">1</span><span class="t">The problem</span><span class="d">1:10</span></button></li>
+        <li data-ready="true" data-played="true"><button type="button" data-testid="sidebar-item-s002"><span class="n">2</span><span class="t">Where the cache sits</span><span class="d">1:42</span></button></li>
+        <li data-ready="true" data-current="true"><button type="button" data-testid="sidebar-item-s003" aria-current="true"><span class="n">3</span><span class="t">What a lookup costs</span><span class="d">1:55</span></button></li>
+        <li data-ready="true" data-kind="answer"><button type="button" data-testid="sidebar-item-a001"><span class="n">?</span><span class="t">Your question: why not cache forever?</span><span class="d">0:48</span></button></li>
+        <li data-ready="true"><button type="button" data-testid="sidebar-item-s004"><span class="n">4</span><span class="t">Why hits are cheap</span><span class="d">1:30</span></button></li>
+        <li data-ready="false"><button type="button" data-testid="sidebar-item-s005" aria-disabled="true"><span class="n">5</span><span class="t">Expiring stale answers</span><span class="d">soon</span></button></li>
+        <li data-ready="false"><button type="button" data-testid="sidebar-item-s006" aria-disabled="true"><span class="n">6</span><span class="t">Putting it together</span><span class="d">soon</span></button></li>
+      </ol>
+    </nav>
+  </div>
+</main>
+
+<script>
+  // mockup-only: switch states / phone frame. The real engine drives data-state itself.
+  const player = document.getElementById('engine-root');
+  const state = player.querySelector('[data-testid="state"]');
+  for (const b of document.querySelectorAll('.mock [data-set]')) b.addEventListener('click', () => {
+    for (const o of document.querySelectorAll('.mock [data-set]')) o.setAttribute('aria-pressed', String(o === b));
+    player.dataset.state = b.dataset.set; state.textContent = b.dataset.set;
+    player.querySelector('[data-testid="pause-button"]').setAttribute('aria-label', b.dataset.set === 'playing' ? 'Pause' : 'Play');
+  });
+  document.getElementById('phone').addEventListener('change', (e) => { player.dataset.phone = String(e.target.checked); });
+  document.getElementById('idle').addEventListener('change', (e) => { player.dataset.idle = String(e.target.checked); });
+  player.querySelector('[data-testid="transcript-toggle"]').addEventListener('click', (e) => {
+    const t = player.querySelector('.transcript'); const on = t.dataset.expanded !== 'true';
+    t.dataset.expanded = String(on); e.currentTarget.setAttribute('aria-pressed', String(on));
+  });
+  player.querySelector('[data-testid="sidebar-toggle"]').addEventListener('click', (e) => {
+    const n = player.querySelector('.chapters'); const on = n.dataset.expanded !== 'true';
+    n.dataset.expanded = String(on); e.currentTarget.setAttribute('aria-pressed', String(on));
+  });
+</script>
+</body>
+</html>
