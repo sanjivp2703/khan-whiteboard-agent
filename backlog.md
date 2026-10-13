@@ -32,3 +32,4 @@
 | 28 | SKILL.md: narration cap of 90 words is overshot easily (91, 92 words twice in one lesson); advise aiming for ≤ 80 or count before sending | real lesson 20261013-115749 rejects | fix | S | open |
 | 29 | Silent scenes (TTS_FAILED) are never retried; add a server-side re-voice on demand or on next replay | real lessons 2026-10-13 | change | S | open |
 | 30 | Streamed speech response (`stream_format`) would allow a tight "nothing arrived" timeout instead of 90 s | TTS fixer report 2026-10-13 | change | S | open |
+| 31 | With no key (`tts.ready=false`) the server marks every scene TTS_FAILED, including scenes whose audio is already in the cache; cache hits should be served regardless of key presence | restart without key 2026-10-13, lesson 20261013-115749 | fix | S | open |
