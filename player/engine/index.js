@@ -15,7 +15,7 @@ import * as handwriting from '../../shared/handwriting.js';
 import { makeDrawCtx, registry as defaultRegistry } from '../registry.js';
 import { initialState, reduce, canAsk, canJump } from './reducer.js';
 import { peek } from './resume-stack.js';
-import { buildTimeline, progressAt, effectiveTime, isSceneComplete, activeIndex, startedIds } from './scheduler.js';
+import { buildTimeline, progressAt, effectiveTime, isSceneComplete, activeIndex, startedIds, compressedItems, PEN_TRAVEL_MS } from './scheduler.js';
 import { planBoardAt, boardHistory, countSvgElements, kindOfScene, nextEntryAfter } from './board-plan.js';
 import { buildUi } from './ui.js';
 import { createPen } from './pen.js';
@@ -410,6 +410,7 @@ export function start(opts) {
     const durationMs = Number.isFinite(live.durationMs) && live.durationMs > 0 ? live.durationMs : 0;
     const effective = scene || { sceneId: entry.sceneId, title: live.title, narration: '', board: live.board || { mode: 'region', slots: 'A1' }, elements: [] };
     const timeline = buildTimeline(effective, durationMs, targetDrawables, { naturalMsScale: config.naturalMsScale });
+    for (const it of compressedItems(timeline)) log('compressed', { sceneId: entry.sceneId, id: it.id, ratio: Math.round(it.ratio * 100) / 100, needMs: Math.round(it.naturalMs + it.pauseMs), windowMs: Math.round(it.windowEnd - it.start) }); // spec §6 writing pace: last resort
     const forced = new Set();
     if (resume) for (const item of timeline) if (item.start < t * 1000) forced.add(item.id);
     paintBackground(historyDrawables);
@@ -629,7 +630,7 @@ export function start(opts) {
   function updatePen(t, now) {
     const s = fsm.state;
     if (s === 'waiting' || s === 'armed' || s === 'ended') { pen.setMode('hidden'); pen.frame(now); return; }
-    const idx = activeIndex(current.timeline, t);
+    const idx = activeIndex(current.timeline, t, { leadMs: PEN_TRAVEL_MS }); // anticipate the next element by the travel time (pen.js)
     if (idx >= 0) {
       const item = current.timeline[idx];
       const d = current.drawables.get(item.id);
@@ -644,7 +645,7 @@ export function start(opts) {
       pen.setMode('idle');
       pen.setIdlePaths(...idlePaths());
     } else if (s === 'paused') pen.setMode('park');
-    else pen.setMode(idx >= 0 && progressAt(current.timeline[idx], t) < 1 && !current.forced.has(current.timeline[idx].id) ? 'draw' : 'park');
+    else { const u = idx >= 0 && !current.forced.has(current.timeline[idx].id) ? progressAt(current.timeline[idx], t) : 1; pen.setMode(u > 0 && u < 1 ? 'draw' : 'hover'); } // written (or not yet started): hover on it
     pen.frame(now);
   }
   function safeTip(d, u) { try { const p = d.tipAt(u); return p && Number.isFinite(p.x) && Number.isFinite(p.y) ? p : null; } catch { return null; } }

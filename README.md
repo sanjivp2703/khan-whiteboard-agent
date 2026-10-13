@@ -96,8 +96,9 @@ pins them and their contrast. `player/tokens.css` mirrors them as `--khan-*` cus
 properties and `app.js`/`harness.js` write the JS values onto `:root` at load (JS is the source of
 truth). Never hard-code a color; read `tokens`.
 
-**Timing (`layout-core/timing.js`).** `at ∈ [0, 0.9]`. Omitted `at` values: `0.85 · i / n` in list
-order (an omitted run between two anchors is spread evenly between them). Explicit values must be
+**Timing (`layout-core/timing.js`).** `at ∈ [0, 0.9]`. Omitted `at` values: `0.08 + 0.77 · i / n` in list
+order — talk first: the voice leads for ≈ 8 % of the audio before the first stroke (`TIMING.firstAt`;
+change-khan-feel) — an omitted run between two anchors is spread evenly between them. Explicit values must be
 non-decreasing (`BAD_AT`). Window = own `at` → next element's `at` (0.95 for the last). List
 `itemAt[]` must be strictly ascending and inside the window; `partStarts(count, window, itemAt)`
 gives normalized part starts.
@@ -171,7 +172,9 @@ Subset grammars (shared by validator and renderers):
   is exported for renderers.
 
 Foundation-chosen constants (not spec caps; see `constants.js`): `SLOT_PAD 12`, `CODE_CHAR_ADVANCE
-10`, line heights above, `PEN_PX_PER_S 1500`, `ROUGH_OPTIONS {roughness 1.2, bowing 1, strokeWidth
+10`, line heights above, `PEN_PX_PER_S 550` (was 1500; change-khan-feel: handwriting speed against glyph
+outline length, with `PEN_WORD_GAP_MS 120` / `PEN_LINE_GAP_MS 250` micro-pauses added by the scheduler and
+`PEN_TRAVEL_MS 320` / `PEN_HOVER_PX 2.5` for the cursor), `ROUGH_OPTIONS {roughness 1.2, bowing 1, strokeWidth
 2.5}`, `LIST_LAYOUT {bulletIndent 34, itemGap 6}`, `TABLE_LAYOUT {cellPad 6, style note, maxCellLines
 2}`, `MATH_LAYOUT {fontPx 28, lineGap 10}`. **No spec cap value was tuned.**
 

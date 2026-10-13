@@ -20,11 +20,13 @@ const entriesFor = (scenes, order) => order.map((sceneId, position) => ({ sceneI
 test('boardPlan: first scene, t=0 → empty; mid-scene → elements with start < t; past last → all', () => {
   const scenes = loadLesson('fx-build-region');
   const entries = entriesFor(scenes, ['s001', 's002', 's003', 's004']);
-  // s001: title (at 0), cache (at 0.425); D = 11600
+  // s001: title (default at 0.08, talk first), cache (default at 0.465); D = 11600 (change-khan-feel item 5)
   assert.deepEqual(ids(planBoardAt(entries, scenes, 's001', 0)), []);
-  assert.deepEqual(ids(planBoardAt(entries, scenes, 's001', 0.001)), ['title']);
-  assert.deepEqual(ids(planBoardAt(entries, scenes, 's001', 4.93)), ['title']); // 0.425 × 11.6 = 4.93 exactly: start < t is strict
-  assert.deepEqual(ids(planBoardAt(entries, scenes, 's001', 4.931)), ['title', 'cache']);
+  assert.deepEqual(ids(planBoardAt(entries, scenes, 's001', 0.001)), [], 'the voice leads: nothing on the board yet');
+  assert.deepEqual(ids(planBoardAt(entries, scenes, 's001', 0.928)), []); // 0.08 × 11.6 = 0.928 exactly: start < t is strict
+  assert.deepEqual(ids(planBoardAt(entries, scenes, 's001', 0.929)), ['title']);
+  assert.deepEqual(ids(planBoardAt(entries, scenes, 's001', 5.394)), ['title']); // 0.465 × 11.6 = 5.394 exactly
+  assert.deepEqual(ids(planBoardAt(entries, scenes, 's001', 5.3941)), ['title', 'cache']);
   assert.deepEqual(ids(planBoardAt(entries, scenes, 's001', 999)), ['title', 'cache']);
   assert.ok(allOnes(planBoardAt(entries, scenes, 's001', 999)));
   assert.deepEqual(ids(planBoardAt(entries, scenes, 's001', -5)), []);
