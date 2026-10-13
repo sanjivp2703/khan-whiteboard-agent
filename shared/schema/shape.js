@@ -79,6 +79,12 @@ function checkIds(scene, lessonId, errors) {
 
 const wordsOver = (s, cap) => countWords(s) > cap;
 
+// Plot caps added by change-khan-feel (Sal-style plots). They belong in CAPS (constants.js) and are
+// kept here only because that file was owned by another builder during the parallel build.
+export const PLOT_AXIS_NAME_WORDS = 2;
+export const PLOT_POINT_LABEL_WORDS = 3;
+const DEFAULT_PLOT_X_RANGE = [-10, 10];
+
 /** Element-level structural checks. Pushes errors (with the element id or a synthetic id). */
 function checkElement(el, idForErrors, errors) {
   const E = (code, msg) => errors.push(err(idForErrors, code, msg));
@@ -194,11 +200,43 @@ function checkElement(el, idForErrors, errors) {
         }
       }
       if (count > CAPS.plotSeriesMax) E('CAP_COUNT', `plot has ${count} fns/series; cap ${CAPS.plotSeriesMax}`);
+      const rangeOk = {};
       for (const k of ['xRange', 'yRange']) {
         if (el[k] === undefined) continue;
         if (!Array.isArray(el[k]) || el[k].length !== 2 || !el[k].every(isNum) || !(el[k][0] < el[k][1])) E('BAD_FIELD', `plot.${k} must be [min, max] with finite min < max`);
+        else rangeOk[k] = el[k];
       }
       opt('label', isStr, 'must be a string');
+      // Sal-style additions (change-khan-feel): axis names, point labels, a hole
+      for (const k of ['xLabel', 'yLabel']) {
+        if (opt(k, isStr, 'must be a string') && isStr(el[k]) && wordsOver(el[k], PLOT_AXIS_NAME_WORDS)) E('CAP_WORDS', `plot.${k} has ${countWords(el[k])} words; cap ${PLOT_AXIS_NAME_WORDS}`);
+      }
+      if (el.hole !== undefined) {
+        if (!Array.isArray(el.hole) || el.hole.length !== 2 || !el.hole.every(isNum)) E('BAD_FIELD', 'plot.hole must be [x, y] with finite numbers');
+        else {
+          const xr = rangeOk.xRange || DEFAULT_PLOT_X_RANGE;
+          if (el.hole[0] < xr[0] || el.hole[0] > xr[1]) E('BAD_FIELD', `plot.hole x ${el.hole[0]} is outside xRange [${xr[0]}, ${xr[1]}]`);
+          if (rangeOk.yRange && (el.hole[1] < rangeOk.yRange[0] || el.hole[1] > rangeOk.yRange[1])) E('BAD_FIELD', `plot.hole y ${el.hole[1]} is outside yRange [${rangeOk.yRange[0]}, ${rangeOk.yRange[1]}]`);
+        }
+      }
+      if (el.labels !== undefined) {
+        const pointSeries = Array.isArray(el.series) ? el.series.map((s) => (Array.isArray(s) ? s.length : null)) : [];
+        const checkList = (list, count, where) => {
+          if (!Array.isArray(list) || !list.every(isStr)) { E('BAD_FIELD', `plot.labels${where} must be an array of strings`); return; }
+          if (count === null) { if (list.length) E('BAD_FIELD', `plot.labels${where} labels an expression, which has no points`); return; }
+          if (list.length > count) E('BAD_FIELD', `plot.labels${where} has ${list.length} labels for ${count} points`);
+          list.forEach((l, i) => { if (wordsOver(l, PLOT_POINT_LABEL_WORDS)) E('CAP_WORDS', `plot.labels${where}[${i}] has ${countWords(l)} words; cap ${PLOT_POINT_LABEL_WORDS}`); });
+        };
+        if (!Array.isArray(el.labels)) E('BAD_FIELD', 'plot.labels must be an array of strings (first point series) or one array per series');
+        else if (el.labels.every(isStr)) {
+          const k = pointSeries.findIndex((n) => n !== null);
+          if (k < 0) E('BAD_FIELD', 'plot.labels needs a point series to label');
+          else checkList(el.labels, pointSeries[k], '');
+        } else {
+          if (el.labels.length > pointSeries.length) E('BAD_FIELD', `plot.labels has ${el.labels.length} entries for ${pointSeries.length} series`);
+          el.labels.forEach((l, k) => { if (k < pointSeries.length) checkList(l, pointSeries[k], `[${k}]`); });
+        }
+      }
       break;
     }
     case 'svg': {

@@ -37,6 +37,16 @@
       "sceneId": "s007",
       "title": "Big slots, part three",
       "goal": "The last four shapes in three by two slots"
+    },
+    {
+      "sceneId": "s008",
+      "title": "Sal's doodles, single cells",
+      "goal": "The five Sal shapes in one by one slots"
+    },
+    {
+      "sceneId": "s009",
+      "title": "Sal's doodles, wide and tall slots",
+      "goal": "The five Sal shapes with labels beside and beneath"
     }
   ],
   "producer": {

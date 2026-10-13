@@ -42,6 +42,7 @@ export const DEFAULT_HIGHLIGHT_STYLE = 'circle';
 /** Sketch library enum (extendable without a contract change). */
 export const SKETCH_SHAPES = Object.freeze([
   'circle', 'cloud', 'database', 'server', 'document', 'stack', 'person', 'numberline', 'axes', 'grid',
+  'rock', 'ground', 'smiley', 'zigzag', 'curve',
 ]);
 export const BOARD_MODES = Object.freeze(['wipe', 'region']);
 

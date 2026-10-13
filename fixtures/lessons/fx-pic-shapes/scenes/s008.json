@@ -1,0 +1,18 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-pic-shapes",
+  "sceneId": "s008",
+  "title": "Sal's doodles, single cells",
+  "narration": "These are the five doodles Sal reaches for most: a rock with a squiggle, the ground as a line with hatching under it, a smiley for a thing with a mood, a zigzag for a bouncing path, and a curve with an arrow for something that grows or approaches a value.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    { "id": "d_rock", "type": "sketch", "slot": "A1", "shape": "rock", "label": "rock", "color": "accent1" },
+    { "id": "d_ground", "type": "sketch", "slot": "B1", "shape": "ground", "label": "ground", "color": "accent2" },
+    { "id": "d_smiley", "type": "sketch", "slot": "C1", "shape": "smiley", "label": "happy", "color": "accent3" },
+    { "id": "d_zigzag", "type": "sketch", "slot": "D1", "shape": "zigzag", "label": "path", "color": "accent4" },
+    { "id": "d_curve", "type": "sketch", "slot": "E1", "shape": "curve", "label": "growth", "color": "accent5" },
+    { "id": "d_plain", "type": "sketch", "slot": "F1", "shape": "rock", "color": "muted" }
+  ]
+}

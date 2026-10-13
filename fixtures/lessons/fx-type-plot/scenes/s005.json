@@ -1,0 +1,25 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-plot",
+  "sceneId": "s005",
+  "title": "Points with names",
+  "narration": "Now a few measured points. Each one is a dot in the series colour with a letter beside it, so the narration can say point A or point B and you know exactly which dot is meant. The axes are named time and price so the picture reads on its own.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "dots",
+      "type": "plot",
+      "slot": "B1:E3",
+      "series": [[[1, 1], [2, 3], [3, 2], [4, 3.5]]],
+      "labels": ["A", "B", "C", "D"],
+      "xRange": [0, 5],
+      "yRange": [0, 4],
+      "xLabel": "time",
+      "yLabel": "price",
+      "color": "accent2"
+    }
+  ],
+  "final": true
+}
