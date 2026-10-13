@@ -19,8 +19,8 @@ const FIT_ATTEMPTS = 6;
 const EPS = 1e-6;
 
 export const PEN = Object.freeze({
-  glyphEdge: 1.0,        // outline width added around a completed, filled glyph
-  glyphProgress: 2.2,    // outline width of the glyph currently being written
+  glyphEdge: 1.3,        // outline width added around a completed, filled glyph (design cycle 1: bolder pen)
+  glyphProgress: 2.6,    // outline width of the glyph currently being written
   rough: ROUGH_OPTIONS.strokeWidth,
   faint: 1.5,
   faintAlpha: 0.55,
