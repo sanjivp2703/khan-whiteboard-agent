@@ -56,7 +56,7 @@ test('criterion 15 (MODIFIED, change-player-ui): tts.ready=false → one plain "
   await openLesson(page, lesson.lessonId);
   const note = page.getByTestId('tts-missing-note');
   await expect(note).toBeVisible();
-  await expect(note).toHaveText('No voice yet — add your OpenAI key to hear khan speak. The board still plays silently.');
+  await expect(note).toHaveText('No voice yet — add your OpenAI key to hear khan speak.');
   await expect(note).not.toContainText('OPENAI_API_KEY'); // the provider's reason is never shown (spec §6 "Player chrome")
   await expect(page.getByTestId('start-button')).toBeDisabled();
   await page.getByTestId('start-gate').click({ position: { x: 12, y: 12 } });

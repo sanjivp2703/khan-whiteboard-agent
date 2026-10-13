@@ -46,7 +46,7 @@ export const fmtTime = (ms) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 };
 
-const VOICE_START = 'No voice yet — add your OpenAI key to hear khan speak. The board still plays silently.';
+const VOICE_START = 'No voice yet — add your OpenAI key to hear khan speak.';
 const VOICE_MID = 'Voice unavailable right now — the board keeps going.';
 const PLANNED_ESTIMATE_MS = 10_000; // a scene with no duration yet counts as 10 s for the start hint and the bar
 const knownMs = (it) => (Number.isFinite(it.durationMs) && it.durationMs > 0 ? it.durationMs : 0);

@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { makeLesson, openLesson, collectErrors, engine, routeSse, waitForLessonKnown, fixtureSceneIds, ROOT } from './engine-helpers.js';
 
 const SHOTS = join(ROOT, 'test-results', 'ui');
-const VOICE_START = 'No voice yet — add your OpenAI key to hear khan speak. The board still plays silently.';
+const VOICE_START = 'No voice yet — add your OpenAI key to hear khan speak.';
 const VOICE_MID = 'Voice unavailable right now — the board keeps going.';
 
 /** Every text node of the chrome that is actually rendered (not display:none, hidden, or visually hidden 1 px boxes). */

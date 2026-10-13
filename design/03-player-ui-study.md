@@ -43,7 +43,7 @@ lines, loading is a quiet spinner, nothing on screen names an internal state.
 | "Scenes" rail with ids and badges (`sidebar`, `sidebar-item-*`) | Rephrase | "Chapters" panel beside the board: number · title · duration. No ids, no badges. Played = muted, current = accent1 left bar + tinted row, not-ready = dimmed with "soon" in place of the duration and `aria-disabled`. Answer scenes = `?` in accent2, italic title. |
 | Coloured status dots | Hide | Colour is reserved for the current chapter. |
 | Start gate card + "Click to start…" | Rephrase | Scrim over the board, lesson title, 88 px accent1 circular play, hint "6 chapters · about 9 min · press space to start". |
-| `tts-missing-note` "OpenAI key required — <reason>" | Rephrase | One plain banner under the control bar, only before start: "No voice yet — add your OpenAI key to hear khan speak. The board still plays silently." A key rejected mid-lesson: "Voice unavailable right now — the board keeps going." Never the provider's error text. |
+| `tts-missing-note` "OpenAI key required — <reason>" | Rephrase | One plain banner under the control bar, only before start: "No voice yet — add your OpenAI key to hear khan speak." A key rejected mid-lesson: "Voice unavailable right now — the board keeps going." Never the provider's error text. |
 | Caption "khan is thinking…" (`caption`) | Keep | Corner pill with three pulsing dots; same text. |
 | Caption "generation seems stuck · 42s" | Rephrase | Same pill, text "Still thinking… this is taking longer than usual." No ages or counts. |
 | Transcript meta `s003 · title` | Rephrase | Chapter title only, and only when the transcript is expanded. |
@@ -124,7 +124,7 @@ text on the accent1 pill 15:1. All chrome text ≥ 4.5:1.
 
 Top bar: "khan", lesson title · Start: "<title>", "6 chapters · about 9 min · press space to start",
 "Preparing the first chapter…" (armed) · Voice: "No voice yet — add your OpenAI key to hear khan
-speak. The board still plays silently.", "Voice unavailable right now — the board keeps going." ·
+speak.", "Voice unavailable right now — the board keeps going." ·
 Controls: "Pause" / "Play", "3:48 / 9:20", "Chapter 3 of 6", chapter title, "Ask khan", "Transcript",
 "Chapters", "Keyboard shortcuts" · Chapters panel: "Chapters", "soon", "Your question: …" ·
 Thinking: "khan is thinking…", "Still thinking… this is taking longer than usual." · Ask form:
