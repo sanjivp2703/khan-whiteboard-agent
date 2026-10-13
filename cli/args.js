@@ -1,4 +1,4 @@
-// cli/args.js — hand-rolled argument parsing for the six commands (no dependencies).
+// cli/args.js — hand-rolled argument parsing for the seven commands (no dependencies).
 // parseArgv(argv) → { command, positionals, flags, pretty, help } or throws UsageError.
 
 export class UsageError extends Error {
@@ -44,6 +44,12 @@ export const COMMANDS = {
     flags: { port: 'int', 'lessons-dir': 'string', 'cache-dir': 'string', 'no-open': 'bool', 'timeout-ms': 'int' },
     usage: 'khan play <lessonId> [--lessons-dir D] [--no-open]',
     summary: 'replay a finished lesson folder in the browser (no model needed)',
+  },
+  audition: {
+    positionals: [0, 0],
+    flags: { text: 'string', voices: 'string', out: 'string', 'no-play': 'bool' },
+    usage: 'khan audition [--text "..."] [--voices ash,echo,onyx,cedar] [--out DIR] [--no-play]',
+    summary: 'hear the candidate voices (needs OPENAI_API_KEY); adopt one with KHAN_TTS_VOICE=<voice>',
   },
 };
 
@@ -128,6 +134,10 @@ const FLAG_HELP = {
   'timeout-ms': 'how long to wait for the server to pick the file up (default: scene 3000, outline 10000, play 5000)',
   'max-wait-ms': 'scene: keep waiting this long while the server has no verdict yet (default 10000)',
   timeout: 'seconds to block before returning {"event":"timeout"} (default 540, max 600)',
+  text: 'audition: the paragraph to read (default: a fixed ~40-word teaching paragraph)',
+  voices: 'audition: comma-separated voice names (default: ash,echo,onyx,cedar); a rejected voice is reported, the rest continue',
+  out: 'audition: directory for <voice>.mp3 (default: <KHAN_HOME>/audition)',
+  'no-play': 'audition: write the files but do not play them (playback is macOS afplay; KHAN_NO_PLAY=1 does the same)',
 };
 
 function flagLines(flags) {

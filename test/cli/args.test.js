@@ -46,10 +46,10 @@ test('parseArgv: usage errors are UsageError with the command attached', () => {
   bad(['wait', 'x', '--lessons-dir', '/y'], /unknown flag --lessons-dir for "wait"/);
 });
 
-test('help lists all six commands; per-command help shows usage and flags', () => {
+test('help lists all seven commands; per-command help shows usage and flags', () => {
   const h = helpText();
-  for (const c of ['serve', 'outline', 'scene', 'wait', 'status', 'play']) assert.match(h, new RegExp(`^  ${c}\\b`, 'm'));
-  assert.equal(Object.keys(COMMANDS).length, 6);
+  for (const c of ['serve', 'outline', 'scene', 'wait', 'status', 'play', 'audition']) assert.match(h, new RegExp(`^  ${c}\\b`, 'm'));
+  assert.equal(Object.keys(COMMANDS).length, 7);
   assert.match(helpText('wait'), /khan wait <lessonId> \[--timeout S\]/);
   assert.match(helpText('wait'), /--timeout/);
   assert.match(helpText('serve'), /--foreground/);
@@ -117,12 +117,12 @@ test('prepareScene: fills schema/lessonId/sceneId, refuses mismatches and non-ob
   assert.throws(() => prepareScene('str', 'my-lesson-01', 's001'), (e) => e.code === 'BAD_SCENE');
 });
 
-test('bin/khan: --help exit 0 lists six commands, unknown command exit 1 with JSON, every cli file parses (criterion 1)', async () => {
+test('bin/khan: --help exit 0 lists seven commands, unknown command exit 1 with JSON, every cli file parses (criterion 1)', async () => {
   const h = makeHome();
   try {
     const help = await runKhan(['--help'], { env: h.env });
     assert.equal(help.code, 0);
-    for (const c of ['serve', 'outline', 'scene', 'wait', 'status', 'play']) assert.match(help.stdout, new RegExp(`^  ${c}\\b`, 'm'));
+    for (const c of ['serve', 'outline', 'scene', 'wait', 'status', 'play', 'audition']) assert.match(help.stdout, new RegExp(`^  ${c}\\b`, 'm'));
     const sub = await runKhan(['wait', '--help'], { env: h.env });
     assert.equal(sub.code, 0);
     assert.match(sub.stdout, /khan wait <lessonId>/);

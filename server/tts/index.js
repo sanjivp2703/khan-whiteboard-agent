@@ -1,11 +1,13 @@
 // server/tts/index.js — provider selection and the provider interface (brief 00 C3).
 //
-// Provider shape: { name, voice, ready() → {ok, reason}, synthesize({text}) → Promise<{bytes, mime, ext, durationMs}> }
+// Provider shape: { name, voice, [model], [instructions], ready() → {ok, reason}, synthesize({text}) → Promise<{bytes, mime, ext, durationMs}> }
+// (`model` and `instructions` are optional; the cache keys on them when present — server/tts/cache.js.)
 //
 // Selection: KHAN_TTS=silent → silent (tests/fixtures only). Otherwise `openai`, implemented by
 // slice 01 in server/tts/openai.js, which must export
-//   createOpenAIProvider({ apiKey, voice, env }) → provider
-// and whose ready() returns {ok:false, reason:"OPENAI_API_KEY not set"} without a key. Until that
+//   createOpenAIProvider({ apiKey, voice, env, config }) → provider
+// and whose ready() returns {ok:false, reason:"OPENAI_API_KEY not set"} without a key. `config` is
+// .khan/config.json, so `tts.model` and `tts.instructions` reach the provider (env wins). Until that
 // file exists, a stub provider with the same ready() semantics is returned so the server still
 // starts and reports tts.ready=false with a reason.
 import { createSilentProvider } from './silent.js';
@@ -38,7 +40,7 @@ export async function selectProvider(env = process.env, config = {}) {
   } catch (e) {
     if (!(e && (e.code === 'ERR_MODULE_NOT_FOUND' || /Cannot find module/.test(String(e.message))))) throw e;
   }
-  if (mod && typeof mod.createOpenAIProvider === 'function') return mod.createOpenAIProvider({ apiKey, voice, env });
+  if (mod && typeof mod.createOpenAIProvider === 'function') return mod.createOpenAIProvider({ apiKey, voice, env, config });
   if (!apiKey) return notReadyProvider('openai', voice, 'OPENAI_API_KEY not set');
   return notReadyProvider('openai', voice, 'openai provider not installed (server/tts/openai.js missing)');
 }

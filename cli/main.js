@@ -7,12 +7,14 @@ import { scene } from './commands/scene.js';
 import { wait } from './commands/wait.js';
 import { status } from './commands/status.js';
 import { play } from './commands/play.js';
+import { audition } from './commands/audition.js';
 
-const HANDLERS = { serve, outline, scene, wait, status, play };
+const HANDLERS = { serve, outline, scene, wait, status, play, audition };
 
 /**
  * @param {string[]} argv process.argv.slice(2)
- * @param {{env?: object, stdin?: NodeJS.ReadableStream, stdout?: NodeJS.WritableStream}} [io]
+ * @param {{env?: object, stdin?: NodeJS.ReadableStream, stdout?: NodeJS.WritableStream, deps?: object}} [io]
+ *   `deps` is a test seam handed to the command (audition: fetch, play) so tests can run in-process without network.
  * @returns {Promise<number|null>} exit code; null = keep the process alive (serve --foreground)
  */
 export async function main(argv, io = {}) {
@@ -32,7 +34,7 @@ export async function main(argv, io = {}) {
     return parsed.command || parsed.help ? EXIT.OK : EXIT.ERROR;
   }
   try {
-    return await HANDLERS[parsed.command]({ positionals: parsed.positionals, flags: parsed.flags, pretty: parsed.pretty, env, stdin: io.stdin || process.stdin });
+    return await HANDLERS[parsed.command]({ positionals: parsed.positionals, flags: parsed.flags, pretty: parsed.pretty, env, stdin: io.stdin || process.stdin, stdout: io.stdout, deps: io.deps || {} });
   } catch (e) {
     if (e instanceof CliError) {
       emit(e.toJSON(), parsed.pretty, io.stdout);
