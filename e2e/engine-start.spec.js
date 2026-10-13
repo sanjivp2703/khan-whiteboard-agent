@@ -138,32 +138,59 @@ test('criterion 16a: fx-full-tour plays through to ended; summary shows scenes=1
   expect(errors).toEqual([]);
 });
 
-test('criterion 18: letterboxing — 1000×1000 → 1000×562 centred vertically; 2000×900 → 1600×900 centred horizontally', async ({ page }) => {
+test('criterion 18 (MODIFIED, backlog #19): the board is the largest 16:9 box inside the board area at 1000×1000, 2000×900, 320×640 and 3000×400, with no horizontal scroll', async ({ page }) => {
+  // Original assertion: the board box equals the full letterbox of the WINDOW and the chrome lives
+  // inside it. Spec §10 places the transcript UNDER the board and chrome must never hide board
+  // content (human screenshot 2026-10-13), so the chrome now sits outside the board and the board
+  // letterboxes inside the board area (data-testid="board-area"): the largest 16:9 box that fits
+  // the area, centred in it. Everything else in this test (320 px phone checks) is unchanged.
   const errors = collectErrors(page);
   const lesson = makeLesson('fx-eng-short');
   lesson.writeAll();
   await openLesson(page, lesson.lessonId);
+  // the rail's width transition must finish before measuring (boxes move while it slides)
+  const settle = async () => {
+    await page.waitForFunction(() => document.getAnimations().every((a) => a.playState === 'finished' || a.playState === 'idle'), null, { timeout: 5_000 });
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  };
+  const check = async (label) => {
+    const area = await page.getByTestId('board-area').boundingBox();
+    const box = await page.locator('#board').boundingBox();
+    expect(area, `${label}: board area`).not.toBeNull();
+    const fitW = Math.min(area.width, (area.height * 16) / 9);
+    expect(Math.abs(box.width - fitW), `${label}: width ${box.width} vs largest 16:9 fit ${fitW} in area ${area.width}×${area.height}`).toBeLessThanOrEqual(2);
+    expect(Math.abs(box.height - (fitW * 9) / 16), `${label}: height`).toBeLessThanOrEqual(2);
+    expect(box.x, `${label}: inside area (left)`).toBeGreaterThanOrEqual(area.x - 0.5);
+    expect(box.y, `${label}: inside area (top)`).toBeGreaterThanOrEqual(area.y - 0.5);
+    expect(box.x + box.width, `${label}: inside area (right)`).toBeLessThanOrEqual(area.x + area.width + 0.5);
+    expect(box.y + box.height, `${label}: inside area (bottom)`).toBeLessThanOrEqual(area.y + area.height + 0.5);
+    expect(Math.abs(box.x + box.width / 2 - (area.x + area.width / 2)), `${label}: centred horizontally`).toBeLessThanOrEqual(2);
+    expect(Math.abs(box.y + box.height / 2 - (area.y + area.height / 2)), `${label}: centred vertically`).toBeLessThanOrEqual(2);
+    // the pen canvas and the overlay layer share the board box exactly
+    const pen = await page.locator('#pen').boundingBox();
+    expect(Math.abs(pen.x - box.x), `${label}: pen x`).toBeLessThanOrEqual(1);
+    expect(Math.abs(pen.width - box.width), `${label}: pen width`).toBeLessThanOrEqual(1);
+    const scroll = await page.evaluate(() => ({ doc: document.documentElement.scrollWidth, body: document.body.scrollWidth, win: window.innerWidth }));
+    expect(scroll.doc, `${label}: no horizontal scroll`).toBeLessThanOrEqual(scroll.win);
+    expect(scroll.body, `${label}: no horizontal scroll (body)`).toBeLessThanOrEqual(scroll.win);
+    return box;
+  };
   await page.setViewportSize({ width: 1000, height: 1000 });
-  let box = await page.locator('#board').boundingBox();
-  expect(Math.abs(box.width - 1000)).toBeLessThanOrEqual(2);
-  expect(Math.abs(box.height - 562.5)).toBeLessThanOrEqual(2);
-  expect(Math.abs(box.y - (1000 - box.height) / 2)).toBeLessThanOrEqual(2);
-  expect(Math.abs(box.x)).toBeLessThanOrEqual(2);
+  await settle();
+  let box = await check('1000×1000');
+  expect(box.width).toBeGreaterThan(600); // the rail + toolbar + transcript leave most of a square window to the board
   await page.setViewportSize({ width: 2000, height: 900 });
-  box = await page.locator('#board').boundingBox();
-  expect(Math.abs(box.width - 1600)).toBeLessThanOrEqual(2);
-  expect(Math.abs(box.height - 900)).toBeLessThanOrEqual(2);
-  expect(Math.abs(box.x - 200)).toBeLessThanOrEqual(2);
-  expect(Math.abs(box.y)).toBeLessThanOrEqual(2);
-  // the chrome lives inside the board box
-  const root = await page.locator('#engine-root').boundingBox();
-  expect(Math.abs(root.x - box.x)).toBeLessThanOrEqual(1);
-  expect(Math.abs(root.width - box.width)).toBeLessThanOrEqual(1);
-  // a 320 px wide phone (QA finding 10): board 320×180, no horizontal page scroll, every toolbar button whole and inside the board
+  await settle();
+  box = await check('2000×900');
+  expect(box.height).toBeGreaterThan(600);
+  await page.setViewportSize({ width: 3000, height: 400 });
+  await settle();
+  await check('3000×400');
+  // a 320 px wide phone (QA finding 10): no horizontal page scroll, every toolbar button whole and inside the window
   await page.setViewportSize({ width: 320, height: 640 });
-  box = await page.locator('#board').boundingBox();
-  expect(Math.abs(box.width - 320)).toBeLessThanOrEqual(2);
-  expect(Math.abs(box.height - 180)).toBeLessThanOrEqual(2);
+  await settle();
+  box = await check('320×640');
+  expect(box.width).toBeGreaterThan(240);
   const widths = () => page.evaluate(() => ({
     doc: document.documentElement.scrollWidth, body: document.body.scrollWidth,
     truncated: [...document.querySelectorAll('.eng-top .eng-btn')].filter((b) => b.scrollWidth > b.clientWidth + 1).map((b) => b.textContent),
@@ -185,5 +212,7 @@ test('criterion 18: letterboxing — 1000×1000 → 1000×562 centred vertically
   w = await widths();
   expect(w.doc).toBeLessThanOrEqual(320);
   expect(w.truncated).toEqual([]);
+  await settle();
+  await check('320×640 playing');
   expect(errors).toEqual([]);
 });
