@@ -1,9 +1,9 @@
 // Slice 01 — unit tests for the OpenAI provider with a recording fetch mock (criteria 1, 2, 5, key hygiene).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createOpenAIProvider, OPENAI_SPEECH_URL, DEFAULT_VOICE, DEFAULT_MODEL, resolveVoice, resolveModel, redactKey, NO_KEY_REASON, BACKOFF_MS, TIMEOUT_MS, MAX_ATTEMPTS } from '../../server/tts/openai.js';
+import { createOpenAIProvider, OPENAI_SPEECH_URL, DEFAULT_VOICE, DEFAULT_MODEL, DEFAULT_INSTRUCTIONS, INSTRUCTIONS_UNSUPPORTED_MODELS, resolveVoice, resolveModel, resolveInstructions, modelSupportsInstructions, redactKey, NO_KEY_REASON, BACKOFF_MS, TIMEOUT_MS, MAX_ATTEMPTS } from '../../server/tts/openai.js';
 import { selectProvider, ttsStatus } from '../../server/tts/index.js';
-import { cacheKey } from '../../server/tts/cache.js';
+import { cacheKey, cacheKeyFor } from '../../server/tts/cache.js';
 import { createMockFetch, audioResponse, errorResponse, hangingResponse, networkError, fixtureBytes, FIXTURE_MP3_META } from './helpers/mock-fetch.js';
 
 const KEY = 'sk-test-SENTINEL-123';
@@ -75,7 +75,7 @@ test('synthesize sends exactly one request with the right URL, method, headers a
   assert.equal(c.init.method, 'POST');
   assert.equal(c.headers.authorization, `Bearer ${KEY}`);
   assert.equal(c.headers['content-type'], 'application/json');
-  assert.deepEqual(c.body, { model: DEFAULT_MODEL, voice: DEFAULT_VOICE, input: TEXT, response_format: 'mp3' });
+  assert.deepEqual(c.body, { model: DEFAULT_MODEL, voice: DEFAULT_VOICE, input: TEXT, response_format: 'mp3', instructions: DEFAULT_INSTRUCTIONS });
   assert.equal(c.body.response_format, 'mp3');
   assert.ok(c.signal instanceof AbortSignal, 'an AbortSignal is attached');
   assert.equal(c.signal.aborted, false);
@@ -102,7 +102,7 @@ test('key hygiene: JSON.stringify(provider) and its own properties never expose 
   assert.ok(!json.includes(KEY), json);
   assert.ok(!json.includes('sk-'), json);
   for (const v of Object.values(provider)) if (typeof v === 'string') assert.ok(!v.includes(KEY));
-  assert.deepEqual(Object.keys(provider).sort(), ['model', 'name', 'ready', 'synthesize', 'voice']);
+  assert.deepEqual(Object.keys(provider).sort(), ['instructions', 'model', 'name', 'ready', 'synthesize', 'voice']);
   // The provider must have used the key for the request …
   await assert.rejects(() => provider.synthesize({ text: TEXT }), (e) => {
     assert.equal(e.code, 'TTS_AUTH');
@@ -121,16 +121,16 @@ test('key hygiene: JSON.stringify(provider) and its own properties never expose 
   assert.ok(!logs.join('\n').includes(KEY));
 });
 
-test('voice/model resolution: explicit voice > KHAN_TTS_VOICE > config.tts.voice > default; KHAN_TTS_MODEL > config.tts.model > tts-1', async () => {
-  assert.equal(DEFAULT_VOICE, 'alloy');
-  assert.equal(DEFAULT_MODEL, 'tts-1');
-  assert.equal(resolveVoice({}, {}), 'alloy');
+test('voice/model resolution: explicit voice > KHAN_TTS_VOICE > config.tts.voice > default; KHAN_TTS_MODEL > config.tts.model > gpt-4o-mini-tts', async () => {
+  assert.equal(DEFAULT_VOICE, 'ash');
+  assert.equal(DEFAULT_MODEL, 'gpt-4o-mini-tts');
+  assert.equal(resolveVoice({}, {}), 'ash');
   assert.equal(resolveVoice({}, { tts: { voice: 'echo' } }), 'echo');
   assert.equal(resolveVoice({ KHAN_TTS_VOICE: 'nova' }, { tts: { voice: 'echo' } }), 'nova');
   assert.equal(resolveVoice({ KHAN_TTS_VOICE: '  ' }, { tts: { voice: 'echo' } }), 'echo');
-  assert.equal(resolveModel({}, {}), 'tts-1');
+  assert.equal(resolveModel({}, {}), 'gpt-4o-mini-tts');
   assert.equal(resolveModel({}, { tts: { model: 'tts-1-hd' } }), 'tts-1-hd');
-  assert.equal(resolveModel({ KHAN_TTS_MODEL: 'gpt-4o-mini-tts' }, { tts: { model: 'tts-1-hd' } }), 'gpt-4o-mini-tts');
+  assert.equal(resolveModel({ KHAN_TTS_MODEL: 'tts-1' }, { tts: { model: 'tts-1-hd' } }), 'tts-1');
   // and what actually goes over the wire
   const a = make([audioResponse()], { env: { KHAN_TTS_VOICE: 'nova', KHAN_TTS_MODEL: 'tts-1-hd' }, config: { tts: { voice: 'echo', model: 'x' } } });
   assert.equal(a.provider.voice, 'nova');
@@ -256,6 +256,100 @@ test('bad responses: non-audio content type → TTS_FAILED-class failure; empty 
   await assert.rejects(() => none.provider.synthesize({ text: '' }), (e) => e.code === 'TTS_BAD_REQUEST');
   await assert.rejects(() => none.provider.synthesize({}), (e) => e.code === 'TTS_BAD_REQUEST');
   assert.equal(none.mock.calls.length, 0);
+});
+
+test('instructions (design cycle 1): sent for gpt-4o-mini-tts, never for tts-1 / tts-1-hd; precedence env > config > built-in default', async () => {
+  // the OpenAI API reference: "Does not work with tts-1 or tts-1-hd" (URL in server/tts/openai.js)
+  assert.deepEqual([...INSTRUCTIONS_UNSUPPORTED_MODELS], ['tts-1', 'tts-1-hd']);
+  assert.equal(modelSupportsInstructions('gpt-4o-mini-tts'), true);
+  assert.equal(modelSupportsInstructions('gpt-4o-mini-tts-2025-12-15'), true);
+  assert.equal(modelSupportsInstructions('tts-1'), false);
+  assert.equal(modelSupportsInstructions('tts-1-hd'), false);
+  assert.equal(modelSupportsInstructions(undefined), false);
+  // the built-in default describes a manner of speaking, names nobody, and is non-trivial
+  assert.ok(DEFAULT_INSTRUCTIONS.length > 200 && DEFAULT_INSTRUCTIONS.length < 1500, `length ${DEFAULT_INSTRUCTIONS.length}`);
+  for (const word of ['warm', 'conversational', 'unhurried', 'thinking out loud', 'kitchen table', 'pauses', 'cousin']) assert.ok(DEFAULT_INSTRUCTIONS.toLowerCase().includes(word), `default lacks "${word}"`);
+  assert.match(DEFAULT_INSTRUCTIONS, /never salesy/i);
+  assert.match(DEFAULT_INSTRUCTIONS, /never emotionless/i);
+  assert.doesNotMatch(DEFAULT_INSTRUCTIONS, /\bkhan\b/i, 'no real person or brand named');
+  assert.doesNotMatch(DEFAULT_INSTRUCTIONS, /\bsal\b/i);
+  // precedence
+  assert.equal(resolveInstructions({}, {}), DEFAULT_INSTRUCTIONS);
+  assert.equal(resolveInstructions({}, { tts: { instructions: 'from config' } }), 'from config');
+  assert.equal(resolveInstructions({ KHAN_TTS_INSTRUCTIONS: ' from env ' }, { tts: { instructions: 'from config' } }), 'from env');
+  assert.equal(resolveInstructions({ KHAN_TTS_INSTRUCTIONS: '   ' }, { tts: { instructions: 'from config' } }), 'from config', 'blank env falls through');
+  assert.equal(resolveInstructions({}, { tts: { instructions: '' } }), DEFAULT_INSTRUCTIONS, 'blank config falls through');
+
+  // default model → instructions on the wire
+  const def = make([audioResponse()]);
+  assert.equal(def.provider.model, 'gpt-4o-mini-tts');
+  assert.equal(def.provider.instructions, DEFAULT_INSTRUCTIONS);
+  await def.provider.synthesize({ text: TEXT });
+  assert.equal(def.mock.calls[0].body.instructions, DEFAULT_INSTRUCTIONS);
+  assert.match(def.logs[0], /instructions=sent/);
+  // env override reaches the wire
+  const viaEnv = make([audioResponse()], { env: { KHAN_TTS_INSTRUCTIONS: 'Speak like a calm radio host.' }, config: { tts: { instructions: 'config says otherwise' } } });
+  await viaEnv.provider.synthesize({ text: TEXT });
+  assert.equal(viaEnv.mock.calls[0].body.instructions, 'Speak like a calm radio host.');
+  assert.equal(viaEnv.provider.instructions, 'Speak like a calm radio host.');
+  // config override
+  const viaConfig = make([audioResponse()], { config: { tts: { instructions: 'Dry and quick.' } } });
+  await viaConfig.provider.synthesize({ text: TEXT });
+  assert.equal(viaConfig.mock.calls[0].body.instructions, 'Dry and quick.');
+  // explicit option wins over both
+  const explicit = make([audioResponse()], { env: { KHAN_TTS_INSTRUCTIONS: 'env' }, opts: { instructions: 'explicit' } });
+  await explicit.provider.synthesize({ text: TEXT });
+  assert.equal(explicit.mock.calls[0].body.instructions, 'explicit');
+
+  // tts-1 and tts-1-hd: the field is absent even when instructions are configured
+  for (const model of ['tts-1', 'tts-1-hd']) {
+    const legacy = make([audioResponse()], { env: { KHAN_TTS_MODEL: model, KHAN_TTS_INSTRUCTIONS: 'would be rejected' } });
+    assert.equal(legacy.provider.model, model);
+    assert.equal(legacy.provider.instructions, null, `${model}: provider.instructions is null`);
+    await legacy.provider.synthesize({ text: TEXT });
+    const body = legacy.mock.calls[0].body;
+    assert.ok(!('instructions' in body), `${model}: no instructions key in the body: ${JSON.stringify(Object.keys(body))}`);
+    assert.deepEqual(body, { model, voice: DEFAULT_VOICE, input: TEXT, response_format: 'mp3' });
+    assert.match(legacy.logs[0], /instructions=omitted/);
+  }
+  // selectProvider passes config through, so tts.instructions / tts.model in .khan/config.json take effect
+  const viaFoundation = await selectProvider({ OPENAI_API_KEY: KEY }, { tts: { model: 'tts-1-hd', instructions: 'x' } });
+  assert.equal(viaFoundation.model, 'tts-1-hd');
+  assert.equal(viaFoundation.instructions, null);
+  const viaFoundation2 = await selectProvider({ OPENAI_API_KEY: KEY }, { tts: { instructions: 'gentle' } });
+  assert.equal(viaFoundation2.instructions, 'gentle');
+  // ready() and TTS_FAILED are untouched by any of this
+  assert.deepEqual(createOpenAIProvider({ env: { KHAN_TTS_INSTRUCTIONS: 'x' } }).ready(), { ok: false, reason: NO_KEY_REASON });
+});
+
+test('cache key includes model and a hash of the instructions: changing any of provider, voice, model, instructions or text re-voices; tts-1 ignores instructions', () => {
+  const base = cacheKey('openai', 'ash', 'hello', 'gpt-4o-mini-tts', 'warm');
+  assert.match(base, /^[0-9a-f]{64}$/);
+  assert.equal(base, cacheKey('openai', 'ash', 'hello', 'gpt-4o-mini-tts', 'warm'), 'deterministic');
+  assert.notEqual(base, cacheKey('openai', 'echo', 'hello', 'gpt-4o-mini-tts', 'warm'), 'voice');
+  assert.notEqual(base, cacheKey('openai', 'ash', 'hello', 'tts-1-hd', 'warm'), 'model');
+  assert.notEqual(base, cacheKey('openai', 'ash', 'hello', 'gpt-4o-mini-tts', 'warm and slow'), 'instructions');
+  assert.notEqual(base, cacheKey('openai', 'ash', 'hello', 'gpt-4o-mini-tts', null), 'instructions vs none');
+  assert.notEqual(base, cacheKey('openai', 'ash', 'hello!', 'gpt-4o-mini-tts', 'warm'), 'text');
+  assert.notEqual(base, cacheKey('other', 'ash', 'hello', 'gpt-4o-mini-tts', 'warm'), 'provider');
+  // only a hash of the instructions enters the preimage, so the key stays 64 hex chars for any length
+  assert.equal(cacheKey('openai', 'ash', 'hello', 'm', 'x'.repeat(5000)).length, 64);
+  // the old three-argument form still works (silent provider, no model, no instructions) and null/undefined agree
+  assert.equal(cacheKey('silent', null, 'x'), cacheKey('silent', undefined, 'x', null, null));
+  assert.equal(cacheKey('silent', null, 'x'), cacheKey('silent', null, 'x', undefined, undefined));
+  // cacheKeyFor reads exactly what the provider exposes
+  const p = createOpenAIProvider({ env: { OPENAI_API_KEY: KEY } });
+  assert.equal(cacheKeyFor(p, 'hello'), cacheKey('openai', DEFAULT_VOICE, 'hello', DEFAULT_MODEL, DEFAULT_INSTRUCTIONS));
+  const pEnv = createOpenAIProvider({ env: { OPENAI_API_KEY: KEY, KHAN_TTS_INSTRUCTIONS: 'different' } });
+  assert.notEqual(cacheKeyFor(pEnv, 'hello'), cacheKeyFor(p, 'hello'), 'changing instructions re-voices');
+  const pModel = createOpenAIProvider({ env: { OPENAI_API_KEY: KEY, KHAN_TTS_MODEL: 'tts-1-hd' } });
+  assert.notEqual(cacheKeyFor(pModel, 'hello'), cacheKeyFor(p, 'hello'), 'changing the model re-voices');
+  // on tts-1 the instructions are not sent, so they do not take part in the key either
+  const t1a = createOpenAIProvider({ env: { OPENAI_API_KEY: KEY, KHAN_TTS_MODEL: 'tts-1', KHAN_TTS_INSTRUCTIONS: 'a' } });
+  const t1b = createOpenAIProvider({ env: { OPENAI_API_KEY: KEY, KHAN_TTS_MODEL: 'tts-1', KHAN_TTS_INSTRUCTIONS: 'b' } });
+  assert.equal(cacheKeyFor(t1a, 'hello'), cacheKeyFor(t1b, 'hello'));
+  // the silent provider has neither model nor instructions
+  assert.equal(cacheKeyFor({ name: 'silent', voice: null }, 'x'), cacheKey('silent', null, 'x'));
 });
 
 test('default fetch is looked up per call on globalThis (so a swapped global takes effect after construction)', async () => {

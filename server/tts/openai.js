@@ -2,12 +2,21 @@
 // the foundation's provider interface (server/tts/index.js, brief 00 C3).
 //
 //   createOpenAIProvider({ apiKey, voice, env, config, ...testKnobs }) → provider
-//   provider = { name: 'openai', voice, model, ready() → {ok, reason}, synthesize({text}) → {bytes, mime, ext, durationMs} }
+//   provider = { name: 'openai', voice, model, instructions, ready() → {ok, reason}, synthesize({text}) → {bytes, mime, ext, durationMs} }
 //
-// The foundation's selectProvider calls this with { apiKey, voice, env } where `voice` is already
-// resolved (KHAN_TTS_VOICE > .khan/config.json tts.voice > null). A null voice means DEFAULT_VOICE
-// here, and the provider exposes the voice it will actually send, so the cache key
-// sha256(provider|voice|text) always carries the real voice.
+// The foundation's selectProvider calls this with { apiKey, voice, env, config } where `voice` is
+// already resolved (KHAN_TTS_VOICE > .khan/config.json tts.voice > null). A null voice means
+// DEFAULT_VOICE here, and the provider exposes the voice, model and instructions it will actually
+// send, so the cache key sha256(provider|voice|model|hash(instructions)|text) always carries the
+// real values (server/tts/cache.js).
+//
+// Delivery style (design cycle 1, decisions.md "Approved 2026-10-12"): the default model is
+// gpt-4o-mini-tts because it accepts a free-text `instructions` field that steers tone, pacing and
+// emphasis. Per the OpenAI API reference for POST /v1/audio/speech
+// (https://developers.openai.com/api/reference/resources/audio/subresources/speech/methods/create,
+// checked 2026-10-12): "Control the voice of your generated audio with additional instructions.
+// Does not work with `tts-1` or `tts-1-hd`." So `instructions` is sent only for models other than
+// those two; with tts-1 / tts-1-hd the field is omitted and `provider.instructions` is null.
 //
 // Key hygiene: the key is read from env.OPENAI_API_KEY (falling back to the apiKey argument) at
 // call time, inside a closure; it is never a property of the provider object, never logged, and
@@ -15,12 +24,41 @@
 import { mp3DurationMs, Mp3Error } from './mp3-duration.js';
 
 export const OPENAI_SPEECH_URL = 'https://api.openai.com/v1/audio/speech';
-export const DEFAULT_VOICE = 'alloy';
-export const DEFAULT_MODEL = 'tts-1';
+export const DEFAULT_VOICE = 'ash';
+export const DEFAULT_MODEL = 'gpt-4o-mini-tts';
 export const MAX_ATTEMPTS = 3;
 export const BACKOFF_MS = [1000, 3000];
 export const TIMEOUT_MS = 20000;
 export const NO_KEY_REASON = 'OPENAI_API_KEY not set';
+
+/**
+ * Built-in delivery description (design/01-khan-look-research.md §6 and Khan Academy's own creator
+ * guidance: "sound like a friend or an older cousin explaining a concept to one student", "it will
+ * be best if it doesn't sound like you're reading", "emotionless is bad", a "tightrope walk between
+ * cheerful and cloying"). Describes a manner of speaking, not any person's voice.
+ * Override: KHAN_TTS_INSTRUCTIONS env > .khan/config.json tts.instructions > this text.
+ */
+export const DEFAULT_INSTRUCTIONS = [
+  'Voice: a warm, friendly tutor explaining something to one person they like, sitting next to them at a kitchen table.',
+  'Tone: conversational and unhurried, genuinely curious, thinking out loud as you work through the idea rather than reading from a script.',
+  'Pacing: take your time; leave natural short pauses between ideas and just before the key point; slow down slightly on numbers, names and new terms.',
+  'Delivery: plain and direct, as if talking to a bright younger cousin; never emotionless or flat, never salesy, never over-enthusiastic or cloying; no announcer polish.',
+  'Emphasis: light, on the one word that matters in each sentence.',
+].join(' ');
+
+/** Models the API reference lists as NOT accepting `instructions` (URL in the header comment). */
+export const INSTRUCTIONS_UNSUPPORTED_MODELS = Object.freeze(['tts-1', 'tts-1-hd']);
+
+export function modelSupportsInstructions(model) {
+  return typeof model === 'string' && !INSTRUCTIONS_UNSUPPORTED_MODELS.includes(model.trim());
+}
+
+/** Instructions precedence: KHAN_TTS_INSTRUCTIONS > config.tts.instructions > DEFAULT_INSTRUCTIONS. Blank values fall through. */
+export function resolveInstructions(env = {}, config = {}) {
+  if (env && typeof env.KHAN_TTS_INSTRUCTIONS === 'string' && env.KHAN_TTS_INSTRUCTIONS.trim()) return env.KHAN_TTS_INSTRUCTIONS.trim();
+  if (config && config.tts && typeof config.tts.instructions === 'string' && config.tts.instructions.trim()) return config.tts.instructions.trim();
+  return DEFAULT_INSTRUCTIONS;
+}
 
 /** Voice precedence: KHAN_TTS_VOICE > config.tts.voice > DEFAULT_VOICE (same order as the foundation). */
 export function resolveVoice(env = {}, config = {}) {
@@ -80,7 +118,8 @@ async function readErrorMessage(res, key) {
  * @param {string|null} [o.voice]      resolved voice; null → resolveVoice(env, config)
  * @param {object} [o.env]             process.env by default
  * @param {object} [o.config]          .khan/config.json contents
- * @param {string} [o.model]
+ * @param {string} [o.model]           explicit model; default resolveModel(env, config)
+ * @param {string} [o.instructions]    explicit delivery instructions; default resolveInstructions(env, config). Sent only when the model supports them.
  * @param {function} [o.fetch]         fetch implementation; default = globalThis.fetch looked up per call (tests swap it)
  * @param {number[]} [o.backoffMs]     delays between attempts (default [1000, 3000]; env KHAN_TTS_BACKOFF_MS="a,b")
  * @param {number} [o.timeoutMs]       per-attempt timeout (default 20000; env KHAN_TTS_TIMEOUT_MS)
@@ -94,6 +133,7 @@ export function createOpenAIProvider({
   env = process.env,
   config = {},
   model,
+  instructions,
   fetch: fetchImpl,
   backoffMs,
   timeoutMs,
@@ -104,6 +144,9 @@ export function createOpenAIProvider({
   const safeEnv = env && typeof env === 'object' ? env : {};
   const resolvedVoice = typeof voice === 'string' && voice.trim() ? voice.trim() : resolveVoice(safeEnv, config);
   const resolvedModel = typeof model === 'string' && model.trim() ? model.trim() : resolveModel(safeEnv, config);
+  const wantedInstructions = typeof instructions === 'string' && instructions.trim() ? instructions.trim() : resolveInstructions(safeEnv, config);
+  // null when the model cannot take them: nothing is sent and the cache key does not depend on them
+  const resolvedInstructions = modelSupportsInstructions(resolvedModel) ? wantedInstructions : null;
   const delays = backoffMs || numberList(safeEnv.KHAN_TTS_BACKOFF_MS) || BACKOFF_MS;
   const perAttemptTimeout = Number.isFinite(timeoutMs) ? timeoutMs : (Number(safeEnv.KHAN_TTS_TIMEOUT_MS) > 0 ? Number(safeEnv.KHAN_TTS_TIMEOUT_MS) : TIMEOUT_MS);
   const attemptsMax = Math.max(1, Number(maxAttempts) || MAX_ATTEMPTS);
@@ -139,7 +182,13 @@ export function createOpenAIProvider({
         res = await getFetch()(OPENAI_SPEECH_URL, {
           method: 'POST',
           headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json', accept: 'audio/mpeg' },
-          body: JSON.stringify({ model: resolvedModel, voice: resolvedVoice, input: text, response_format: 'mp3' }),
+          body: JSON.stringify({
+            model: resolvedModel,
+            voice: resolvedVoice,
+            input: text,
+            response_format: 'mp3',
+            ...(resolvedInstructions !== null ? { instructions: resolvedInstructions } : {}),
+          }),
           signal: controller.signal,
         });
       } catch (e) {
@@ -187,7 +236,7 @@ export function createOpenAIProvider({
     for (let n = 1; n <= attemptsMax; n++) {
       try {
         const { bytes, durationMs } = await attempt(text, key, n);
-        logLine(`provider=openai voice=${resolvedVoice} model=${resolvedModel} chars=${text.length} durationMs=${Math.round(durationMs)} bytes=${bytes.length} attempts=${n}`);
+        logLine(`provider=openai voice=${resolvedVoice} model=${resolvedModel} instructions=${resolvedInstructions !== null ? 'sent' : 'omitted'} chars=${text.length} durationMs=${Math.round(durationMs)} bytes=${bytes.length} attempts=${n}`);
         return { bytes, mime: 'audio/mpeg', ext: 'mp3', durationMs };
       } catch (e) {
         last = e;
@@ -212,6 +261,7 @@ export function createOpenAIProvider({
     name: 'openai',
     voice: resolvedVoice,
     model: resolvedModel,
+    instructions: resolvedInstructions, // the text actually sent, or null when the model does not take it
     ready,
     synthesize,
   };

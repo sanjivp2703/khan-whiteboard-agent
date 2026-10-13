@@ -284,19 +284,20 @@ prints one JSON line `{"ok":true,"port":…,"url":…,"lessonsDir":…,"tts":{�
 **TTS provider interface (`server/tts/index.js`).**
 `await selectProvider(env, config)`: `KHAN_TTS=silent` → silent; otherwise `openai`, which the
 foundation resolves by `import('./openai.js')` (slice 01). That module must export
-`createOpenAIProvider({ apiKey, voice, env }) → provider`, whose `ready()` returns
+`createOpenAIProvider({ apiKey, voice, env, config }) → provider`, whose `ready()` returns
 `{ok:false, reason:"OPENAI_API_KEY not set"}` without a key. Until the file exists a stub with the
 same `ready()` semantics is returned, so the server always starts and `tts.ready=false` with a
 reason is carried by health/playlist/status/inbox. Provider shape:
-`{ name, voice, ready() → {ok, reason}, synthesize({text}) → Promise<{bytes:Uint8Array, mime, ext, durationMs}> }`.
+`{ name, voice, [model], [instructions], ready() → {ok, reason}, synthesize({text}) → Promise<{bytes:Uint8Array, mime, ext, durationMs}> }`.
 Voice: `KHAN_TTS_VOICE` > `.khan/config.json` `{ "tts": {"voice": "..."}, "port": 7777 }` > provider
-default (`null`). Cache (`server/tts/cache.js`): `<cacheDir>/<sha256(provider|voice|text)>.<ext>` +
-`.json` sidecar `{durationMs, mime, ext, provider, voice}`; a hit never calls `synthesize`;
+default (`null`). Cache (`server/tts/cache.js`):
+`<cacheDir>/<sha256(provider|voice|model|sha256(instructions)|text)>.<ext>` + `.json` sidecar
+`{durationMs, mime, ext, provider, voice, model, instructionsHash}`; a hit never calls `synthesize`;
 concurrent identical requests share one call; `audio/<sceneId>.<ext>` is a copy. Cache dir
 `.khan/cache/tts` (`KHAN_CACHE_DIR` / `--cache-dir`). Secrets only from env; the key is never
 written to the lesson folder, cache or any response (tested with a sentinel).
 
-Environment variables: `KHAN_TTS`, `KHAN_TTS_VOICE`, `OPENAI_API_KEY`, `KHAN_PORT`, `KHAN_HOST`,
+Environment variables: `KHAN_TTS`, `KHAN_TTS_VOICE`, `KHAN_TTS_MODEL`, `KHAN_TTS_INSTRUCTIONS`, `KHAN_NO_PLAY`, `OPENAI_API_KEY`, `KHAN_PORT`, `KHAN_HOST`,
 `KHAN_LESSONS_DIR`, `KHAN_CACHE_DIR`, `KHAN_NO_OPEN`, `KHAN_IDLE_EXIT_MS`, `KHAN_REJECT_GRACE_MS`,
 `KHAN_PLAYER_CLOSED_MS`, `KHAN_WATCH_INTERVAL_MS`, `KHAN_WATCH_STABLE_MS`.
 
@@ -381,28 +382,61 @@ including ones later slices add (`fx-core-*`, `fx-pic-*`, `fx-eng-*`, `fx-cli-*`
 `test/foundation/helpers/fixtures.js` (`listFixtureLessons`, `validateLesson`, …) and
 `helpers/server.js` (`startTestServer`, `openSse`).
 
+## Design: the Khan Academy look (design cycle 1)
+
+The look is specified in `design/01-khan-look-research.md` (background, palette, pen and cursor,
+handwriting, narration style, voice candidates, timing — each claim marked verified / estimate /
+unverified with its source) and decided in `decisions.md` ("Approved 2026-10-12"): the token
+*values* (black board, white chalk, the five KA "on black" pastel accents, grey `muted`) were
+approved on 2026-10-12 and are applied by the look slice (`shared/layout-core/tokens.js`,
+`player/tokens.css`; token *names* are frozen). The same cycle changed the voice (model, default
+voice, delivery instructions, `khan audition` — below) and the skill's color and narration rules
+(`.claude/skills/khan/SKILL.md` §2, §4): written content takes its concept's accent, plain chalk is
+for neutral connecting text, and the narration is written to be delivered conversationally.
+
 ## TTS — OpenAI provider (slice 01, `server/tts/openai.js`)
 
 The only user-facing voice is OpenAI speech synthesis; `silent` exists for tests (`KHAN_TTS=silent`).
 `selectProvider` picks `openai` whenever `KHAN_TTS` is not `silent`.
 
-**Defaults.** Model `tts-1` (`DEFAULT_MODEL`), voice `alloy` (`DEFAULT_VOICE`). Request:
+**Defaults.** Model `gpt-4o-mini-tts` (`DEFAULT_MODEL`), voice `ash` (`DEFAULT_VOICE`), plus a
+built-in delivery instruction (`DEFAULT_INSTRUCTIONS`: a warm, unhurried tutor thinking out loud
+to one person at a kitchen table; never emotionless, never salesy). Request:
 `POST https://api.openai.com/v1/audio/speech` with `Authorization: Bearer $OPENAI_API_KEY` and JSON
-`{model, voice, input, response_format: "mp3"}`; 20 s timeout per attempt; up to 3 attempts on
+`{model, voice, input, response_format: "mp3", instructions}` — `instructions` is sent only when
+the model accepts it; the API reference states it "does not work with `tts-1` or `tts-1-hd`"
+(URL in the header of `server/tts/openai.js`), so with those models the field is omitted and
+`provider.instructions` is `null`. 20 s timeout per attempt; up to 3 attempts on
 network errors / 408 / 429 / 5xx with 1 s then 3 s backoff. 401/403 fail at once with
 `code: "TTS_AUTH"`, other 4xx with `"TTS_BAD_REQUEST"`, a non-audio or empty or undecodable body
 with `"TTS_BAD_RESPONSE"`; after the last retry the rejection carries `code: "TTS_FAILED"` and
 `cause`. The foundation then marks the scene `ready` with `audioUrl: null` and a `TTS_FAILED` entry
 in `errors` (brief 00 C3), so a voice outage never stalls a lesson.
 
-**Changing the voice.** Precedence (same order as the foundation): `KHAN_TTS_VOICE` env >
-`.khan/config.json` `{ "tts": { "voice": "nova" } }` > default `alloy`. The model follows the same
-pattern: `KHAN_TTS_MODEL` > `tts.model` in the config > `tts-1` (e.g. `tts-1-hd`). The provider
-exposes the voice it actually sends (`tts.voice` in health/playlist/status/inbox is never `null`
-for `openai`), and the audio cache key is `sha256(provider|voice|text)`: changing the voice
-re-voices every scene on its next ingest, the old voice's files stay in `.khan/cache/tts/`, and
-switching back is a pure cache hit with zero requests. Pick the voice by listening during QA —
-nothing else needs to change.
+**Changing the voice, model and delivery.** Precedence (same order as the foundation):
+`KHAN_TTS_VOICE` env > `.khan/config.json` `{ "tts": { "voice": "echo" } }` > default `ash`. The
+model follows the same pattern: `KHAN_TTS_MODEL` > `tts.model` > `gpt-4o-mini-tts`. The delivery
+instructions too: `KHAN_TTS_INSTRUCTIONS` > `tts.instructions` > the built-in default (blank values
+fall through). The provider exposes the voice, model and instructions it actually sends
+(`tts.voice` in health/playlist/status/inbox is never `null` for `openai`), and the audio cache key
+is `sha256(provider|voice|model|sha256(instructions)|text)`: changing any of voice, model or
+instructions re-voices every scene on its next ingest, the previous files stay in
+`.khan/cache/tts/` unused (harmless; delete at will), and switching back is a pure cache hit with
+zero requests. Entries written before design cycle 1 used a shorter key and are likewise simply
+unused.
+
+**Choosing a voice: `khan audition`.** `./bin/khan audition` (needs `OPENAI_API_KEY` in this shell;
+exit 1 with `TTS_NOT_READY` and the usual reason otherwise; ignores `KHAN_TTS=silent`) reads one
+fixed ~40-word teaching paragraph in each of `ash,echo,onyx,cedar` (or `--voices a,b`; `--text "..."`
+for your own paragraph) through the same provider code path as the server, with the current model
+and instructions, writes `<KHAN_HOME>/audition/<voice>.mp3` (or `--out DIR`), prints one JSON line
+(`voices[]` with `file`, `durationMs`, `bytes`, and `adopt: "KHAN_TTS_VOICE=<voice>"`; a voice the API
+rejects, e.g. an org-gated `cedar`, is `ok:false` with its `code`/`message` and the rest continue) and
+then, on macOS, plays the files one after another with `afplay` (spawned with an argv array, never a
+shell string) unless `--no-play` / `KHAN_NO_PLAY=1`. Adopt the one you like by exporting
+`KHAN_TTS_VOICE=<voice>` where the server starts (or `tts.voice` in `.khan/config.json`) and
+restarting the server; `KHAN_TTS_INSTRUCTIONS="..."` changes the delivery the same way.
+Recommended listening order from the research: `ash`, `echo`, `onyx`, then `cedar` if available.
 
 **Duration.** `durationMs` is measured from the returned MP3 bytes by `server/tts/mp3-duration.js`
 (ID3v2/ID3v1 skipped, MPEG 1/2/2.5 layers I–III, CBR and VBR, Xing/Info frame count, LAME gapless
@@ -412,7 +446,7 @@ provenance and the independent `afinfo` check are in `fixtures/audio/LICENSE.md`
 
 **Key hygiene.** The key is read from `env.OPENAI_API_KEY` at call time inside a closure — it is not
 a property of the provider (`JSON.stringify(provider)` never contains it), it is never logged
-(logs carry provider, voice, model, text length, duration, bytes, attempt count), and any echo of
+(logs carry provider, voice, model, whether instructions were sent, text length, duration, bytes, attempt count), and any echo of
 the key in an OpenAI error body is redacted (`[redacted]`) before the message reaches the playlist.
 With no key the server still starts; `ready()` is `{ok:false, reason:"OPENAI_API_KEY not set"}`
 and every scene becomes `ready` with `audioUrl: null` and no network call is made.
@@ -420,7 +454,9 @@ and every scene becomes `ready` with `audioUrl: null` and no network call is mad
 **Logging and test knobs.** `KHAN_TTS_LOG=1` prints one `[khan tts] …` line per attempt/result to
 stderr. `KHAN_TTS_TIMEOUT_MS` and `KHAN_TTS_BACKOFF_MS="1000,3000"` override the timing (used by
 the integration tests, which inject zero delays through the foundation's `selectProvider`).
-Tests: `test/tts/` — unit (recording `fetch` mock), `mp3-duration`, integration against the
+Tests: `test/tts/` — unit (recording `fetch` mock; asserts `instructions` is sent for
+`gpt-4o-mini-tts` and absent for `tts-1`/`tts-1-hd`, and that the cache key changes with model and
+instructions), `mp3-duration`, integration against the
 in-process server with a sentinel key, and a live smoke test skipped unless `KHAN_LIVE_TTS=1`:
 `KHAN_LIVE_TTS=1 OPENAI_API_KEY=sk-… node --test test/tts/live.test.js`.
 
@@ -441,6 +477,7 @@ JSON), 1 = usage / validation / IO error, 2 = server unreachable. `khan --help` 
 | `khan wait <lessonId> [--timeout S]` | `GET /api/lesson/<id>/wait?timeout=S` (default 540, max 600) over `node:http` (no client timeout shorter than the long-poll) and prints the server's object verbatim. | `{"event":"question\|reject\|continue\|finished\|player-closed\|timeout",…,"notices":[…]}`; server down → `{"event":"error","code":"SERVER_DOWN","message":"…"}` exit 2 |
 | `khan status <lessonId>` | `/api/lesson/<id>/status` plus the lesson URL. | `{"ok":true,"lessonId","title","tts":{…,"ready":true},"producer":{…},"counts":{planned,scenes,ready,degraded,rejected,answerScenes,questions,svgElements},"buffer":{readyAhead},"player":{connected,position},"ended":false,"url":"…"}`; unknown lesson → `UNKNOWN_LESSON` exit 1 |
 | `khan play <lessonId> [--lessons-dir D] [--no-open]` | Replays a finished lesson folder with no model: ensures the server (spawning it if needed), checks that `<lessonsDir>/<id>/outline.json` exists (`NO_LESSON` otherwise), waits until the server has ingested the outline (startup ingest re-validates and re-voices from the TTS cache, so no network when cached), opens the browser. The server writes `audio/`, `control/`, `state/` into every lesson folder it serves, so to replay a fixture copy `fixtures/lessons` somewhere first rather than pointing `--lessons-dir` at the tracked folder. | `{"ok":true,"lessonId":"fx-full-tour","url":"http://127.0.0.1:7777/lesson/fx-full-tour","port":7777,"lessonsDir":"…","spawned":true,"ingested":true,"opened":true,"tts":{…}}` |
+| `khan audition [--text "..."] [--voices ash,echo,onyx,cedar] [--out DIR] [--no-play]` | Hear the candidate voices (no server involved; talks to OpenAI directly, so `OPENAI_API_KEY` must be in this shell — `TTS_NOT_READY` exit 1 otherwise). Reads one fixed ~40-word teaching paragraph in each voice with the current model and delivery instructions, writes `<KHAN_HOME>/audition/<voice>.mp3`, then plays them in turn with macOS `afplay` (argv spawn, no shell) unless `--no-play` / `KHAN_NO_PLAY=1`. A voice the API rejects is reported per voice and the rest continue; exit 1 (`AUDITION_FAILED`) only when none succeeded. | `{"ok":true,"model":"gpt-4o-mini-tts","instructions":{"source":"default","sent":true,"chars":…},"text":"…","words":44,"out":"…/audition","play":"afplay\|skipped\|unavailable","voices":[{"voice":"ash","ok":true,"file":"…/ash.mp3","durationMs":4120,"bytes":…,"adopt":"KHAN_TTS_VOICE=ash","played":true},{"voice":"cedar","ok":false,"code":"TTS_BAD_REQUEST","message":"…","adopt":"KHAN_TTS_VOICE=cedar"}],"adopt":"export KHAN_TTS_VOICE=<voice> … then restart the server …"}` |
 
 **State and the pidfile.** The CLI keeps its state under `KHAN_HOME` (default `<repo>/.khan`):
 `server.json` `{port, host, pid, startedAt, lessonsDir, cacheDir, url}` (the pidfile), `server.log`,
@@ -470,13 +507,18 @@ happened" and the skill calls `wait` again without saying anything. Its authorin
 cap cheat-sheet, error-code table and one worked example per element type are linted by
 `test/cli/skill.test.js`, which runs every fenced JSON example through `shared/schema/validate.js`.
 
-**Tests.** `test/cli/*.test.js` (32 tests, in `npm test`): arg parsing and help, lessonId
+**Tests.** `test/cli/*.test.js` (40 tests, in `npm test`): arg parsing and help, lessonId
 generation, atomic writes under `fs.watch` and the real watcher, the `scene` poll/inbox-sync helpers
 against a scripted HTTP stub (verdict extension, hard cap, transient-failure retry, inbox consistency), `serve` spawn / reuse / stale
 pidfile / adoption, `outline`, `scene`, `wait` latencies and events, two scripted productions
 (one with a mid-lesson question; playlist order per §4.1), degrade visibility, `status` without a
-key, `play fx-full-tour`, and the skill lint. They spawn real detached servers on random ports under
-a temp `KHAN_HOME` and kill them afterwards.
+key, `play fx-full-tour`, `audition` (mocked OpenAI endpoint through the `deps` seam of `cli/main.js`:
+argument parsing, `<voice>.mp3` naming, per-voice failure, no-key exit, `--no-play`, `afplay` argv
+hygiene, help), and the skill lint. They spawn real detached servers on random ports under
+a temp `KHAN_HOME` and kill them afterwards. Two of them (`scene` and `wait`, their final
+"server down → exit 2" step) fail on a machine where an unrelated khan server is already listening
+on 7777, because the CLI adopts it; stop that server or run with a fresh port before reading those
+two as regressions.
 
 **Manual check for QA (once slices 01 and 04 are merged).** In a Claude Code session in this repo
 with `OPENAI_API_KEY` exported: ask any explanatory question, then type `/khan` (or "whiteboard

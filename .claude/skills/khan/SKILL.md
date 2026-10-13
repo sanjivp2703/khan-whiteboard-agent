@@ -33,11 +33,13 @@ Read the JSON: `{"ok":true,"port":7777,"url":"http://127.0.0.1:7777","tts":{"pro
 - If `tts.ready` is **false**: tell the user that khan needs an OpenAI key for narration — `OPENAI_API_KEY` must be exported in the environment the server starts from (quote `tts.reason`) — and **stop here. Do not write an outline or any scene.** To pick the key up later the server must be restarted: `kill <pid>` using the `pid` from the `khan serve` output, then `khan serve` again.
 - If the command fails (`"ok":false`), report `message` and stop.
 
+The voice itself is not yours to pick per lesson: the human chooses it once by listening with `khan audition` (it reads one teaching paragraph in each candidate voice) and adopts it with `KHAN_TTS_VOICE=<voice>` in the environment the server starts from; `KHAN_TTS_INSTRUCTIONS` can override the delivery style the same way. Never run `khan audition` as part of a lesson.
+
 ## 2. Plan the lesson and write the outline
 
 Plan 3–12 scenes **grounded only in the response being explained** (and the user's focus). Every scene must correspond to something that response actually says; never introduce a concept, example, number or API the response did not contain. If the response is too thin for three scenes, say so and stop instead of padding.
 
-Choose a **color map** now and keep it for the whole lesson: one accent token (`accent1`…`accent5`) per recurring concept, `muted` for scaffolding (axes, notes, containers). Same concept, same color, every scene.
+Choose a **color map** now and keep it for the whole lesson: one accent token (`accent1`…`accent5`) per recurring concept, `muted` for scaffolding (axes, notes, containers). Same concept, same color, every scene. The board is black chalkboard and the accents are chalk pastels, so written things take their concept's color by default and plain chalk (no `color`) is kept for neutral connecting text and short transitions. Recommended defaults when assigning the map (not hard rules; what is fixed is that the map does not change mid-lesson): yellow `accent1` for curves, graphs and the main thread of the lesson; light blue `accent2` for definitions and steps; coral `accent3` for cautions, costs and contrasts; teal `accent4` and pink `accent5` stand out most, so give them to the thing currently being worked on. Say the map to yourself in one line before writing the outline, e.g. `accent1 = the cache (main thread), accent2 = the lookup steps, accent3 = cost and misses, accent4 = the fast path`.
 
 Write the outline with a generated lesson id (`-`). The `scenes` list is the sidebar the user sees immediately:
 
@@ -149,13 +151,15 @@ On `finished` or `player-closed`, run `khan status <lessonId>` and print one lin
 
 **One idea per scene.** A scene makes one point; its narration and its board say the same thing in two media. Three to twelve scenes per lesson.
 
-**Narration** (the voice): 15–90 words of plain prose; second person, direct, present tense. No filler ("great question", "let's dive in", "as we can see"), no pleasantries, and never read the board aloud verbatim: the board shows, the voice explains why. No markdown of any kind: no backticks, no asterisks, no bullets, no headings, no links. **Code never goes in narration**; it goes in a `code` element. Identifiers that a voice would mangle are spelled or paraphrased ("the get method", "user id", "the T T L field") while the board shows the real token.
+**Narration** (the voice): 15–90 words of plain prose; second person, direct, present tense. No filler ("great question", "let's dive in", "as we can see"), no pleasantries, no filler praise, and never read the board aloud verbatim: the board shows, the voice explains why. No markdown of any kind: no backticks, no asterisks, no bullets, no headings, no links. **Code never goes in narration**; it goes in a `code` element. Identifiers that a voice would mangle are spelled or paraphrased ("the get method", "user id", "the T T L field") while the board shows the real token.
+
+**Narration style** (how it should sound; the voice is told to deliver it this way, so write for it): conversational and warm, like explaining to someone you like at a kitchen table, never emotionless and never salesy. Think out loud: "so", "let's see", "notice that", "the reason is", as if working it through rather than announcing it. Unhurried, one idea at a time, in short sentences. Introduce a new term by saying it plainly and then using it ("that number is the hit rate; the hit rate tells you..."). Address the viewer directly ("you", "we"). Prefer concrete numbers and examples from the response over abstractions ("ninety percent of requests" beats "most requests"). Point at what you are talking about: when the narration refers to something on the board, place a `highlight` (`pointer` to rest the pen there, `circle`/`underline` to mark it) on that element at about the moment the words land, and let "this", "here", "this line" refer to it. Sound like a person teaching one person, not a script being read.
 
 **Board.** Six columns A–F, four rows 1–4; a slot is one cell (`"B2"`) or a range (`"B2:D3"`). Prefer `region` scenes that build up a board — each adds elements in free cells the earlier scenes did not use — and switch to `wipe` when the topic changes. A region's `slots` must not touch any cell used since the last wipe, and every slotted element in that scene must sit inside `slots`. Arrows and highlights are exempt (they reference, they do not occupy). Keep boards airy: 1–8 elements, usually 2–4.
 
 **Choosing a drawing type** — the tier order, take the first that fits: **sketch → diagram → plot → svg**. A `sketch` if the library has the shape (circle, cloud, database, server, document, stack, person, numberline, axes, grid); a `diagram` for anything with nodes and edges; a `plot` for anything with axes and a curve or points; `svg` only when none of those fit. Arrays are a one-row `table` with an index header row. Equations are `math`, never `text`. Steps are a `list`. Comparisons are a `table`.
 
-**Color.** One accent per concept, fixed at outline time, used for that concept in every scene; `muted` for scaffolding; omit `color` for ordinary chalk.
+**Color.** One accent per concept, fixed at outline time, used for that concept in every scene; `muted` for scaffolding. Body text, lists, tables, math and the label text above code take their concept's accent by default; omit `color` (plain chalk) only for neutral connecting text and short transitions ("so far", "next", a one-line recap), not for the content of the lesson. `code` and `diagram` elements have no `color` and draw in chalk; give them a colored title or highlight in the concept's accent when they carry a concept. Palette character (recommended defaults, not rules): yellow `accent1` for curves, graphs and the main thread; light blue `accent2` for definitions and steps; coral `accent3` for cautions and contrasts; teal `accent4` and pink `accent5` for the thing currently being worked on, since they stand out most.
 
 **Ids and timing.** `id` matches `^[a-z][a-z0-9_]{0,23}$` and is unique across the board since the last wipe (so a region scene may not reuse an id from earlier scenes). `at` is optional: omit it and elements are spaced evenly across the first 85 % of the audio in list order; when you set it, keep values in `[0, 0.9]` and non-decreasing.
 
@@ -236,6 +240,8 @@ Every `errors[]` entry is `{elementId, code, message}`; `elementId` is `null` fo
 | `TTS_FAILED` | the voice could not be synthesized; the scene is still `ready` and plays silently for its estimated duration | not an authoring error: carry on and mention it in the final summary |
 
 ## 8. Worked examples (each is a complete, valid scene)
+
+The examples share one lesson and one color map, fixed at outline time: `accent1` yellow = the cache itself and the hit-rate curve (the main thread), `accent2` light blue = the lookup steps and the request path, `accent3` coral = cost, misses and eviction (the contrast), `accent4` teal = the fast path being worked on, `muted` = asides and containers. Written content carries its concept's color; nothing here is plain chalk except code, diagrams and the svg's divider.
 
 **text** — a wipe with a title, a body and a note:
 
@@ -341,7 +347,7 @@ Every `errors[]` entry is `{elementId, code, message}`; `elementId` is `null` fo
   "board": { "mode": "wipe" },
   "elements": [
     { "id": "memory", "type": "box", "slot": "A1:C3", "label": "bounded memory", "color": "muted" },
-    { "id": "entries", "type": "list", "slot": "A2:C3", "items": ["GET /users/42", "GET /home", "GET /search?q=cache"], "color": "accent2" },
+    { "id": "entries", "type": "list", "slot": "A2:C3", "items": ["GET /users/42", "GET /home", "GET /search?q=cache"], "color": "accent1" },
     { "id": "rule", "type": "text", "slot": "D2:F3", "style": "body", "text": "Full box, one entry out, one entry in.", "color": "accent3" },
     { "id": "evict", "type": "arrow", "from": "memory", "to": "rule", "label": "evicts", "color": "accent3", "at": 0.7 }
   ],
@@ -360,13 +366,13 @@ Every `errors[]` entry is `{elementId, code, message}`; `elementId` is `null` fo
   "narration": "The cache sits between the client and the application. The client asks the cache, and only a miss travels on to the server, so most requests never reach anything expensive.",
   "board": { "mode": "region", "slots": "A3:F4" },
   "elements": [
-    { "id": "client", "type": "sketch", "slot": "A3:A4", "shape": "person", "label": "client", "color": "accent4" },
-    { "id": "cache", "type": "box", "slot": "B3:C4", "label": "cache", "color": "accent2" },
-    { "id": "app", "type": "sketch", "slot": "D3:D4", "shape": "server", "label": "app", "color": "accent1" },
+    { "id": "client", "type": "sketch", "slot": "A3:A4", "shape": "person", "label": "client", "color": "accent2" },
+    { "id": "cache", "type": "box", "slot": "B3:C4", "label": "cache", "color": "accent1" },
+    { "id": "app", "type": "sketch", "slot": "D3:D4", "shape": "server", "label": "app", "color": "accent3" },
     { "id": "db", "type": "sketch", "slot": "E3:F4", "shape": "database", "label": "database", "color": "accent3" },
-    { "id": "c2c", "type": "arrow", "from": "client", "to": "cache", "color": "accent4" },
-    { "id": "c2a", "type": "arrow", "from": "cache", "to": "app", "label": "misses only", "color": "accent2" },
-    { "id": "a2d", "type": "arrow", "from": "app", "to": "db", "color": "accent1" }
+    { "id": "c2c", "type": "arrow", "from": "client", "to": "cache", "color": "accent2" },
+    { "id": "c2a", "type": "arrow", "from": "cache", "to": "app", "label": "misses only", "color": "accent3" },
+    { "id": "a2d", "type": "arrow", "from": "app", "to": "db", "color": "accent3" }
   ],
   "final": false
 }
@@ -422,7 +428,7 @@ Every `errors[]` entry is `{elementId, code, message}`; `elementId` is `null` fo
   "narration": "Plotting the average cost against the hit rate gives a straight line from full cost at zero hits down to nothing at a perfect hit rate. The measured points from the response sit close to that line.",
   "board": { "mode": "wipe" },
   "elements": [
-    { "id": "costplot", "type": "plot", "slot": "A1:D2", "fn": "1 - x", "series": [[[0, 1], [0.25, 0.8], [0.5, 0.45], [0.9, 0.12]]], "xRange": [0, 1], "yRange": [0, 1], "label": "cost vs hit rate", "color": "accent2" },
+    { "id": "costplot", "type": "plot", "slot": "A1:D2", "fn": "1 - x", "series": [[[0, 1], [0.25, 0.8], [0.5, 0.45], [0.9, 0.12]]], "xRange": [0, 1], "yRange": [0, 1], "label": "cost vs hit rate", "color": "accent1" },
     { "id": "read", "type": "text", "slot": "E1:F2", "style": "note", "text": "Ninety percent hits, a tenth of the cost.", "color": "muted" }
   ],
   "final": false

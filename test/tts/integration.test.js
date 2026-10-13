@@ -7,7 +7,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startTestServer } from '../foundation/helpers/server.js';
 import { cacheKey } from '../../server/tts/cache.js';
-import { DEFAULT_VOICE, NO_KEY_REASON } from '../../server/tts/openai.js';
+import { DEFAULT_VOICE, DEFAULT_MODEL, DEFAULT_INSTRUCTIONS, NO_KEY_REASON } from '../../server/tts/openai.js';
+
+// the key the server derives for the default model and built-in instructions
+const keyOf = (voice, text) => cacheKey('openai', voice, text, DEFAULT_MODEL, DEFAULT_INSTRUCTIONS);
 import { createMockFetch, audioResponse, errorResponse, captureConsole, FIXTURE_MP3_META } from './helpers/mock-fetch.js';
 
 const SENTINEL = 'sk-test-SENTINEL-123';
@@ -54,16 +57,20 @@ test('through the server: real MP3s land in audio/, durationMs is measured, cach
         assert.equal(c.init.method, 'POST');
         assert.equal(c.headers.authorization, `Bearer ${SENTINEL}`);
         assert.equal(c.body.voice, DEFAULT_VOICE);
+        assert.equal(c.body.model, DEFAULT_MODEL);
+        assert.equal(c.body.instructions, DEFAULT_INSTRUCTIONS, 'the server-side provider sends the built-in delivery instructions');
         assert.equal(c.body.response_format, 'mp3');
       }
-      // cache layout: sha256(provider|voice|text).mp3 + .json
+      // cache layout: sha256(provider|voice|model|sha256(instructions)|text).mp3 + .json
       for (const id of ['s001', 's002', 's003']) {
-        const key = cacheKey('openai', DEFAULT_VOICE, narrationOf(a.lessonsDir, 'fx-type-text', id));
+        const key = keyOf(DEFAULT_VOICE, narrationOf(a.lessonsDir, 'fx-type-text', id));
         assert.ok(existsSync(join(sharedCache, `${key}.mp3`)), `cache entry for ${id}`);
         const meta = JSON.parse(readFileSync(join(sharedCache, `${key}.json`), 'utf8'));
         assert.equal(meta.voice, DEFAULT_VOICE);
         assert.equal(meta.provider, 'openai');
         assert.equal(meta.ext, 'mp3');
+        assert.equal(meta.model, DEFAULT_MODEL, 'sidecar records the model');
+        assert.match(meta.instructionsHash, /^[0-9a-f]{64}$/, 'sidecar records only a hash of the instructions');
       }
       // rewind/replay within the same run: rewriting a scene with the same narration → zero new requests
       a.writeScene('fx-type-text', JSON.parse(readFileSync(join(a.lessonsDir, 'fx-type-text', 'scenes', 's001.json'), 'utf8')));
@@ -97,8 +104,8 @@ test('through the server: real MP3s land in audio/, durationMs is measured, cach
       for (const call of mock.calls) assert.equal(call.body.voice, 'nova');
       for (const id of ['s001', 's002', 's003']) {
         const text = narrationOf(c.lessonsDir, 'fx-type-text', id);
-        assert.notEqual(cacheKey('openai', 'nova', text), cacheKey('openai', DEFAULT_VOICE, text));
-        assert.ok(existsSync(join(sharedCache, `${cacheKey('openai', 'nova', text)}.mp3`)));
+        assert.notEqual(keyOf('nova', text), keyOf(DEFAULT_VOICE, text));
+        assert.ok(existsSync(join(sharedCache, `${keyOf('nova', text)}.mp3`)));
       }
       assert.equal(readdirSync(sharedCache).filter((f) => f.endsWith('.mp3')).length, 6, 'both voices cached side by side');
       const inbox = JSON.parse(readFileSync(join(c.lessonsDir, 'fx-type-text', 'control', 'inbox.json'), 'utf8'));
