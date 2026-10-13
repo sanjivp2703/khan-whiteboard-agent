@@ -7,7 +7,7 @@
 | 3 | Safari/Firefox: MP3 seek on resume (server has no Range support) | qa/01-integration-report.md known issue 5 | fix | S | open |
 | 4 | Confirm the silent re-wait loop (`khan wait --timeout 100`) in a real Claude Code session | qa/02-verification-report.md | | S | open (human) |
 | 5 | Add KA blue #4984F2 and purple #A87DFF as accent6/accent7 (validator, skill, tokens) | design/01-khan-look-research.md; human declined for now 2026-10-12 | change | S | open |
-| 6 | Renderer "prepare < 150 ms" assertions flake under heavy concurrent load | qa/02-verification-report.md flake candidates | fix | S | open |
+| 6 | Timing tolerances flake under concurrent-suite load: renderer prepare < 150 ms; engine-clock.spec.js:177; engine-question.spec.js:129; production.test.js:207 waitForOutline 5 s | qa/02 and qa/03 flake lists | fix | S | open |
 | 7 | e2e/engine-jump criterion 8 failed once under triple load | fix-pass CLI fixer report 2026-10-06 | fix | S | open |
 | 8 | CLI tests adopt a user's real server on default port 7777 (two tests fail with exit 1 instead of 2 when a server is running) | voice builder report 2026-10-12; reproduced on main | fix | S | open |
 | 9 | Option-2 producer (local program streams the script from the Claude API) if scene gaps are long | spec §11 trigger | change | M | open (blocked on #1) |
@@ -17,3 +17,6 @@
 | 13 | After `→` to the next lesson scene, `←` lands on the just-heard answer scene (asymmetry, spec-conformant) | qa/02-verification-report.md nuance | change | S | open |
 | 14 | Ten retro proposals awaiting human apply/reject | lessons.md khan entry 2026-10-06 | | | open (human, at /triage) |
 | 15 | Promote v0.2.0 from pre-release to release after #1 and #2 | iteration-guide release gate | | S | open (human) |
+| 16 | First server restart after v0.2.0 re-voices every lesson folder in `.khan/lessons` under the new cache key (≈ $0.05–0.15 each); move old lessons out to avoid it | qa/03-change-khan-look.md finding 2 | | S | open (human, release note) |
+| 17 | Stroke pressure variation along a stroke (thick mid, thin ends) was deferred: needs per-segment stroking in both renderers | look builder report 2026-10-12 | change | S | open |
+| 18 | Box ink margin to slot edge is now 0.4 px; any stroke width > 4 px would cross the slot | qa/03 finding 3 | | S | open (note) |

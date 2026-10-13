@@ -100,7 +100,7 @@ Canvas 1600×900 logical px, scaled to the window. Grid: columns **A–F** (6), 
 
 **Rendering (the Khan look comes from the renderer, not the data).** All text — `text`, `list`, `table` cells, `code`, `math`, labels — is drawn as handwriting: a bundled handwriting-style font converted to outline paths and revealed stroke by stroke. Boxes, arrows, sketches, diagram nodes/edges, plot axes and curves, and `svg` shapes are roughened with rough.js and animated as strokes. There is no element that lets the producer draw freehand.
 
-Fixed fonts (no other sizes exist): `title` 44 px, `body` 28 px, `note` 22 px, `code` 20 px monospace-handwriting. **Colors:** five accent tokens `accent1`…`accent5` plus `muted` (foundation design tokens); `color` accepts only these names. Skill rule: same concept, same color for the whole lesson.
+Fixed fonts (no other sizes exist): `title` 44 px, `body` 28 px, `note` 22 px, `code` 20 px monospace-handwriting. **Colors:** five accent tokens `accent1`…`accent5` plus `muted` (foundation design tokens); `color` accepts only these names. Skill rule: same concept, same color for the whole lesson. Token values (approved 2026-10-12, design/01-khan-look-research.md): `boardBg` #000000, `chalk` #FFFFFF, `accent1` #FFE066 (yellow), `accent2` #65D0FA (light blue), `accent3` #FF8D71 (coral), `accent4` #59F3CE (teal), `accent5` #FB73BE (pink), `muted` #717378. Source: Khan Academy's published on-black palette. Never true red on black.
 
 Common fields on every element: `id` (`^[a-z][a-z0-9_]{0,23}$`, unique across the board since the last wipe), `at` (number in [0, 0.9], fraction of the scene's audio at which the draw-in begins; omitted = evenly spaced across the first 85 % of the audio in list order). Multi-part elements (list items, math lines, table cells, diagram nodes then edges, plot series) reveal their parts evenly across the element's draw window, which runs from its `at` to the next element's `at` (or 0.95 for the last).
 
@@ -147,6 +147,8 @@ Performance: shape + content + layout < 100 ms per scene; deterministic (same in
 
 **Audio yields to the pen.** A scene is complete when both its audio has ended and its last stroke has finished. If narration ends before the last element finishes drawing, the player holds silence until the stroke completes, capped at ~1.5 s (beyond the cap the remaining strokes complete instantly), then advances. The pen never cuts off mid-stroke to chase the audio.
 
+**Pen cursor.** A white arrow pointer with a dark outline, about 1.3× the OS default, hotspot at the tip; it follows the active stroke, parks on `pointer` highlights, and wobbles while idle. Pen strokes are slightly thicker than v0.1.0 with light pressure variation where the stroke pipeline allows.
+
 **Stall.** If scene N completes and N+1 is not `ready`: state `stalled`; pen idles (hover, slow re-trace of the last highlight or box); no spinner, no "buffering" text, audio silent. After 10 s a quiet caption "khan is thinking…"; after 60 s "generation seems stuck" with the producer's last-write age from the server. When N+1 becomes ready, a 400 ms beat, then play. Ordinary expectation: buffer grows, since producing a 30 s scene takes 5–10 s.
 
 **Position reporting.** Player `POST /position {sceneId, event: "start"|"end"}` at scene boundaries only. The server derives buffer depth (ready scenes ahead) and "playback finished" from this.
@@ -171,11 +173,11 @@ Performance: shape + content + layout < 100 ms per scene; deterministic (same in
 
 ## 8. Producer (skill) behavior
 
-- SKILL.md tells Claude: ground every scene only in the response being explained; never introduce concepts not in it; put code in `code` elements, never in narration; narration is direct, second person, no filler ("great question", "let's dive in"), no reading the board aloud verbatim, spell or paraphrase identifiers that TTS would mangle; one idea per scene; outline first; 3–12 scenes; prefer `region` scenes that build up a board, `wipe` when the topic changes.
+- SKILL.md tells Claude: ground every scene only in the response being explained; never introduce concepts not in it; put code in `code` elements, never in narration; narration is direct, second person, no filler ("great question", "let's dive in"), no reading the board aloud verbatim, spell or paraphrase identifiers that TTS would mangle; one idea per scene; outline first; 3–12 scenes; prefer `region` scenes that build up a board, `wipe` when the topic changes. Color defaults: body text, lists, tables, math and code labels take their concept's accent; chalk (white) is reserved for neutral connecting text. Recommended palette use (defaults, not hard rules; the map is fixed for the lesson): yellow for curves, graphs and the main thread; light blue for definitions and steps; coral for cautions and contrasts; teal and pink for what is currently being worked on. Narration style: conversational and warm, thinking out loud, unhurried, one idea at a time, introduce a term plainly then use it, address the viewer directly, never emotionless or salesy, no filler praise, concrete numbers; place a `highlight`/`pointer` when narration refers to something on the board.
 - **Drawing-type tier order** (choose the first that fits): `sketch` if a library shape exists → `diagram` for anything with nodes and edges → `plot` for anything with axes → `svg` only when none of the above fit. Arrays are a one-row `table` with an index header. Equations are `math`, never `text`.
 - **Color consistency:** pick one accent per concept at outline time and keep it for the whole lesson; `muted` for scaffolding.
 - Writes files through the `khan` CLI so one Bash call per scene does the atomic write, inbox check, and wait. Reads only `control/inbox.json` (or the `khan wait` output), never the directory.
-- `khan` CLI commands: `serve [--port]`, `play <lessonId>`, `scene <lessonId> <sceneId>` (stdin JSON, atomic write, prints inbox summary), `wait <lessonId> [--timeout]`, `status <lessonId>`.
+- `khan` CLI commands: `serve [--port]`, `play <lessonId>`, `scene <lessonId> <sceneId>` (stdin JSON, atomic write, prints inbox summary), `wait <lessonId> [--timeout]`, `status <lessonId>`, `audition [--text] [--voices] [--out] [--no-play]` (synthesizes one paragraph per candidate voice, writes `<out>/<voice>.mp3`, plays each with `afplay` on macOS, prints the env var to adopt a voice).
 
 ## 9. Data model basics
 
@@ -186,15 +188,15 @@ Performance: shape + content + layout < 100 ms per scene; deterministic (same in
 - **Question** (server): `qId`, `text`, `atSceneId`, `atTime`, `createdAt`, `answeredBy[sceneIds]`, `complete`.
 - **Resume stack entry** (player): `sceneId`, `t`. In-memory only.
 - **Board occupancy** (server validator; recomputed by player renderer): set of cells and element ids present since the last wipe.
-- **Config** (server, `.khan/config.json` or env): `tts.voice`, `port`; secrets only from env.
+- **Config** (server, `.khan/config.json` or env): `tts.voice`, `tts.model`, `tts.instructions`, `port`; secrets only from env.
 
 ## 10. Non-functional constraints
 
 - Local only: server binds `127.0.0.1`, no auth; rejects requests whose `Origin` is not its own origin (anti-CSRF from other local sites). `OPENAI_API_KEY` comes from env, never written to the lesson folder or served. No key → the server starts, the player shows a clear "OpenAI key required" message, and the skill reports it instead of producing scenes.
-- TTS: OpenAI (tts-1 class) is the only user-facing provider. The voice is a config setting (`tts.voice`), chosen during QA by listening; the audio cache is keyed by hash of (provider, voice, text) so rewinds and replays never re-synthesize and a voice change re-voices cleanly. The `silent` provider (duration estimated at 150 wpm) is selectable only via `KHAN_TTS=silent` for tests and fixtures.
+- TTS: OpenAI is the only user-facing provider; default model `gpt-4o-mini-tts`, default voice `ash`. A free-text delivery instruction is sent for models that accept it (not tts-1/tts-1-hd); precedence `KHAN_TTS_INSTRUCTIONS` > `tts.instructions` > built-in default describing a warm, unhurried, thinking-aloud tutor (no real person named). Voice precedence `KHAN_TTS_VOICE` > `tts.voice` > default; model `KHAN_TTS_MODEL` > `tts.model` > default. The voice is chosen by the human with `khan audition`. The audio cache is keyed by hash of (provider, voice, model, instructions, text) so any change re-voices cleanly and old entries go unused. The `silent` provider (duration estimated at 150 wpm) is selectable only via `KHAN_TTS=silent` for tests and fixtures.
 - Node >= 20; no build step; vanilla JS player + rough.js; handwriting font, MathJax (SVG output), and Mermaid (hand-drawn look) vendored locally with licenses permitting redistribution; no CDN. Works in current Chromium, Safari, Firefox. Canvas 1600×900 letterboxed to the window. Dark board, five-accent chalk palette (foundation tokens).
 - Latency: first audio ≤ 8 s from trigger; scene validation < 100 ms; TTS ≤ 4 s per scene typical.
-- Cost: TTS only; ≈ $0.05–0.15 per lesson on tts-1 class pricing.
+- Cost: TTS only; ≈ $0.05–0.15 per lesson at gpt-4o-mini-tts pricing (re-check on the vendor page).
 - Accessibility: all controls keyboard-operable (space, ←, →, ?); a live transcript of the current narration is visible under the board; no flashing.
 - Testing: server and player are fully testable from fixture lesson folders (one per element type plus near-cap and invalid cases) with the `silent` provider, no model, no network. E2E via Playwright pinned to 1.54.x on this machine (macOS 13; see lessons.md). Any file no test imports gets a `node --check` gate.
 

@@ -6,6 +6,8 @@ Fast tier: `npm test` (≈ 20 s) plus the e2e spec files for the builder's own a
 - [x] 1. Research the Khan Academy look and voice candidates with sources → design/01-khan-look-research.md (2026-10-12)
 - [x] 2. Human approval of token values and voice plan (checkpoints.md, Checkpoint 2)
 - [x] 3. Voice half: provider model/voice/instructions, cache key, `khan audition`, SKILL.md color + narration rules, README (branch worktree-agent-a619af890bcc355de, merged to main)
-- [ ] 4. Look half: token values, chrome tokens, arrow cursor, stroke width/pressure, token-pin test, screenshot inspection (branch worktree-agent-af5571e187f9007ee, building)
-- [ ] 5. Merge look half; full tier; change-scoped qa-tester run against "Unchanged behavior"
-- [ ] 6. Ratchet check and status update (always last): passing count ≥ 272 (+ new tests), skipped ≤ 1, no test weakened; merge deltas into spec.md; archive folder; design-tokens row → done; release v0.2.0 as pre-release pending the human audition and first real lesson
+- [x] 4. Look half: token values, chrome tokens, arrow cursor, stroke width/pressure, token-pin test, screenshot inspection (branch worktree-agent-af5571e187f9007ee, merged d87ba23)
+- [x] 5. Merge look half; full tier; change-scoped qa-tester run against "Unchanged behavior"
+- [x] 6. Ratchet check and status update (always last): passing count ≥ 272 (+ new tests), skipped ≤ 1, no test weakened; merge deltas into spec.md; archive folder; design-tokens row → done; release v0.2.0 as pre-release pending the human audition and first real lesson
+
+Ratchet result (qa/03-change-khan-look.md, 2026-10-13): unit 272 → 291 effective passing (289 + 2 environmental failures caused by the human's live server on port 7777), skipped 1 → 1, e2e 51 → 52, check clean, no test deleted or weakened. Deltas merged into spec.md; archived 2026-10-13.

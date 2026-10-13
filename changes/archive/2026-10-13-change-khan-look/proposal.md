@@ -2,7 +2,7 @@
 
 **Lane:** change
 **Requested:** 2026-10-12, by the human (in conversation)
-**Status:** approved 2026-10-12 (tokens and voice plan approved by the human via two explicit questions; recorded in decisions.md "Approved 2026-10-12" and checkpoints.md Checkpoint 2)
+**Status:** archived 2026-10-13 (built, QA passed in qa/03-change-khan-look.md, deltas merged into spec.md; approved 2026-10-12: tokens and voice plan approved by the human via two explicit questions; recorded in decisions.md "Approved 2026-10-12" and checkpoints.md Checkpoint 2)
 
 Note: this change was started before CLAUDE.md rule 5 and iteration-guide.md existed; the folder was created retroactively on the same day, after approval and while the two builders were already running. Research is in design/01-khan-look-research.md.
 
