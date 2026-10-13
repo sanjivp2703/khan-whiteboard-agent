@@ -2,6 +2,14 @@
 // 1, 2, 12–14, 16). Pure DOM building and updating; no playback logic. Every control is a real
 // <button> with an accessible name; the frozen data-testids are listed in briefs/04-player-engine.md.
 // Colors and fonts come from the --khan-* custom properties (tokens), never hard-coded here.
+//
+// Layout (fix: chrome outside the board, backlog #19; spec §10 "a live transcript ... is visible
+// under the board"): #engine-root is a page grid — toolbar on top; below it the scene rail on the
+// left and the board area on the right; below that the transcript and notes. The foundation's
+// #board-wrap (the 1600×900 canvases) is moved INTO the board area, where it letterboxes as the
+// largest 16:9 box that fits (index.html's cq-unit rule). The only things stacked over the board
+// are the pen canvas and the engine's overlay layer: start gate (waiting/armed), stall caption
+// (small, bottom-right), question form (centred modal) and the end summary.
 
 const el = (tag, attrs = {}, children = []) => {
   const node = document.createElement(tag);
@@ -25,8 +33,9 @@ export const STATE_LABELS = Object.freeze({
 /**
  * @param {HTMLElement} root  #engine-root
  * @param {{onStart, onPause, onAsk, onJump, onCancelAsk, onSubmitAsk, onToggleSidebar, onToggleTranscript}} handlers
+ * @param {{boardWrap?: HTMLElement|null}} [o]  the foundation's #board-wrap (canvases); moved into the board area
  */
-export function buildUi(root, handlers) {
+export function buildUi(root, handlers, { boardWrap = null } = {}) {
   root.classList.add('eng');
   root.dataset.state = 'waiting';
 
@@ -94,12 +103,17 @@ export function buildUi(root, handlers) {
     el('p', { class: 'eng-summary-hint', text: 'You can still ask a question (?) or jump to any scene.' }),
   ]);
 
-  root.replaceChildren(top, side, gate, caption, askForm, summary, bottom);
+  // --- board area + overlay layer ------------------------------------------
+  const overlay = el('div', { class: 'eng-overlay', 'data-testid': 'board-overlay' }, [gate, caption, askForm, summary]);
+  const boardArea = el('div', { class: 'eng-board-area', 'data-testid': 'board-area' });
+  if (boardWrap) { boardArea.append(boardWrap); boardWrap.append(overlay); } else boardArea.append(overlay);
+
+  root.replaceChildren(top, side, boardArea, bottom);
 
   // ---------------------------------------------------------------------------
   const api = {
     root, top, title, state, stateLabel, pauseBtn, askBtn, sideBtn, transcriptBtn, answering, side, list, gate, startBtn, startHint, ttsNote,
-    caption, transcript, transcriptMeta, notes, bottom, askForm, input, summary, sum,
+    caption, transcript, transcriptMeta, notes, bottom, askForm, input, summary, sum, boardArea, overlay,
 
     setTitle(text) { title.textContent = text || ''; },
 
@@ -138,8 +152,18 @@ export function buildUi(root, handlers) {
       d.textContent = degraded ? `degraded${droppedCount ? ` · ${droppedCount} element${droppedCount === 1 ? '' : 's'} dropped` : ''}` : '';
     },
 
-    addNote(testid, text) {
-      const li = el('li', { class: 'eng-note', 'data-testid': testid, role: 'status', text });
+    /**
+     * Add a playback note, unique per `key` (backlog #20: a repeat pass over a skipped scene must not
+     * add a second "scene sNNN skipped" note). An existing note with the same key is updated in
+     * place (text refreshed) and kept where it is; nothing is appended.
+     * @param {string} testid  data-testid (e.g. scene-skipped-note)
+     * @param {string} text
+     * @param {string} [key]   identity of the note; defaults to testid + text
+     */
+    addNote(testid, text, key = `${testid}|${text}`) {
+      const existing = [...notes.children].find((li) => li.dataset.noteKey === key);
+      if (existing) { if (existing.textContent !== text) existing.textContent = text; return existing; }
+      const li = el('li', { class: 'eng-note', 'data-testid': testid, role: 'status', text, dataset: { noteKey: key } });
       notes.append(li);
       while (notes.children.length > 6) notes.firstChild.remove();
       return li;

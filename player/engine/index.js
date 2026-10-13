@@ -83,7 +83,7 @@ export function start(opts) {
     onSubmitAsk: (text) => submitAsk(text),
     onToggleSidebar: () => { sidebarPinned = !sidebarPinned; ui.setSidebarPinned(sidebarPinned); updateUi(); },
     onToggleTranscript: () => ui.setTranscriptVisible(!ui.isTranscriptVisible()),
-  });
+  }, { boardWrap: board.parentElement }); // the foundation's #board-wrap moves into the engine's board area (chrome outside the board)
   const boardCtx = board.getContext('2d');
   const bg = document.createElement('canvas');
   bg.width = board.width; bg.height = board.height;
@@ -451,7 +451,7 @@ export function start(opts) {
   function skipCurrent(reason) {
     if (!current || current.skipped) return;
     current.skipped = true;
-    ui.addNote('scene-skipped-note', `scene ${current.entry.sceneId} skipped: ${reason}`);
+    ui.addNote('scene-skipped-note', `scene ${current.entry.sceneId} skipped: ${reason}`, `skipped:${current.entry.sceneId}`); // one note per (scene, kind), whatever the pass
     log('scene-skipped', { sceneId: current.entry.sceneId, reason });
     for (const item of current.timeline) current.forced.add(item.id);
     paintCurrent(Infinity);
