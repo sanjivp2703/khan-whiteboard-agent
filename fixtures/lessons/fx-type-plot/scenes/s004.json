@@ -1,0 +1,25 @@
+{
+  "schema": "khan-scene/1",
+  "lessonId": "fx-type-plot",
+  "sceneId": "s004",
+  "title": "A hole in the graph",
+  "narration": "Here is the kind of graph you draw for a limit. The function is x squared minus one over x minus one, which is just x plus one everywhere except at x equals one, where it is undefined. So we draw the line and leave an open circle at the hole.",
+  "board": {
+    "mode": "wipe"
+  },
+  "elements": [
+    {
+      "id": "limit",
+      "type": "plot",
+      "slot": "A1:C3",
+      "fn": "(x^2 - 1)/(x - 1)",
+      "xRange": [-1, 4],
+      "yRange": [0, 5],
+      "hole": [1, 2],
+      "xLabel": "x",
+      "yLabel": "f(x)",
+      "label": "f(x) = x + 1",
+      "color": "accent1"
+    }
+  ]
+}

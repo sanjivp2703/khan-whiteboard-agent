@@ -17,6 +17,16 @@
       "sceneId": "s003",
       "title": "Default ranges",
       "goal": "Explain default ranges"
+    },
+    {
+      "sceneId": "s004",
+      "title": "A hole in the graph",
+      "goal": "A limit-style graph with a hole and axis names"
+    },
+    {
+      "sceneId": "s005",
+      "title": "Points with names",
+      "goal": "Data points as dots with letter labels"
     }
   ],
   "producer": {
