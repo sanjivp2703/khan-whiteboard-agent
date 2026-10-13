@@ -3,6 +3,7 @@ import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { LINE_HEIGHTS, SLOT_PAD } from '../../shared/layout-core/constants.js';
 import { rectInset } from '../../shared/layout-core/grid.js';
+import { WAVE_AMP, DOUBLE_GAP, BOX_MARGIN, UNDERLINE_GAP } from '../../player/renderer/core/highlight.js';
 import { setup, listFixtureLessons, prepareLesson, fixtureElement, prepare, rectContainsRect, BOARD, slotRect } from './helpers.js';
 
 before(async () => { await setup(); });
@@ -10,7 +11,7 @@ before(async () => { await setup(); });
 const expand = (r, m) => ({ x: r.x - m, y: r.y - m, w: r.w + 2 * m, h: r.h + 2 * m });
 const pointsOf = (d) => d.strokes.flatMap((s) => s.flat.flatMap((sp) => sp.points));
 
-test('criterion 10: circle/underline/strike/pointer geometry holds for every fixture highlight', async () => {
+test('criterion 10: circle/underline/wavy/double/box/strike/pointer geometry holds for every fixture highlight', async () => {
   const seen = new Set();
   for (const l of listFixtureLessons()) {
     for (const { sceneId, el, drawable: d } of await prepareLesson(l.lessonId)) {
@@ -35,6 +36,33 @@ test('criterion 10: circle/underline/strike/pointer geometry holds for every fix
         for (const p of pointsOf(d)) assert.ok(p[1] >= bottom - 1 && p[1] <= bottom + 12, `${where}: underline y ${p[1]} not within 12 px below ${bottom}`);
         const xs = pointsOf(d).map((p) => p[0]);
         assert.ok(Math.min(...xs) <= d.meta.lastLine.x + 2 && Math.max(...xs) >= d.meta.lastLine.x + d.meta.lastLine.w - 2, where);
+      } else if (style === 'wavy') {
+        // change-khan-feel: a wave of amplitude WAVE_AMP just below the last line, spanning its width
+        const bottom = d.meta.lastLine.y + d.meta.lastLine.h;
+        const ys = pointsOf(d).map((p) => p[1]);
+        for (const y of ys) assert.ok(y >= bottom - 1 && y <= bottom + 2 * WAVE_AMP + UNDERLINE_GAP + 6, `${where}: wave y ${y} not within the band below ${bottom}`);
+        assert.ok(Math.max(...ys) - Math.min(...ys) >= WAVE_AMP, `${where}: wave is flat`);
+        const xs = pointsOf(d).map((p) => p[0]);
+        assert.ok(Math.min(...xs) <= d.meta.lastLine.x + 2 && Math.max(...xs) >= d.meta.lastLine.x + d.meta.lastLine.w - 2, where);
+        assert.ok(d.strokes.every((s) => s.wavy && s.kind === 'rough'));
+      } else if (style === 'double') {
+        // change-khan-feel: two lines, DOUBLE_GAP apart, below the last line
+        const bottom = d.meta.lastLine.y + d.meta.lastLine.h;
+        assert.equal(d.paths.length, 2, `${where}: a double underline is two strokes`);
+        for (const p of pointsOf(d)) assert.ok(p[1] >= bottom - 1 && p[1] <= bottom + UNDERLINE_GAP + DOUBLE_GAP + 6, `${where}: double y ${p[1]}`);
+        const [a, b] = d.strokes.map((s) => s.bounds.y + s.bounds.h / 2);
+        assert.ok(Math.abs(Math.abs(b - a) - DOUBLE_GAP) <= 4, `${where}: lines ${a} and ${b} are not ${DOUBLE_GAP} apart`);
+        const xs = pointsOf(d).map((p) => p[0]);
+        assert.ok(Math.min(...xs) <= d.meta.lastLine.x + 2 && Math.max(...xs) >= d.meta.lastLine.x + d.meta.lastLine.w - 2, where);
+      } else if (style === 'box') {
+        // change-khan-feel: a rough rectangle around the drawn extent, BOX_MARGIN (+ wobble) outside it
+        assert.ok(rectContainsRect(d.bounds, T), `${where}: box bounds do not enclose the target`);
+        assert.ok(rectContainsRect(expand(T, BOX_MARGIN + 4), d.bounds), `${where}: box margin > ${BOX_MARGIN + 4} px`);
+        const pts = pointsOf(d);
+        const F = d.meta.frame;
+        assert.ok(pts.some((p) => p[0] <= F.x + 5) && pts.some((p) => p[0] >= F.x + F.w - 5), where);
+        assert.ok(pts.some((p) => p[1] <= F.y + 5) && pts.some((p) => p[1] >= F.y + F.h - 5), where);
+        assert.ok(d.strokes.every((s) => s.box && s.kind === 'rough'));
       } else if (style === 'strike') {
         const mid = T.y + T.h / 2;
         for (const p of pointsOf(d)) assert.ok(Math.abs(p[1] - mid) <= 5, `${where}: strike y ${p[1]} vs middle ${mid}`);
@@ -57,14 +85,14 @@ test('criterion 10: circle/underline/strike/pointer geometry holds for every fix
       }
     }
   }
-  assert.deepEqual([...seen].sort(), ['circle', 'pointer', 'strike', 'underline']);
+  assert.deepEqual([...seen].sort(), ['box', 'circle', 'double', 'pointer', 'strike', 'underline', 'wavy']);
 });
 
 test('criterion 10: with `line`, every style uses only that code line (circle, underline, strike, pointer)', () => {
   const { ctx } = fixtureElement('fx-type-highlight', 's002', 'line2');
   const snippet = ctx.elementsById.get('snippet');
   const inner = rectInset(slotRect(snippet.slot), SLOT_PAD);
-  for (const style of ['circle', 'underline', 'strike', 'pointer']) {
+  for (const style of ['circle', 'underline', 'wavy', 'double', 'box', 'strike', 'pointer']) {
     const d = prepare({ id: `h_${style}`, type: 'highlight', target: 'snippet', style, line: 3 }, ctx);
     const T = d.meta.targetRect;
     assert.equal(T.y, inner.y + 2 * LINE_HEIGHTS.code, style);

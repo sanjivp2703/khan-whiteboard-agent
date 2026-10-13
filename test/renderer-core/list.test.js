@@ -37,7 +37,8 @@ test('criterion 5: without itemAt parts are evenly spaced; the engine may pass c
   heuristic.partStarts.forEach((p, k) => assert.ok(near(p, [0, 0.2 / 0.75, 0.4 / 0.75][k], 1e-5), `${p}`));
 });
 
-test('criterion 5: ordered lists draw hand-written numbers 1..n; unordered lists draw a rough bullet per item', () => {
+// change-khan-feel (study §4 item 12): unordered lists draw no marker, only the indent (was: a rough bullet per item)
+test('criterion 5: ordered lists draw hand-written numbers 1..n; unordered lists draw no marker, text indented by bulletIndent', () => {
   const { el, ctx } = fixtureElement('fx-type-list', 's002', 'six');
   const d = prepare(el, ctx);
   for (let k = 0; k < 6; k++) {
@@ -51,11 +52,14 @@ test('criterion 5: ordered lists draw hand-written numbers 1..n; unordered lists
   }
   const un = fixtureElement('fx-type-list', 's001', 'steps');
   const b = prepare(un.el, un.ctx);
+  assert.equal(b.meta.marker, 'none');
+  assert.equal(d.meta.marker, 'number');
   for (let k = 0; k < 3; k++) {
     const markers = b.strokes.filter((s) => s.marker && s.item === k);
-    assert.ok(markers.length >= 1 && markers.every((s) => s.kind === 'rough'), `bullet ${k}`);
-    assert.ok(markers[0].bounds.w <= 16 && markers[0].bounds.h <= 16);
-    assert.ok(markers[0].bounds.x >= slotRect(un.el.slot).x);
+    assert.equal(markers.length, 0, `item ${k} has a marker`);
+    assert.ok(b.strokes.every((s) => s.kind === 'glyph'), 'nothing but handwriting');
+    const text = b.strokes.filter((s) => s.item === k);
+    assert.ok(text.length > 0 && text.every((s) => s.x >= b.meta.inner.x + LIST_LAYOUT.bulletIndent - 0.001), `item ${k} indented`);
   }
 });
 

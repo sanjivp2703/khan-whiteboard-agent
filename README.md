@@ -83,7 +83,8 @@ file) and both the validator and the drawables import it. Token names live in
 uniformly by measurement (`measure.js`) and must be by drawables (`grid.rectInset`,
 `grid.slotInnerRect`).
 
-**Fonts.** `title` 44 / `body` 28 / `note` 22 / `code` 20 px; line heights 54 / 36 / 28 / 24.
+**Fonts.** `title` 44 / `body` 38 / `note` 28 / `code` 20 px; line heights 54 / 48 / 36 / 24
+(change-khan-feel raised body and note to Sal's scale, study §2.3; the text word cap became 8 per cell).
 `code` uses a fixed per-character advance `CODE_CHAR_ADVANCE = 10` px. One font: Patrick Hand
 (`tokens.fontHand`, file `tokens.fontHandFile`), loaded through `shared/handwriting.js`.
 
@@ -132,11 +133,11 @@ in occupancy ∪ *earlier* elements of this scene (`BAD_REF`; `from === to` → 
 `highlight.line` only on a `code` target and within its lines (`BAD_LINE`); an id may not repeat
 since the last wipe (`DUP_ID`); elements whose slot is entirely inside a `box`'s slot do not overlap
 it, everything else that shares a cell is `OVERLAP` (reported on the later element); `text` words
-≤ min(10 × cells, 40) (`CAP_WORDS`), titles ≤ 8 words and colSpan ≥ 2 (`SLOT_TOO_SMALL`); fit is
+≤ min(8 × cells, 40) (`CAP_WORDS`), titles ≤ 8 words and colSpan ≥ 2 (`SLOT_TOO_SMALL`); fit is
 measured (`OVERFLOW`) with `layout-core/measure.js`: text/list wrap at body/note sizes, code uses
 the fixed advance (22 chars × colSpan, 7 lines × rowSpan → `CAP_CHARS`/`CAP_LINES`), tables use
 equal column widths with note-size cells wrapped to ≤ 2 lines, math uses the compiled SVG size at
-`MATH_LAYOUT.fontPx = 28`. The first answer scene (`qNNN-a01`) must be a `wipe` (`BAD_BOARD`).
+`MATH_LAYOUT.fontPx = 36`. The first answer scene (`qNNN-a01`) must be a `wipe` (`BAD_BOARD`).
 
 Subset grammars (shared by validator and renderers):
 - `shared/math.js` — `await texToSvg(lines, {restricted:true}) → [{svg, width, height, eqX|null, viewBox}]`;
@@ -173,7 +174,8 @@ Subset grammars (shared by validator and renderers):
 Foundation-chosen constants (not spec caps; see `constants.js`): `SLOT_PAD 12`, `CODE_CHAR_ADVANCE
 10`, line heights above, `PEN_PX_PER_S 1500`, `ROUGH_OPTIONS {roughness 1.2, bowing 1, strokeWidth
 2.5}`, `LIST_LAYOUT {bulletIndent 34, itemGap 6}`, `TABLE_LAYOUT {cellPad 6, style note, maxCellLines
-2}`, `MATH_LAYOUT {fontPx 28, lineGap 10}`. **No spec cap value was tuned.**
+2}`, `MATH_LAYOUT {fontPx 36, lineGap 6}`. **No spec cap value was tuned at v1**; change-khan-feel
+(2026-10-13) tuned `textWordsPerCell` 10 → 8 alongside the font sizes.
 
 ## C2. Lesson folder — spec §4.1
 

@@ -1,11 +1,26 @@
-// player/renderer/core/table.js — `table` drawable: rough grid lines (muted) first, then cells
-// written cell by cell row-major (one part per cell); header row underlined; equal column
-// widths from the slot (measure.js), note-size text centred in each cell.
+// player/renderer/core/table.js — `table` drawable, gridless the way Sal draws tables
+// (change-khan-feel, study §4 item 10, V5 3:20–4:09): no grid lines; the header row is
+// underlined; cells are written cell by cell row-major (one part per cell), left-aligned in
+// their column; every row after the first takes the next accent after the element's colour
+// (wrapping around the five accents). Column widths and row heights come from measure.js,
+// so the validator's fit is unchanged.
 import { measureTable } from '../../../shared/layout-core/measure.js';
 import { TABLE_LAYOUT } from '../../../shared/layout-core/constants.js';
-import { colorOf } from '../../../shared/layout-core/tokens.js';
+import { colorOf, tokens } from '../../../shared/layout-core/tokens.js';
 import { lineHeight } from '../../../shared/handwriting.js';
-import { buildDrawable, blockStrokes, roughFit, roughRect, roughLine, roughStrokes, expandRect, elementColor, requireField, ROUGH_ENVELOPE } from './drawable.js';
+import { buildDrawable, blockStrokes, roughFit, roughLine, roughStrokes, expandRect, elementColor, requireField, ROUGH_ENVELOPE } from './drawable.js';
+
+export const ACCENTS = Object.freeze(['accent1', 'accent2', 'accent3', 'accent4', 'accent5']);
+
+/**
+ * Colour token of table row `r` for an element colour token `base`: row 0 keeps `base`; row r ≥ 1
+ * is the r-th accent after `base` (wrapping). A non-accent base (chalk, muted) counts as "before accent1".
+ */
+export function rowColorToken(base, r) {
+  if (r === 0) return base;
+  const i = ACCENTS.indexOf(base);
+  return ACCENTS[(i + r) % ACCENTS.length];
+}
 
 export function prepareTable(el, ctx) {
   const slot = requireField(el, 'slot', 'string');
@@ -13,29 +28,24 @@ export function prepareTable(el, ctx) {
   if (!Array.isArray(rows)) throw new Error(`renderer-core: table "${el.id}" rows must be an array`);
   const rect = ctx.slotRect(slot);
   const m = measureTable(el, rect);
-  const color = elementColor(el);
-  const muted = colorOf('muted');
+  const baseToken = typeof el.color === 'string' && (ACCENTS.includes(el.color) || el.color === 'muted') ? el.color : 'chalk';
   const seed = ctx.seed(el.id);
   const outer = { x: m.inner.x, y: m.inner.y, w: m.inner.w, h: m.height };
-  const gridEnvelope = expandRect(outer, ROUGH_ENVELOPE);
   const rowTops = [];
   let y = outer.y;
   for (const rh of m.rowHeights) { rowTops.push(y); y += rh; }
   const colX = (c) => outer.x + c * m.colWidth;
 
-  // part 0: the grid
-  const gridPaths = roughFit(seed, gridEnvelope, (r) => {
-    const out = [...roughRect(r, outer.x, outer.y, outer.w, outer.h)];
-    for (let c = 1; c < m.cols; c++) out.push(...roughLine(r, colX(c), outer.y, colX(c), outer.y + outer.h));
-    for (let ri = 1; ri < rowTops.length; ri++) out.push(...roughLine(r, outer.x, rowTops[ri], outer.x + outer.w, rowTops[ri]));
-    return out;
-  });
-  const parts = [roughStrokes(gridPaths, muted, { grid: true, lineWidth: 1.8 })];
-  const extraBounds = [gridEnvelope];
+  const parts = [];
+  const extraBounds = [];
   const cellMeta = [];
+  const rowColors = [];
   const lh = lineHeight(m.style);
   const header = el.header === true;
   m.cells.forEach((rowCells, ri) => {
+    const token = rowColorToken(baseToken, ri);
+    const color = ri === 0 ? elementColor(el) : colorOf(token);
+    rowColors.push(token === 'chalk' ? tokens.chalk : color);
     rowCells.forEach((cell, ci) => {
       const cx = colX(ci);
       const cellRect = { x: cx, y: rowTops[ri], w: m.colWidth, h: m.rowHeights[ri] };
@@ -43,7 +53,7 @@ export function prepareTable(el, ctx) {
       const top = cellRect.y + Math.max(0, (cellRect.h - textH) / 2);
       const strokes = [];
       const { strokes: text, lineRects } = blockStrokes(cell.lines, m.style, cx + TABLE_LAYOUT.cellPad, top, color, seed + 13 * (ri * 16 + ci + 1), {
-        align: 'center', width: m.colWidth - 2 * TABLE_LAYOUT.cellPad, meta: { row: ri, col: ci },
+        align: 'left', meta: { row: ri, col: ci }, hand: { key: `${el.id}:r${ri}c${ci}` },
       });
       strokes.push(...text);
       if (header && ri === 0) {
@@ -55,7 +65,7 @@ export function prepareTable(el, ctx) {
         extraBounds.push(env);
       }
       parts.push(strokes);
-      cellMeta.push({ row: ri, col: ci, rect: cellRect, lines: cell.lines, lineRects });
+      cellMeta.push({ row: ri, col: ci, rect: cellRect, lines: cell.lines, lineRects, color });
     });
   });
   return buildDrawable({
@@ -63,6 +73,7 @@ export function prepareTable(el, ctx) {
     type: 'table',
     parts,
     extraBounds,
-    meta: { inner: m.inner, outer, cols: m.cols, rows: rows.length, colWidth: m.colWidth, rowTops, rowHeights: m.rowHeights, cells: cellMeta, header, style: m.style },
+    fallbackBounds: { x: m.inner.x, y: m.inner.y, w: 0, h: 0 },
+    meta: { inner: m.inner, outer, cols: m.cols, rows: rows.length, colWidth: m.colWidth, rowTops, rowHeights: m.rowHeights, cells: cellMeta, header, style: m.style, grid: false, rowColors },
   });
 }

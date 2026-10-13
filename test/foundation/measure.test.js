@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { loadFont, textWidth } from '../../shared/handwriting.js';
 import { measureTextElement, measureList, measureCode, measureTable, measureMath, textWordCap, countWords } from '../../shared/layout-core/measure.js';
 import { slotRect } from '../../shared/layout-core/grid.js';
-import { SLOT_PAD, LINE_HEIGHTS, CAPS } from '../../shared/layout-core/constants.js';
+import { SLOT_PAD, LINE_HEIGHTS, CAPS, MATH_LAYOUT } from '../../shared/layout-core/constants.js';
 
 before(async () => { await loadFont(); });
 
@@ -13,14 +13,16 @@ test('countWords and textWordCap', () => {
   assert.equal(countWords('a b  c\nd'), 4);
   assert.equal(countWords(''), 0);
   assert.equal(countWords(null), 0);
-  assert.equal(textWordCap('A1'), 10);
-  assert.equal(textWordCap('A1:B1'), 20);
-  assert.equal(textWordCap('A1:D1'), 40);
+  // change-khan-feel: 8 words per cell at body 38 px (was 10 at 28 px)
+  assert.equal(CAPS.textWordsPerCell, 8);
+  assert.equal(textWordCap('A1'), 8);
+  assert.equal(textWordCap('A1:B1'), 16);
+  assert.equal(textWordCap('A1:E1'), 40);
   assert.equal(textWordCap('A1:F4'), CAPS.textWordsMax);
 });
 
 test('text wrap is deterministic and fits inside the inner rect', () => {
-  const el = { text: words(10), style: 'body' };
+  const el = { text: words(CAPS.textWordsPerCell), style: 'body' };
   const a = measureTextElement(el, slotRect('A1'));
   const b = measureTextElement(el, slotRect('A1'));
   assert.deepEqual(a, b);
@@ -33,10 +35,12 @@ test('text wrap is deterministic and fits inside the inner rect', () => {
 test('text overflow detection at the boundary (one line under / over)', () => {
   const inner = slotRect('A1');
   const innerH = 200 - 2 * SLOT_PAD; // 176
-  const maxLines = Math.floor(innerH / LINE_HEIGHTS.body); // 4
+  const maxLines = Math.floor(innerH / LINE_HEIGHTS.body); // 3 at body 48
   // build a text with exactly maxLines lines of one word each by using words wider than half the width
-  const wide = 'mmmmmmmmmmm'; // wide enough that two don't fit on a 226 px line at body size
-  assert.ok(textWidth(wide + ' ' + wide, 'body') > 226 - 0);
+  // (the longest run of m's that still fits one 226 px line at the body size)
+  let wide = 'm';
+  while (textWidth(wide + 'm', 'body') <= 226) wide += 'm';
+  assert.ok(textWidth(wide, 'body') <= 226 && textWidth(wide + ' ' + wide, 'body') > 226);
   const under = measureTextElement({ text: words(maxLines, wide), style: 'body' }, inner);
   assert.equal(under.lines.length, maxLines);
   assert.equal(under.fits, true);
@@ -93,7 +97,7 @@ test('table measurement: equal columns, wrapped cells, overflow when too tall or
 test('math measurement from em dimensions', () => {
   const ok = measureMath([{ width: 5, height: 1.2, eqX: 2 }, { width: 6, height: 1.1, eqX: null }], slotRect('A1:B1'));
   assert.equal(ok.fits, true);
-  assert.equal(ok.lines[0].eqX, 2 * 28);
+  assert.equal(ok.lines[0].eqX, 2 * MATH_LAYOUT.fontPx);
   assert.equal(ok.lines[1].eqX, null);
   const wide = measureMath([{ width: 9, height: 1, eqX: null }], slotRect('A1'));
   assert.equal(wide.fits, false);

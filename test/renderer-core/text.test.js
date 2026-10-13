@@ -2,7 +2,7 @@
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { tokens } from '../../shared/layout-core/tokens.js';
-import { FONT_SIZES } from '../../shared/layout-core/constants.js';
+import { FONT_SIZES, LINE_HEIGHTS } from '../../shared/layout-core/constants.js';
 import { setup, scene, makeDrawCtx, prepare, prepareLesson, rectContainsRect, slotRect, fixtureElement } from './helpers.js';
 
 before(async () => { await setup(); });
@@ -10,31 +10,34 @@ before(async () => { await setup(); });
 const txt = (id, slot, text, over = {}) => ({ id, type: 'text', slot, text, ...over });
 const ctxFor = (...elements) => makeDrawCtx([scene('s001', 'wipe', elements)], 0);
 
+/** Glyph height with the per-glyph size jitter divided out (change-khan-feel: ±3 % size, ±2° rotation). */
 function glyphHeight(d, ch) {
   const s = d.strokes.find((x) => x.kind === 'glyph' && x.char === ch);
   assert.ok(s, `glyph ${ch} missing`);
-  return s.bounds.h;
+  return s.bounds.h / (s.jitter ? s.jitter.size : 1);
 }
 
-test('criterion 11: title 44 / body 28 / note 22 px — glyph heights scale with the style sizes', () => {
+test('criterion 11: title 44 / body 38 / note 28 px — glyph heights scale with the style sizes', () => {
   const els = [txt('t', 'A1:C1', 'Hg', { style: 'title' }), txt('b', 'A2:C2', 'Hg', { style: 'body' }), txt('n', 'A3:C3', 'Hg', { style: 'note' })];
   const ctx = ctxFor(...els);
   const [t, b, n] = els.map((el) => prepare(el, ctx));
   const hT = glyphHeight(t, 'H'), hB = glyphHeight(b, 'H'), hN = glyphHeight(n, 'H');
   assert.ok(hT > hB && hB > hN);
-  assert.ok(Math.abs(hT / hB - FONT_SIZES.title / FONT_SIZES.body) < 0.05, `${hT}/${hB}`);
-  assert.ok(Math.abs(hB / hN - FONT_SIZES.body / FONT_SIZES.note) < 0.05, `${hB}/${hN}`);
+  // ±2° rotation jitter widens a bounding box by under 1 px, so the ratios hold to a few percent
+  assert.ok(Math.abs(hT / hB - FONT_SIZES.title / FONT_SIZES.body) < 0.06, `${hT}/${hB}`);
+  assert.ok(Math.abs(hB / hN - FONT_SIZES.body / FONT_SIZES.note) < 0.06, `${hB}/${hN}`);
   for (const [d, style] of [[t, 'title'], [b, 'body'], [n, 'note']]) assert.equal(d.meta.style, style);
   // default style is body
   const def = prepare(txt('d', 'A4:B4', 'Hg'), ctxFor(txt('d', 'A4:B4', 'Hg')));
   assert.equal(def.meta.style, 'body');
-  assert.equal(glyphHeight(def, 'H'), hB);
+  assert.ok(Math.abs(glyphHeight(def, 'H') - hB) < 1.5, `${glyphHeight(def, 'H')} vs ${hB}`);
 });
 
-test('criterion 11: a 40-word body text in a 4-cell slot (near-cap fixture) wraps to fit the slot', async () => {
+test('criterion 11: a 40-word body text in a 5-cell slot (near-cap fixture; 4 cells before change-khan-feel) wraps to fit the slot', async () => {
   const dense = (await prepareLesson('fx-core-dense')).find((x) => x.el.id === 'para40');
   assert.ok(dense.drawable.meta.lines.length >= 2);
-  assert.ok(rectContainsRect(slotRect('A1:D1'), dense.drawable.bounds));
+  assert.equal(dense.el.slot, 'A1:E1');
+  assert.ok(rectContainsRect(slotRect('A1:E1'), dense.drawable.bounds));
   assert.equal(dense.drawable.strokes.filter((s) => s.kind === 'glyph').length, [...dense.el.text.replace(/\s+/g, '')].length);
   const forty = (await prepareLesson('fx-type-text')).find((x) => x.el.id === 'forty');
   assert.ok(rectContainsRect(slotRect(forty.el.slot), forty.drawable.bounds));
@@ -90,6 +93,6 @@ test('fixture text elements agree with the validator measurement (same lines, sa
   const { el, ctx } = fixtureElement('fx-type-text', 's001', 'body');
   const d = prepare(el, ctx);
   assert.deepEqual(d.meta.inner, { x: 62, y: 262, w: 476, h: 376 });
-  assert.equal(d.meta.lineHeight, 36);
+  assert.equal(d.meta.lineHeight, LINE_HEIGHTS.body);
   assert.ok(d.meta.lines.join(' ') === el.text);
 });

@@ -123,6 +123,43 @@ test('u=0 paints nothing for a single text element and u=1 paints it (criterion 
   expect(errors).toEqual([]);
 });
 
+test('sweep reveal (change-khan-feel): mid-way through a text element the glyph being written is inked only left of the pen tip; screenshot saved', async ({ page }) => {
+  const errors = collectErrors(page);
+  await openHarness(page, '/harness/fx-type-text?scene=s001&u=0.5');
+  const r = await draw(page, 's001', 0.5);
+  expect(r.pixels).toBeGreaterThan(0);
+  const probe = await page.evaluate(() => {
+    const d = window.__khan.harness.drawableOf('body');
+    const p = d.progress(0.5);
+    const s = d.strokes[p.current];
+    const tip = d.tipAt(0.5);
+    const canvas = document.getElementById('board');
+    const ctx2d = canvas.getContext('2d');
+    const sx = canvas.width / 1600, sy = canvas.height / 900;
+    // ink right of the tip inside the active glyph's own row band must be background (the clip hides it);
+    // ink left of the tip inside the glyph's box must exist (the sweep has started)
+    const count = (x0, x1) => {
+      const img = ctx2d.getImageData(Math.round(x0 * sx), Math.round((s.bounds.y - 1) * sy), Math.max(1, Math.round((x1 - x0) * sx)), Math.max(1, Math.round((s.bounds.h + 2) * sy)));
+      let n = 0;
+      for (let i = 0; i < img.data.length; i += 4) if (img.data[i] + img.data[i + 1] + img.data[i + 2] > 60) n++;
+      return n;
+    };
+    return {
+      char: s.char, fraction: p.fraction, tipX: tip.x, left: s.bounds.x, right: s.bounds.x + s.bounds.w,
+      inkRightOfTip: count(tip.x + 3, s.bounds.x + s.bounds.w + 1),
+      inkLeftOfTip: count(s.bounds.x - 1, tip.x - 1),
+    };
+  });
+  expect(probe.fraction).toBeGreaterThan(0.15);
+  expect(probe.fraction).toBeLessThan(0.85);
+  expect(probe.tipX).toBeGreaterThan(probe.left);
+  expect(probe.tipX).toBeLessThan(probe.right);
+  expect(probe.inkLeftOfTip, `glyph ${probe.char} left of the tip`).toBeGreaterThan(0);
+  expect(probe.inkRightOfTip, `glyph ${probe.char} right of the tip`).toBe(0);
+  await page.locator('#board').screenshot({ path: join(shotDir, 'fx-type-text-s001-u05-sweep.png') });
+  expect(errors).toEqual([]);
+});
+
 test('math fixtures paint without inserting SVG into the document; paint never uses measureText (criterion 13)', async ({ page }) => {
   const errors = collectErrors(page);
   await openHarness(page, '/harness/fx-type-math?scene=s001&u=1');

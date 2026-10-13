@@ -27,7 +27,7 @@ export function prepareBox(el, ctx) {
     const style = BOX_LAYOUT.labelStyle;
     const maxW = Math.max(20, frame.w - 2 * LABEL_PAD_X);
     const lines = wrap(el.label, style, maxW);
-    const { strokes: text, lineRects } = blockStrokes(lines, style, frame.x + LABEL_PAD_X, frame.y + BOX_LAYOUT.labelPad, color, seed + 1, { meta: { label: true } });
+    const { strokes: text, lineRects } = blockStrokes(lines, style, frame.x + LABEL_PAD_X, frame.y + BOX_LAYOUT.labelPad, color, seed + 1, { meta: { label: true }, hand: { key: `${el.id}:label` } });
     // labels are not fit-validated upstream: never let a glyph escape the slot
     for (const s of text) {
       const b = boundsOfPaths([s.d]);
