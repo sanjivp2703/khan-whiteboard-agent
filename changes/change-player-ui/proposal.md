@@ -26,6 +26,9 @@ The chrome becomes a viewer's video player (design/03-player-ui-study.md §3–�
 - Chrome never covers the board during playback except pen, corner caption, and modal moments.
 - Engine state machine, scheduler, questions and resume unchanged.
 
+## Human redirect (2026-10-13, mid-build)
+Sharp corners (radius 0), no blur/glow/gradient/pill/sparkle/pulse, flat black chrome with Khan Academy green as the only accent, minimal controls. The mockup is superseded on these points; the builder updates it.
+
 ## Risk
 low: presentation only; e2e tests cover the testids and layout containment.
 

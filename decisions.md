@@ -87,3 +87,8 @@ The human asked, after v0.1.0: make the whiteboard look exactly like Khan Academ
 - Color use: one color per idea for the whole lesson (unchanged); body text takes its concept's color; white reserved for neutral connecting text. No fixed purpose→color mapping was verifiable, so none is imposed.
 - Voice: switch default TTS model to OpenAI gpt-4o-mini-tts (accepts `instructions`), default voice `ash`, with a Sal-style delivery instruction derived from KA's creator guidance. Add `khan audition` so the human can hear candidates (ash, echo, onyx; cedar if available) and pick. Not cloning Sal Khan's voice.
 - Handwriting font unchanged (Patrick Hand).
+
+### Player chrome style (2026-10-13, human redirect during change-player-ui)
+- Sharp corners everywhere (radius 0). No blur, glows, gradients, pills, sparkle icons, or pulsing animations ("no common AI-generated stylistic choices").
+- Chrome colour scheme: black with Khan Academy green as the single accent (value verified from khanacademy.org by the builder). The board's drawing palette (KA on-black chalk accents) is unchanged.
+- Very simple navigation: one control row, one chapters toggle, one transcript toggle.
