@@ -20,3 +20,10 @@ Parallel group after foundation: openai-tts, renderer-core, renderer-pictures, p
 
 QA: passed 2026-10-06 (see qa/02-verification-report.md)
 Deploy: https://github.com/sanjivp2703/khan-whiteboard-agent/releases/tag/v0.1.0 (2026-10-06)
+
+## Changes
+
+Post-v1 work, per `iteration-guide.md` (agent_pipeline root). One row per change folder or fix.
+
+| Change | Lane | Status | Notes |
+|--------|------|--------|-------|
