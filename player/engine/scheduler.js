@@ -1,9 +1,11 @@
 // player/engine/scheduler.js — the audio-clock scheduler (spec §6 "Clock", "Writing pace", "Audio
-// yields to the pen"; brief 04 items 3–4; change-khan-feel items 1–2). Pure, DOM-free.
+// yields to the pen"; brief 04 items 3–4; change-khan-feel items 1–2; qa/04 finding 1). Pure, DOM-free.
 //
 // For a scene with audio duration D (ms) and resolved timing windows (layout-core/timing.js):
-//   start     = at × D
-//   windowEnd = nextAt × D   (0.95 × D for the last element)
+//   start     = at × D for an explicit `at`. Elements without `at` share the span their defaults
+//               occupy (first start 0.08 × D talk-first, last window end 0.95 × D, explicit anchors
+//               fixed) in proportion to their need — see weightWindows — instead of evenly.
+//   windowEnd = next start   (0.95 × D for the last element)
 //   needMs    = naturalMs + pauseMs   handwriting time at PEN_PX_PER_S (from the drawable) plus the
 //                                     word / line micro-pauses (PEN_WORD_GAP_MS, PEN_LINE_GAP_MS)
 //   drawEnd   = start + needMs   when it fits the window: the pen then parks on the element's tip
@@ -11,8 +13,11 @@
 //             = windowEnd        when it does not fit and another element follows: the draw is
 //                                compressed to the window as a last resort (`compressed`, `ratio`;
 //                                the engine logs it as a `compressed` event)
-//             = start + needMs   for the LAST element, never compressed: the yield-to-pen rule
-//                                holds silence for it, capped (effectiveTime / isSceneComplete)
+//             = start + needMs   for the LAST element while that is ≤ D + yieldCapMs: the yield-to-pen
+//                                rule holds silence for it (effectiveTime / isSceneComplete)
+//             = D + yieldCapMs   for the LAST element when its need runs past the cap: compressed like
+//                                the others (`compressed`, `ratio`) so it finishes as the hold ends
+//                                instead of snapping in at scene end (qa/04 finding 1b)
 //             = windowEnd        when needMs is unknown (no drawable, or a zero-length drawable such
 //                                as a pointer highlight, which parks over its target for its window)
 //   u(t)      = piecewise linear in [start, drawEnd]: strokes advance linearly in u, and a line-gap
@@ -105,45 +110,107 @@ function lookup(drawables, id) {
 }
 
 /**
+ * Length-weighted windows for elements without an explicit `at` (qa/04 finding 1a). The resolved
+ * windows are grouped into runs: an anchor (explicit `at`, or the talk-first first element) plus
+ * the omitted-`at` elements that follow it. Each run keeps its span — the anchor's start and the
+ * window end of its last element (the next anchor's start, or 0.95 × D) are fixed — and the
+ * span is split by need instead of evenly:
+ *   - every element is owed at least `base` = half an even share (span / 2n), so a zero-ink element
+ *     (pointer highlight, unknown drawable) keeps a dwell for the pen to rest on;
+ *   - when the needs (each raised to the base) fit the span, every element gets its need and the
+ *     slack — parking time — is shared in proportion to it;
+ *   - when they do not fit, every element gets the base and the other half of the span is shared in
+ *     proportion to the need beyond the base, so the big elements take the compression together
+ *     instead of the one that happened to follow a short window taking it alone.
+ * Deterministic; a run of one element is left as resolved.
+ * @param {Array<{at:number,end:number,explicit:boolean}>} windows resolved windows (fractions)
+ * @param {number} D audio duration (ms)
+ * @param {number[]} needs needMs per element (0 when unknown)
+ * @returns {Array<{start:number, windowEnd:number}>} ms
+ */
+export function weightWindows(windows, D, needs) {
+  const n = windows.length;
+  const starts = windows.map((w) => w.at * D);
+  const ends = windows.map((w, i) => Math.max(starts[i], w.end * D));
+  let g = 0;
+  while (g < n) {
+    let j = g + 1;
+    while (j < n && !windows[j].explicit) j++;
+    const count = j - g;
+    const span = ends[j - 1] - starts[g];
+    if (count >= 2 && span > 0) {
+      const base = span / (2 * count);
+      const owed = [];
+      let total = 0;
+      let excessTotal = 0;
+      for (let i = g; i < j; i++) {
+        const need = Number.isFinite(needs[i]) && needs[i] > 0 ? needs[i] : 0;
+        const o = Math.max(need, base);
+        owed.push(o);
+        total += o;
+        excessTotal += o - base;
+      }
+      const fits = total <= span;
+      const slack = span - total;
+      let t = starts[g];
+      for (let i = g; i < j; i++) {
+        const o = owed[i - g];
+        const share = fits ? o + (slack * o) / total : base + ((span - base * count) * (o - base)) / excessTotal;
+        starts[i] = t;
+        t = i === j - 1 ? starts[g] + span : t + share;
+        ends[i] = t;
+      }
+    }
+    g = j;
+  }
+  return starts.map((s, i) => ({ start: s, windowEnd: ends[i] }));
+}
+
+/**
  * @param {object} scene effective scene (elements in list order)
  * @param {number} durationMs audio duration
  * @param {Map<string,{naturalMs:number,partStarts?:number[],meta?:object}>|object|null} drawables by element id
- * @param {{naturalMsScale?:number}} [opts] test knob: stretches natural durations (strokes and pauses)
+ * @param {{naturalMsScale?:number, yieldCapMs?:number}} [opts] naturalMsScale: test knob that stretches natural
+ *   durations (strokes and pauses); yieldCapMs: the yield cap the last element may run into (DEFAULT_YIELD_CAP_MS)
  * @returns {Array<{id:string, index:number, start:number, windowEnd:number, drawEnd:number, naturalMs:number,
  *   pauseMs:number, compressed:boolean, ratio:number, last:boolean, segs:Array<{u0:number,u1:number,t0:number,t1:number}>|null}>}
  */
 export function buildTimeline(scene, durationMs, drawables = null, opts = {}) {
   const D = Number.isFinite(durationMs) && durationMs > 0 ? durationMs : 0;
   const scale = Number.isFinite(opts.naturalMsScale) && opts.naturalMsScale > 0 ? opts.naturalMsScale : 1;
+  const yieldCapMs = Number.isFinite(opts.yieldCapMs) && opts.yieldCapMs >= 0 ? opts.yieldCapMs : DEFAULT_YIELD_CAP_MS;
   const windows = resolveTiming(scene);
   const elements = (scene && scene.elements) || [];
   const n = elements.length;
-  return elements.map((el, i) => {
-    const w = windows[i];
-    const start = w.at * D;
-    const windowEnd = Math.max(start, w.end * D);
-    const windowMs = windowEnd - start;
+  // needs first: the windows of omitted-`at` elements depend on them
+  const prepared = elements.map((el) => {
     const d = lookup(drawables, el.id);
     const naturalMs = d && Number.isFinite(d.naturalMs) && d.naturalMs > 0 ? d.naturalMs * scale : 0;
+    const prof = naturalMs > 0 ? pauseProfile(el, d) : null;
+    const pauseMs = prof ? prof.pauseMs * scale : 0;
+    return { d, naturalMs, prof, pauseMs, needMs: naturalMs + pauseMs };
+  });
+  const spans = weightWindows(windows, D, prepared.map((p) => p.needMs));
+  return elements.map((el, i) => {
+    const { start, windowEnd } = spans[i];
+    const { d, naturalMs, prof, pauseMs, needMs } = prepared[i];
     const last = i === n - 1;
-    let pauseMs = 0;
     let drawEnd = windowEnd;
     let compressed = false;
     let ratio = 1;
     let segs = null;
     if (naturalMs > 0) {
-      const prof = pauseProfile(el, d);
-      pauseMs = prof.pauseMs * scale;
-      const needMs = naturalMs + pauseMs;
-      if (needMs <= windowMs || last) {
+      // the last element may run into the yield hold (silence held for the pen), but no further than the cap
+      const limit = last ? Math.max(windowEnd, D + yieldCapMs) : windowEnd;
+      if (start + needMs <= limit) {
         drawEnd = start + needMs;
       } else {
-        drawEnd = windowEnd;
+        drawEnd = limit;
         compressed = true;
-        ratio = windowMs > 0 ? needMs / windowMs : Infinity;
+        ratio = limit > start ? needMs / (limit - start) : Infinity;
       }
       if (prof.holds > 0 && drawEnd > start) {
-        const holdMs = PEN_LINE_GAP_MS * scale * (compressed ? windowMs / needMs : 1);
+        const holdMs = PEN_LINE_GAP_MS * scale * (compressed ? (drawEnd - start) / needMs : 1);
         segs = buildSegments(d.partStarts, drawEnd - start, holdMs);
       }
     }
@@ -177,7 +244,7 @@ export function timelineEnd(timeline) {
   return end;
 }
 
-/** Items whose draw was compressed to their window (natural time exceeded it; last resort). */
+/** Items whose draw was compressed to their window — or, for the last element, to D + yieldCapMs (natural time exceeded it; last resort). */
 export function compressedItems(timeline) {
   return timeline.filter((it) => it.compressed);
 }

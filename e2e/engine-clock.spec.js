@@ -2,9 +2,12 @@
 // Criteria 3, 4, 5, 6, 7 of briefs/04-player-engine.md.
 import { test, expect } from '@playwright/test';
 import { makeLesson, openLesson, collectErrors, recordPosts, engine, fixtureScene, sleep } from './engine-helpers.js';
-import { resolveTiming } from '../shared/layout-core/timing.js';
+import { TIMING } from '../shared/layout-core/constants.js';
 
-test('criterion 3: drawnElementIds grows in `at` order and never before at × D (10 samples during fx-build-region s001)', async ({ page }) => {
+// MODIFIED (qa/04 finding 1a): the two elements of s001 omit `at`, so their starts are now the scheduler's
+// need-weighted ones (talk-first first start kept), not the validator's even 0.08 + 0.77·i/n; the
+// criterion is checked against the engine's own timeline instead of resolveTiming.
+test('criterion 3: drawnElementIds grows in `at` order and never before the element start (10 samples during fx-build-region s001)', async ({ page }) => {
   const errors = collectErrors(page);
   const lesson = makeLesson('fx-build-region');
   lesson.writeAll();
@@ -12,20 +15,25 @@ test('criterion 3: drawnElementIds grows in `at` order and never before at × D 
   await engine.waitForStatuses(page, { s001: 'ready', s002: 'ready', s003: 'ready', s004: 'ready' });
   await page.getByTestId('start-button').click();
   await engine.waitForSceneTime(page, 's001', 0.01);
-  // sample drawn set and audio clock atomically, 10 times, ~0.7 s of audio apart (cache starts at 4.93 s)
-  const samples = await page.evaluate(async () => {
+  // sample drawn set and audio clock atomically, 10 times, ~0.7 s of audio apart (the title is written first, the box follows)
+  const { samples, timeline } = await page.evaluate(async () => {
     const out = [];
     const e = window.__khan.engine;
+    const timeline = e.current.timeline.map((it) => ({ id: it.id, start: it.start / 1000 }));
     for (let i = 0; i < 10; i++) {
       await new Promise((r) => requestAnimationFrame(r));
       out.push({ t: e.audio.currentTime, drawn: e.drawnElementIds(), scene: e.position.sceneId });
       await new Promise((r) => setTimeout(r, 350));
     }
-    return out;
+    return { samples: out, timeline };
   });
   const scene = fixtureScene('fx-build-region', 's001');
   const D = (await engine.playlist(page)).entries.find((x) => x.sceneId === 's001').durationMs / 1000;
-  const starts = Object.fromEntries(resolveTiming(scene).map((w) => [w.id, w.at * D]));
+  const starts = Object.fromEntries(timeline.map((w) => [w.id, w.start]));
+  // talk-first: the first element starts at 0.08 × D; the box starts after the title's window, well inside the audio
+  expect(starts.title).toBeCloseTo(TIMING.firstAt * D, 2);
+  expect(starts.cache).toBeGreaterThan(starts.title + 1);
+  expect(starts.cache).toBeLessThan(TIMING.lastWindowEnd * D);
   let prev = [];
   for (const s of samples) {
     expect(s.scene).toBe('s001');

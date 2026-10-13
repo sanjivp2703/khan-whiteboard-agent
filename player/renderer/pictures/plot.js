@@ -8,6 +8,12 @@
 // Colours: series 0 uses the element colour; series k > 0 rotate through the accents starting
 // after the element's accent (common.seriesToken). Axes, ticks, numbers and axis names are chalk;
 // the optional `label` is written top-right and the hole is drawn in the element colour.
+//
+// Tick crowding (qa/04 finding 4): when the last tick number would sit within about one label of the
+// arrowhead at the positive end of its axis, the axis is extended past the data range by just enough
+// (`overshoot`) for the arrowhead to clear the number by LABEL_GAP — Sal's axes run on past the last
+// number before the arrow. The data area is shrunk by the same amount so everything stays in the slot;
+// `axes.xEnd` / `axes.yEnd` are the arrow tips, `area` is still the data mapping.
 import { CAPS } from '../../../shared/layout-core/constants.js';
 import { parse as parseExpr, sample } from '../../../shared/expr.js';
 import {
@@ -18,9 +24,9 @@ import {
 const DEFAULT_X_RANGE = [-10, 10];
 const DEFAULT_AXIS_NAMES = Object.freeze({ x: 'x', y: 'y' });
 const TICK = 8;                 // tick mark length (centred on the axis)
-const LABEL_GAP = 6;
-const ARROW_LEN = 12;           // arrowhead wing length along the axis
-const ARROW_HALF_W = 6;         // arrowhead half width across the axis
+export const LABEL_GAP = 6;
+export const ARROW_LEN = 12;    // arrowhead wing length along the axis
+export const ARROW_HALF_W = 6;  // arrowhead half width across the axis
 /** A jump between adjacent samples that changes sign and exceeds this fraction of the y span is an asymptote. */
 const ASYMPTOTE_FRACTION = 0.25;
 const DOT_DIAMETER = 8;         // filled data point
@@ -131,6 +137,21 @@ export function cutHole(pxRuns, hole, radius) {
   return out;
 }
 
+/**
+ * Axis overshoot past the data range at its positive end so the arrowhead clears the last tick
+ * number (qa/04 finding 4). `frac` is the last tick's distance from the range end as a fraction of
+ * the range, `extent0` the data extent before any overshoot, `labelAlong` the label's size along
+ * the axis. With overshoot o the tip sits frac × (extent0 − o) + o past the tick; it must be at
+ * least labelAlong / 2 + LABEL_GAP + ARROW_LEN away (label half, a gap, the arrowhead). 0 when
+ * the tick is already clear.
+ */
+export function axisOvershoot(frac, extent0, labelAlong) {
+  if (!(frac >= 0) || frac >= 1 || !(extent0 > 0)) return 0;
+  const need = labelAlong / 2 + LABEL_GAP + ARROW_LEN;
+  const o = (need - frac * extent0) / (1 - frac);
+  return o > 0 ? o : 0;
+}
+
 /** Arrowhead at `tip` pointing along the unit direction (dx, dy): one open "V" stroke. */
 function arrowhead(r, tip, dx, dy, color) {
   const [tx, ty] = tip;
@@ -199,30 +220,43 @@ export function preparePlot(element, ctx) {
   const yAxisAtLeft = xRange[0] >= 0;
   const yAxisAtRight = xRange[1] <= 0;
   const leftReserve = Math.max(yAxisAtLeft ? yLabelW + TICK / 2 + LABEL_GAP + 2 : 0, yAxisAtRight ? 0 : xLabelW / 2 + 2);
-  const rightReserve = Math.max(xNameW + LABEL_GAP + 2, xLabelW / 2 + 2, yAxisAtRight ? 0 : yNameW + TICK + 2);
-  const topReserve = (label ? noteH + LABEL_GAP : 0) + noteH / 2 + 4;
+  const rightReserve0 = Math.max(xNameW + LABEL_GAP + 2, xLabelW / 2 + 2, yAxisAtRight ? 0 : yNameW + TICK + 2);
+  const topReserve0 = (label ? noteH + LABEL_GAP : 0) + noteH / 2 + 4;
   const bottomReserve = TICK / 2 + LABEL_GAP + noteH + 2;
+  // tick crowding at the positive ends: extend the axis past the last number when it sits against the arrowhead
+  const w0 = Math.max(20, safe.w - leftReserve - rightReserve0);
+  const h0 = Math.max(20, safe.h - topReserve0 - bottomReserve);
+  const lastX = xTicks.length ? xTicks[xTicks.length - 1] : null;
+  const lastY = yTicks.length ? yTicks[yTicks.length - 1] : null;
+  const overshoot = {
+    x: lastX === null ? 0 : axisOvershoot((xRange[1] - lastX) / (xRange[1] - xRange[0]), w0, measure(formatNum(lastX), 'note').width),
+    y: lastY === null ? 0 : axisOvershoot((yRange[1] - lastY) / (yRange[1] - yRange[0]), h0, noteH),
+  };
+  const rightReserve = rightReserve0 + overshoot.x;
+  const topReserve = topReserve0 + overshoot.y;
   const area = { x: safe.x + leftReserve, y: safe.y + topReserve, w: 0, h: 0 };
   area.w = Math.max(20, safe.x + safe.w - rightReserve - area.x);
   area.h = Math.max(20, safe.y + safe.h - bottomReserve - area.y);
+  const xEnd = area.x + area.w + overshoot.x; // +x arrow tip
+  const yEnd = area.y - overshoot.y;          // +y arrow tip
 
   const xToPx = (x) => area.x + ((x - xRange[0]) / (xRange[1] - xRange[0])) * area.w;
   const yToPx = (y) => area.y + area.h - ((y - yRange[0]) / (yRange[1] - yRange[0])) * area.h;
   const xAxisY = yRange[0] <= 0 && yRange[1] >= 0 ? yToPx(0) : yRange[1] < 0 ? area.y : area.y + area.h;
   const yAxisX = xRange[0] <= 0 && xRange[1] >= 0 ? xToPx(0) : xRange[1] < 0 ? area.x + area.w : area.x;
 
-  // ---- axes: two separate strokes, each with its own arrowhead(s) ----
-  const xAxis = roughStrokes(r.line(area.x, xAxisY, area.x + area.w, xAxisY), chalk);
+  // ---- axes: two separate strokes, each with its own arrowhead(s); the positive end runs on by the overshoot ----
+  const xAxis = roughStrokes(r.line(area.x, xAxisY, xEnd, xAxisY), chalk);
   const xArrows = ['+x'];
-  xAxis.push(...arrowhead(r, [area.x + area.w, xAxisY], 1, 0, chalk));
+  xAxis.push(...arrowhead(r, [xEnd, xAxisY], 1, 0, chalk));
   if (xRange[0] < 0 && xRange[1] > 0) { xAxis.push(...arrowhead(r, [area.x, xAxisY], -1, 0, chalk)); xArrows.push('-x'); }
-  const yAxis = roughStrokes(r.line(yAxisX, area.y + area.h, yAxisX, area.y), chalk);
+  const yAxis = roughStrokes(r.line(yAxisX, area.y + area.h, yAxisX, yEnd), chalk);
   const yArrows = ['+y'];
-  yAxis.push(...arrowhead(r, [yAxisX, area.y], 0, -1, chalk));
+  yAxis.push(...arrowhead(r, [yAxisX, yEnd], 0, -1, chalk));
   if (yRange[0] < 0 && yRange[1] > 0) { yAxis.push(...arrowhead(r, [yAxisX, area.y + area.h], 0, 1, chalk)); yArrows.push('-y'); }
   const parts = [
-    { kind: 'axis', strokes: xAxis, meta: { axis: 'x', y: xAxisY, from: area.x, to: area.x + area.w, arrowheads: xArrows } },
-    { kind: 'axis', strokes: yAxis, meta: { axis: 'y', x: yAxisX, from: area.y + area.h, to: area.y, arrowheads: yArrows } },
+    { kind: 'axis', strokes: xAxis, meta: { axis: 'x', y: xAxisY, from: area.x, to: xEnd, arrowheads: xArrows } },
+    { kind: 'axis', strokes: yAxis, meta: { axis: 'y', x: yAxisX, from: area.y + area.h, to: yEnd, arrowheads: yArrows } },
   ];
 
   // ---- ticks: one part each (mark, then the number) ----
@@ -249,10 +283,10 @@ export function preparePlot(element, ctx) {
 
   // ---- names: axis names at the positive ends, then the plot label top-right ----
   const nameStrokes = [];
-  const wx = writeAt(names.x, 'note', area.x + area.w + LABEL_GAP, xAxisY + yMid, chalk, { anchor: 'start' });
+  const wx = writeAt(names.x, 'note', xEnd + LABEL_GAP, xAxisY + yMid, chalk, { anchor: 'start' });
   const wy = yAxisAtRight
-    ? writeAt(names.y, 'note', yAxisX - TICK, area.y + yMid, chalk, { anchor: 'end' })
-    : writeAt(names.y, 'note', yAxisX + TICK, area.y + yMid, chalk, { anchor: 'start' });
+    ? writeAt(names.y, 'note', yAxisX - TICK, yEnd + yMid, chalk, { anchor: 'end' })
+    : writeAt(names.y, 'note', yAxisX + TICK, yEnd + yMid, chalk, { anchor: 'start' });
   nameStrokes.push(...wx.strokes, ...wy.strokes);
   let labelBox = null;
   if (label) {
@@ -334,7 +368,7 @@ export function preparePlot(element, ctx) {
     fallbackRect: inner,
     picture: {
       kind: 'plot', area, xRange, yRange: [yRange[0], yRange[1]], autoY: !Array.isArray(element.yRange),
-      axes: { xAxisY, yAxisX, arrowheads: { x: xArrows, y: yArrows } }, ticks, tickLabels, names: namesMeta, labelBox,
+      axes: { xAxisY, yAxisX, xEnd, yEnd, overshoot, arrowheads: { x: xArrows, y: yArrows } }, ticks, tickLabels, names: namesMeta, labelBox,
       series: seriesMeta, hole: holeMeta, slotRect: outer, safeRect: safe,
     },
   });
