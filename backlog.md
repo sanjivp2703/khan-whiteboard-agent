@@ -26,3 +26,8 @@
 | 22 | Server shows `ready` with `TTS_FAILED` 401 on every scene when the key is wrong; the player should surface "OpenAI rejected the API key" once, loudly, instead of per-scene "no audio" badges | lesson 20261013-002431 playlist | change | S | open |
 | 23 | SKILL.md hint: a diagram with 5+ ranks in a 2-row slot scales text to ~0.68; prefer LR in wide slots or give TD diagrams 3 rows | diagram fixer report 2026-10-13 | fix | S | open |
 | 24 | Rail hover shrinks the board (re-letterbox) rather than covering it; judge the feel; consider a wider collapsed strip or no-hover mode | chrome fixer report 2026-10-13 | | S | open (human) |
+| 25 | TTS per-attempt timeout (20 s) is too short for gpt-4o-mini-tts on 80–90-word narrations: every attempt aborts ("This operation was aborted"), scene plays silent | real lessons 20261013-002431 and 20261013-115749 | fix | S | in progress (fix: tts timeout) |
+| 26 | Startup re-voicing of several lessons races on the TTS cache: `ENOENT rename` on identical-text cache keys written concurrently | lesson 20261013-002431 playlist after restart | fix | S | in progress (fix: tts timeout) |
+| 27 | SKILL.md: `itemAt` values must fall inside each item's own time window (validator BAD_AT "lies outside the element window"); cheat-sheet only says 0..0.9 non-decreasing | real lesson 20261013-115749 reject | fix | S | open |
+| 28 | SKILL.md: narration cap of 90 words is overshot easily (91, 92 words twice in one lesson); advise aiming for ≤ 80 or count before sending | real lesson 20261013-115749 rejects | fix | S | open |
+| 29 | Silent scenes (TTS_FAILED) are never retried; add a server-side re-voice on demand or on next replay | real lessons 2026-10-13 | change | S | open |
