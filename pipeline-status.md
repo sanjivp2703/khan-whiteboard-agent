@@ -30,6 +30,8 @@ Post-v1 work, per `iteration-guide.md` (agent_pipeline root). One row per change
 | fix: player chrome outside the board; dedupe skipped notes (backlog #19 #20) | fix | done 2026-10-13, merge 41f1bd1 | 289/0 → 291/0 unit (+0), 52 → 55 e2e; criterion 18 test MODIFIED (board = letterbox inside the board area, per spec §10) |
 | fix: diagram edge labels clear of edges, nodes, labels (backlog #21) | fix | done 2026-10-13, merge 71a57f6 | 291/0 → 294/0 unit, 55 → 56 e2e; new fixture fx-pic-labels |
 | fix: TTS timeout 90 s, body-read abort → TTS_TIMEOUT, per-scene voicing seq guard, cache temp names, concurrency 3 (backlog #25 #26) | fix | done 2026-10-13, merge (see git log) | 294/0 → 299/0 unit (+2 env), 56 e2e; TIMEOUT_MS test and all-hang attempt count MODIFIED (policy change) |
-| changes/change-khan-feel | change | in progress (built; fix for resume timing pending; QA pending) | approved in advance 2026-10-13; three builders merged (d0f6e58, c7a09fb, 3ef064b); baseline 299/0 unit (+2 env), 56 e2e |
+| changes/change-khan-feel | change | built, QA passed (qa/04), awaiting human approval | approved in advance 2026-10-13; three builders merged (d0f6e58, c7a09fb, 3ef064b); baseline 299/0 unit (+2 env), 56 e2e |
 | changes/change-player-ui | change | built, awaiting human approval | redirected to black + KA green, sharp corners; merged 4f86011; live on reload of any lesson tab |
 | fix: picture labels keep their own sizes (seam after change-khan-feel font sizes) | fix | done 2026-10-13, merge 3e75ad1 | 315/7 → 331/2 (2 env) unit |
+| fix: resume audio position after an answer (event at seek, 400 ms resume beat) | fix | done 2026-10-13, merge 9993a2f | e2e 64/66 → 66/66 |
+| fix: pacing — length-weighted windows, no pop-in, SKILL pacing budget, lint, tick clearance (qa/04 #1–#4) | fix | done 2026-10-13, merge f267efe | 331 → 336 unit, 66 e2e; last-element snaps 27/87 → 0 |
