@@ -25,6 +25,7 @@ export const DEFAULT_CONFIG = Object.freeze({
   stallCaptionMs: 10000,  // "khan is thinking…"
   stuckCaptionMs: 60000,  // "generation seems stuck"
   readyBeatMs: 400,       // beat before playing a scene that arrived during a stall
+  resumeBeatMs: 400,      // the same beat when an interrupted scene comes back after an answer (spec §7 step 5): the board is restored at t at once, the voice follows
   playbackRate: 1,        // tests speed the audio clock up; drawing follows the clock
   naturalMsScale: 1,      // tests stretch natural stroke durations to exercise the yield rule
   metadataTimeoutMs: 5000,
@@ -156,11 +157,16 @@ export function start(opts) {
     return { chapters: outline || items.length, estimateMs };
   }
 
-  async function postPosition(sceneId, event, t = audioTimeS()) {
+  /** Position reports go out strictly in call order (one in flight at a time); callers may await or not. */
+  let positionChain = Promise.resolve();
+  function postPosition(sceneId, event, t = audioTimeS()) {
     log('position', { sceneId, event, t });
-    try {
-      await fetch(`/api/lesson/${lessonId}/position`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sceneId, event, t }) });
-    } catch (e) { log('position-failed', { sceneId, event, error: String(e && e.message) }); }
+    positionChain = positionChain.then(async () => {
+      try {
+        await fetch(`/api/lesson/${lessonId}/position`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sceneId, event, t }) });
+      } catch (e) { log('position-failed', { sceneId, event, error: String(e && e.message) }); }
+    });
+    return positionChain;
   }
 
   // ---------------------------------------------------------------------------
@@ -335,7 +341,7 @@ export function start(opts) {
       const isAnswerOfTop = qId && (entry.questionId === qId || entry.sceneId.slice(0, 4) === qId);
       if (isAnswerOfTop && entry.final) {
         const r = dispatch({ type: 'POP' });
-        if (r.ok) { log('resume', { sceneId: r.entry.sceneId, t: r.entry.t, from: r.entry.from }); await resumeAt(r.entry); }
+        if (r.ok) await resumeAt(r.entry);
         return;
       }
       const next = nextAnswerEntry(entry.sceneId);
@@ -427,15 +433,19 @@ export function start(opts) {
    * Start (or resume) a scene: build the board history since the last wipe into the background
    * cache, build the timeline from the audio duration, post `start`, seek and play.
    * @param {object} entry playlist entry
-   * @param {{t?:number, resume?:boolean}} o  t in seconds; resume = elements with start < t are complete
+   * @param {{t?:number, resume?:boolean, onResumed?:Function|null}} o  t in seconds; resume = elements with start < t are
+   *   complete; onResumed is called once the scene is actually running from t (see `resumed` below)
    */
-  async function playScene(entry, { t = 0, resume = false } = {}) {
+  async function playScene(entry, { t = 0, resume = false, onResumed = null } = {}) {
     const myRun = ++run;
     clearBeat();
     waitingSince = null;
     try { audio.pause(); } catch { /* ignore */ }
     const { scene, historyDrawables, targetDrawables } = await prepareBoard(entry.sceneId);
     if (myRun !== run) return;
+    // fires once, when the scene is actually running again from t: audio playing from t, or the board
+    // shown when there is no audio to run (ended, skipped, paused meanwhile); never for a superseded run
+    const resumed = () => { if (onResumed && myRun === run) { const cb = onResumed; onResumed = null; cb(); } };
     const live = entryOf(entry.sceneId) || entry;
     const durationMs = Number.isFinite(live.durationMs) && live.durationMs > 0 ? live.durationMs : 0;
     const effective = scene || { sceneId: entry.sceneId, title: live.title, narration: '', board: live.board || { mode: 'region', slots: 'A1' }, elements: [] };
@@ -455,27 +465,40 @@ export function start(opts) {
     updateUi();
     log('scene-start', { sceneId: entry.sceneId, t, resume });
     paintCurrent(t * 1000);
-    if (!current.static) await postPosition(entry.sceneId, 'start', t);
-    if (myRun !== run) return;
+    // the `start` report is sent now (scene boundary, spec §6) but its round trip is not awaited:
+    // the audio seek must not wait on the server (spec §7 step 5: the resume is instant). Reports
+    // are serialised in postPosition, so `end` can never overtake `start` on the wire.
+    if (!current.static) postPosition(entry.sceneId, 'start', t);
     if (!live.audioUrl) {
       // TTS failed for this scene (ready, audioUrl null): skip it with a visible note
       skipCurrent('audio unavailable');
+      resumed();
       return;
     }
-    if (current.static) return; // ended: show the board at t, no audio
+    if (current.static) { resumed(); return; } // ended: show the board at t, no audio
     audio.src = live.audioUrl;
     audio.load();
     const ok = await waitMetadata();
     if (myRun !== run) return;
-    if (!ok) { skipCurrent('audio unavailable'); return; }
+    if (!ok) { skipCurrent('audio unavailable'); resumed(); return; }
     // load() resets playbackRate to defaultPlaybackRate, so set both after the metadata arrived
     const rate = Number(config.playbackRate) > 0 ? Number(config.playbackRate) : 1;
     try { audio.defaultPlaybackRate = rate; audio.playbackRate = rate; } catch { /* unsupported rate */ }
     if (t > 0) { try { audio.currentTime = Math.min(t, Math.max(0, (audio.duration || t) - 0.001)); } catch { /* ignore */ } }
     current.loading = false;
-    if (fsm.state === 'playing') {
-      audio.play().catch((e) => { if (myRun === run) log('play-rejected', { sceneId: entry.sceneId, error: String(e && e.message) }); });
-    }
+    if (fsm.state !== 'playing') { resumed(); return; } // paused (or thinking again) meanwhile: the board is at t, the audio waits
+    const play = () => {
+      if (myRun !== run) return;
+      if (fsm.state !== 'playing') { resumed(); return; } // paused or asked again during the beat: the audio waits
+      // play() resolves once playback has actually started from the seeked position
+      audio.play().then(resumed, (e) => { if (myRun === run) log('play-rejected', { sceneId: entry.sceneId, error: String(e && e.message) }); resumed(); });
+    };
+    const beat = resume ? Math.max(0, Number(config.resumeBeatMs) || 0) : 0;
+    if (!beat) { play(); return; }
+    // resume: the board and the clock are back at t now (the seek has been set, the element reads t);
+    // the voice continues after the beat, like a scene that arrives after a stall (spec §6)
+    resumed();
+    setTimeout(play, beat);
   }
 
   /** The current scene has no usable audio: note it, show its board complete, post end, move on. */
@@ -490,10 +513,17 @@ export function start(opts) {
     setTimeout(() => { if (current && current.skipped && !current.completed && fsm.state === 'playing') onSceneComplete(); }, 0);
   }
 
+  /**
+   * Pop of the resume stack (spec §7 step 5). The `resume` event is logged by playScene at the
+   * moment the interrupted scene's audio is actually running again from t (after the seek has
+   * landed and playback started), not when the pop is decided: between the two the element is
+   * reloaded and still carries the answer scene's clock, then 0 — anyone sampling the audio clock
+   * on the event (the E2E resume criteria) must see the resumed position.
+   */
   async function resumeAt(entry) {
     const live = entryOf(entry.sceneId);
     if (!live) { log('resume-missing', { sceneId: entry.sceneId }); return; }
-    await playScene(live, { t: entry.t, resume: true });
+    await playScene(live, { t: entry.t, resume: true, onResumed: () => log('resume', { sceneId: entry.sceneId, t: entry.t, from: entry.from }) });
   }
 
   /** Deterministic instant render of the board at (sceneId, t); returns the plan ids. */
