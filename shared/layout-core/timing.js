@@ -1,19 +1,20 @@
 // shared/layout-core/timing.js — per-element draw windows (spec §4.4 common fields; brief 00 C1).
 //
-// Rules: `at` ∈ [0, 0.9]; elements without `at` are spaced evenly across [0, 0.85] in list
-// order (an omitted run between two anchors is spaced evenly between them); explicit `at`
-// values must be non-decreasing in list order (else BAD_AT). An element's window runs from
-// its `at` to the next element's `at` (0.95 for the last). Multi-part elements reveal their
-// parts evenly across the window unless `itemAt[]` (list) overrides; itemAt must be
-// ascending and inside the window.
+// Rules: `at` ∈ [0, 0.9]; elements without `at` are spaced evenly across [0.08, 0.85] in list
+// order — talk first: the voice leads for ≈ 8 % of the audio before the first stroke
+// (TIMING.firstAt; change-khan-feel item 5) — an omitted run between two anchors is spaced evenly
+// between them; explicit `at` values (including 0) are honoured and must be non-decreasing in
+// list order (else BAD_AT). An element's window runs from its `at` to the next element's `at`
+// (0.95 for the last). Multi-part elements reveal their parts evenly across the window unless
+// `itemAt[]` (list) overrides; itemAt must be ascending and inside the window.
 import { TIMING } from './constants.js';
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 
-/** Default `at` values for n elements with none given: 0.85 * i / n (each gets an equal window). */
+/** Default `at` values for n elements with none given: firstAt + (0.85 − firstAt) * i / n (each gets an equal window). */
 export function defaultAts(n) {
   const out = [];
-  for (let i = 0; i < n; i++) out.push(n === 0 ? 0 : round6((TIMING.defaultSpan * i) / n));
+  for (let i = 0; i < n; i++) out.push(n === 0 ? 0 : round6(TIMING.firstAt + ((TIMING.defaultSpan - TIMING.firstAt) * i) / n));
   return out;
 }
 
@@ -21,7 +22,8 @@ function round6(v) { return Math.round(v * 1e6) / 1e6; }
 
 /**
  * Fill omitted `at` values. Explicit ones are kept; each run of omitted elements is spread
- * evenly between the previous resolved `at` (or 0) and the next explicit `at` (or 0.85,
+ * evenly between the previous resolved `at` (or firstAt for a leading run — talk first; halved
+ * when the first anchor is nearer than 2 × firstAt) and the next explicit `at` (or 0.85,
  * exclusive — like the i/n default).
  * @param {Array<{at?:number}>} elements
  * @returns {number[]}
@@ -37,10 +39,10 @@ export function resolveAts(elements) {
     let j = i;
     while (j < n && ats[j] === null) j++;
     const runLen = j - i;
-    const lo = i === 0 ? 0 : ats[i - 1];
     const hi = j < n ? ats[j] : TIMING.defaultSpan; // next anchor, or the default span end (exclusive)
+    const lo = i === 0 ? Math.min(TIMING.firstAt, hi / 2) : ats[i - 1];
     if (i === 0) {
-      // leading run: starts at 0, hi is exclusive (same as the i/n default)
+      // leading run: starts at firstAt (talk first), hi is exclusive (same as the i/n default)
       const step = (hi - lo) / runLen;
       for (let k = 0; k < runLen; k++) ats[i + k] = round6(lo + step * k);
     } else {

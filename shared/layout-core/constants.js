@@ -27,8 +27,20 @@ export const TEXT_STYLES = Object.freeze(['title', 'body', 'note']);
 export const DEFAULT_TEXT_STYLE = 'body';
 
 // ---- Pen / strokes ----
-/** Pen speed used by strokes.naturalMs: total path length / PEN_PX_PER_S. */
-export const PEN_PX_PER_S = 1500;
+/**
+ * Pen speed used by strokes.naturalMs and the drawables: total path length / PEN_PX_PER_S.
+ * 550 (was 1500) approximates Sal's hand measured against glyph OUTLINE length
+ * (design/02-khan-video-study.md §2.2: a 5-letter word in 1.5–5 s, an equation line in 8–15 s;
+ * change-khan-feel item 2). The scheduler draws at this speed and parks the pen for the rest of
+ * the element's window instead of stretching the strokes across it.
+ */
+export const PEN_PX_PER_S = 550;
+/** Micro-pauses the scheduler adds to an element's handwriting time (ms): between words, and between lines / parts. */
+export const PEN_WORD_GAP_MS = 120;
+export const PEN_LINE_GAP_MS = 250;
+/** Pen cursor: travel time between two distant tips (ease-in-out, wall time) and the hover drift radius while parked (px). */
+export const PEN_TRAVEL_MS = 320;
+export const PEN_HOVER_PX = 2.5;
 /** strokeWidth 3.2 = the ~3-4 px pen of a 1080p Khan video scaled to the 1600 px board (design cycle 1). */
 export const ROUGH_OPTIONS = Object.freeze({ roughness: 1.2, bowing: 1, strokeWidth: 3.2, fillStyle: 'hachure', hachureGap: 8 });
 
@@ -107,7 +119,8 @@ export const CAPS = Object.freeze({
 // ---- Timing (spec §4.4 common fields, brief 00 C1) ----
 export const TIMING = Object.freeze({
   atMax: 0.9,
-  defaultSpan: 0.85, // omitted `at` values are spaced evenly across [0, 0.85]
+  firstAt: 0.08,     // talk first: an omitted first `at` starts here, not at 0 (study §2.10: Sal talks 3–60 s before the first stroke)
+  defaultSpan: 0.85, // omitted `at` values are spaced evenly across [firstAt, 0.85]
   lastWindowEnd: 0.95,
 });
 
