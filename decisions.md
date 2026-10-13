@@ -72,3 +72,11 @@ Changes requested to the draft:
 - Out of scope, named in §2: image generation traced into strokes (compatible with the svg-in-a-slot contract, may be added later as another producer), scrolling board, pasted photos/maps, freehand paths.
 - New risk row: svg quality (model-written SVG may be crude or wrong); mitigated by the tier order and the allowlist, judged by human in QA.
 - Drawing/rendering is expected to be its own slice or two; the orchestrator decides.
+
+## Design cycle 1: the Khan Academy look (requested 2026-10-12)
+
+The human asked, after v0.1.0: make the whiteboard look exactly like Khan Academy — fully black background, match the cursor, match the colors Sal Khan commonly uses and the purposes he uses them for, and use a voice like his.
+
+- Voice: no cloning of Sal Khan's voice (a real person's voice without consent). Instead: pick the closest stock OpenAI voice by audition and tune narration style (pace, thinking-aloud phrasing) in SKILL.md. Human picks the final voice by listening.
+- Look: implemented as token VALUE changes only (names frozen per the contract-first rule): boardBg → black, accents → Khan palette, chalk/muted adjusted for black. Plus a cursor sprite change in the pen overlay, and a color-semantics rule in SKILL.md (which accent is for what purpose).
+- Research first: design/01-khan-look-research.md gathers palette hex values, color conventions, cursor, handwriting, narration style, voice candidates, with sources. Token values are proposed to the human for approval before implementation (CLAUDE.md rule 3).
