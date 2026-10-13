@@ -6,13 +6,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { preparePlot } from '../../player/renderer/pictures/index.js';
-import { formatNum, autoYRange, splitRuns, chooseTicks, cutHole, TICKS_MIN, TICKS_MAX } from '../../player/renderer/pictures/plot.js';
+import { formatNum, autoYRange, splitRuns, chooseTicks, cutHole, axisOvershoot, TICKS_MIN, TICKS_MAX, LABEL_GAP, ARROW_LEN, ARROW_HALF_W } from '../../player/renderer/pictures/plot.js';
 import { seriesToken, rectsIntersect } from '../../player/renderer/pictures/common.js';
 import { slotRect } from '../../shared/layout-core/grid.js';
 import { tokens } from '../../shared/layout-core/tokens.js';
 import { validateScene, prepareValidator } from '../../shared/schema/validate.js';
 import { createOccupancy } from '../../shared/layout-core/occupancy.js';
-import { ensureFont, ctxFor, insideSlot, rectInside, REPO_ROOT } from './helpers.js';
+import { ensureFont, ctxFor, insideSlot, rectInside, rectsDistance, REPO_ROOT } from './helpers.js';
 
 before(ensureFont);
 
@@ -219,6 +219,8 @@ test('ticks: 2–5 per axis at a nice step, integers whenever two fit, never zer
   assert.ok(insideSlot(d, 'A1:C3'));
 });
 
+// MODIFIED (qa/04 finding 4): the positive-end arrow tip is `axes.xEnd` / `axes.yEnd` — the axis end nudged past
+// the last tick number — rather than the data area's edge.
 test('arrowheads: each axis is its own stroke with an arrowhead at its positive end, and at both ends when the range crosses zero', () => {
   const one = prep(el({ fn: 'x', xRange: [0, 4], yRange: [0, 4] }));
   assert.deepEqual(one.picture.axes.arrowheads, { x: ['+x'], y: ['+y'] });
@@ -233,10 +235,10 @@ test('arrowheads: each axis is its own stroke with an arrowhead at its positive 
     const yStrokes = completeAfterPart(d, 1) - xStrokes;
     assert.ok(xStrokes >= 1 + d.picture.axes.arrowheads.x.length, `x axis has ${xStrokes} strokes`);
     assert.ok(yStrokes >= 1 + d.picture.axes.arrowheads.y.length, `y axis has ${yStrokes} strokes`);
-    const lastX = d.picture.axes.arrowheads.x.at(-1) === '+x' ? a.x + a.w : a.x;
+    const lastX = d.picture.axes.arrowheads.x.at(-1) === '+x' ? d.picture.axes.xEnd : a.x;
     const tx = d.tipAt(1 / n - 1e-9);
     assert.ok(Math.hypot(tx.x - lastX, tx.y - xAxisY) <= 22, `x arrowhead ends near the axis end: ${JSON.stringify(tx)}`);
-    const lastY = d.picture.axes.arrowheads.y.at(-1) === '+y' ? a.y : a.y + a.h;
+    const lastY = d.picture.axes.arrowheads.y.at(-1) === '+y' ? d.picture.axes.yEnd : a.y + a.h;
     const ty = d.tipAt(2 / n - 1e-9);
     assert.ok(Math.hypot(ty.x - yAxisX, ty.y - lastY) <= 22, `y arrowhead ends near the axis end: ${JSON.stringify(ty)}`);
     // the first stroke of part 0 is the x axis line itself: the pen starts at its left end
@@ -363,5 +365,60 @@ test('validator: hole, labels, xLabel and yLabel are additive and checked (BAD_F
   for (const id of ['s004', 's005']) {
     const r = await validateScene(fixtureScene('fx-type-plot', id), createOccupancy(), { lessonId: 'fx-type-plot' });
     assert.ok(r.ok, `${id}: ${JSON.stringify(r.errors)}`);
+  }
+});
+
+// ---------- qa/04 finding 4: the last tick number no longer crowds the arrowhead ----------
+
+/** Bounding boxes of the arrowheads at the positive ends. */
+const positiveArrowRects = (d) => {
+  const { xAxisY, yAxisX, xEnd, yEnd } = d.picture.axes;
+  return {
+    x: { x: xEnd - ARROW_LEN, y: xAxisY - ARROW_HALF_W, w: ARROW_LEN, h: 2 * ARROW_HALF_W },
+    y: { x: yAxisX - ARROW_HALF_W, y: yEnd, w: 2 * ARROW_HALF_W, h: ARROW_LEN },
+  };
+};
+
+test('tick crowding: a tick number at the positive end of an axis is kept, and the axis runs on past it so the arrowhead clears the number by LABEL_GAP; a clear tick leaves the axis alone', () => {
+  // the helper: no overshoot when the tick is far from the end; exactly enough when it sits on the end
+  assert.equal(axisOvershoot(0.5, 400, 24), 0);
+  assert.ok(Math.abs(axisOvershoot(0, 400, 24) - (12 + LABEL_GAP + ARROW_LEN)) < 1e-9);
+  assert.equal(axisOvershoot(1, 400, 24), 0);
+  assert.equal(axisOvershoot(NaN, 400, 24), 0);
+  // ticks 1..4 on both axes end on the range end (fx-type-plot s004-like): both axes are nudged
+  const d = prep(el({ fn: 'x', xRange: [0, 4], yRange: [0, 4] }));
+  const a = d.picture.area;
+  const { xEnd, yEnd, overshoot } = d.picture.axes;
+  assert.deepEqual(d.picture.ticks.x.map((t) => t.value), [1, 2, 3, 4]);
+  assert.deepEqual(d.picture.ticks.y.map((t) => t.value), [1, 2, 3, 4]);
+  assert.ok(overshoot.x > 0 && overshoot.y > 0, `overshoot ${JSON.stringify(overshoot)}`);
+  assert.ok(Math.abs(xEnd - (a.x + a.w + overshoot.x)) < 1e-9);
+  assert.ok(Math.abs(yEnd - (a.y - overshoot.y)) < 1e-9);
+  const lastX = d.picture.ticks.x.at(-1), lastY = d.picture.ticks.y.at(-1);
+  assert.ok(lastX.box && lastY.box, 'the end ticks keep their numbers');
+  assert.ok(xEnd - ARROW_LEN >= lastX.box.x + lastX.box.w + LABEL_GAP - 1e-6, 'x arrowhead base clears the last x number');
+  assert.ok(yEnd + ARROW_LEN <= lastY.box.y - LABEL_GAP + 1e-6, 'y arrowhead base clears the last y number');
+  // the axis names moved with the tips, and everything is still inside the slot
+  assert.ok(d.picture.names.xBox.x >= xEnd + LABEL_GAP - 1e-6);
+  assert.ok(d.picture.names.yBox.y < yEnd + 4);
+  assert.ok(insideSlot(d, 'A1:C3'));
+  // the parts' meta `to` is the tip; the pen ends the axis stroke there
+  const [px, py] = d.picture.partKinds.map((k, i) => i).slice(0, 2);
+  assert.equal(px, 0); assert.equal(py, 1);
+  // x ticks −2 / 2 inside [−3, 3] are far from the ends: no x overshoot; y ticks end on 10: y nudged
+  const clear = prep(el({ fn: 'x^2', xRange: [-3, 3], yRange: [0, 10] }));
+  assert.equal(clear.picture.axes.overshoot.x, 0);
+  assert.ok(Math.abs(clear.picture.axes.xEnd - (clear.picture.area.x + clear.picture.area.w)) < 1e-9);
+  assert.ok(clear.picture.axes.overshoot.y > 0);
+  // every tick number of the plot fixtures (s001 "10" vs the y arrow, s004 "4" / "5", s005 "4") is at least LABEL_GAP clear of the positive arrowheads
+  for (const sceneId of ['s001', 's002', 's003', 's004', 's005']) {
+    const e = fixtureScene('fx-type-plot', sceneId).elements[0];
+    const dd = prep(e);
+    const arrows = positiveArrowRects(dd);
+    for (const box of dd.picture.tickLabels) {
+      for (const k of ['x', 'y']) assert.ok(rectsDistance(box, arrows[k]) >= LABEL_GAP - 1e-6, `${sceneId}: tick ${JSON.stringify(box)} vs ${k} arrowhead ${JSON.stringify(arrows[k])}`);
+    }
+    for (const box of [dd.picture.names.xBox, dd.picture.names.yBox]) for (const t of dd.picture.tickLabels) assert.ok(!rectsIntersect(box, t));
+    assert.ok(insideSlot(dd, e.slot));
   }
 });

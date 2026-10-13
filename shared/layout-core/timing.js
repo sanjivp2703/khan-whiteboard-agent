@@ -6,7 +6,10 @@
 // between them; explicit `at` values (including 0) are honoured and must be non-decreasing in
 // list order (else BAD_AT). An element's window runs from its `at` to the next element's `at`
 // (0.95 for the last). Multi-part elements reveal their parts evenly across the window unless
-// `itemAt[]` (list) overrides; itemAt must be ascending and inside the window.
+// `itemAt[]` (list) overrides; itemAt must be ascending and inside the window. These resolved
+// windows are the validator's contract (itemAt ranges, BAD_AT); at play time the scheduler keeps
+// the explicit anchors and the span of each omitted run but shares that span by handwriting need
+// (player/engine/scheduler.js weightWindows, qa/04 finding 1a).
 import { TIMING } from './constants.js';
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);

@@ -449,7 +449,7 @@ export function start(opts) {
     const live = entryOf(entry.sceneId) || entry;
     const durationMs = Number.isFinite(live.durationMs) && live.durationMs > 0 ? live.durationMs : 0;
     const effective = scene || { sceneId: entry.sceneId, title: live.title, narration: '', board: live.board || { mode: 'region', slots: 'A1' }, elements: [] };
-    const timeline = buildTimeline(effective, durationMs, targetDrawables, { naturalMsScale: config.naturalMsScale });
+    const timeline = buildTimeline(effective, durationMs, targetDrawables, { naturalMsScale: config.naturalMsScale, yieldCapMs: Number(config.yieldCapMs) });
     for (const it of compressedItems(timeline)) log('compressed', { sceneId: entry.sceneId, id: it.id, ratio: Math.round(it.ratio * 100) / 100, needMs: Math.round(it.naturalMs + it.pauseMs), windowMs: Math.round(it.windowEnd - it.start) }); // spec §6 writing pace: last resort
     const forced = new Set();
     if (resume) for (const item of timeline) if (item.start < t * 1000) forced.add(item.id);
