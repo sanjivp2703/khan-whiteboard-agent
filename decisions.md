@@ -80,3 +80,10 @@ The human asked, after v0.1.0: make the whiteboard look exactly like Khan Academ
 - Voice: no cloning of Sal Khan's voice (a real person's voice without consent). Instead: pick the closest stock OpenAI voice by audition and tune narration style (pace, thinking-aloud phrasing) in SKILL.md. Human picks the final voice by listening.
 - Look: implemented as token VALUE changes only (names frozen per the contract-first rule): boardBg → black, accents → Khan palette, chalk/muted adjusted for black. Plus a cursor sprite change in the pen overlay, and a color-semantics rule in SKILL.md (which accent is for what purpose).
 - Research first: design/01-khan-look-research.md gathers palette hex values, color conventions, cursor, handwriting, narration style, voice candidates, with sources. Token values are proposed to the human for approval before implementation (CLAUDE.md rule 3).
+
+### Approved 2026-10-12 (design cycle 1)
+- Tokens approved as proposed in design/01-khan-look-research.md §"Proposed token values": boardBg #000000, chalk #FFFFFF, accent1 #FFE066 (yellow), accent2 #65D0FA (light blue), accent3 #FF8D71 (coral), accent4 #59F3CE (teal), accent5 #FB73BE (pink), muted #717378. KA blue/purple NOT added (follow-up if wanted).
+- Cursor: white arrow pointer with dark outline, slightly larger than OS default (replaces the chalk-stick glyph). Pen strokes slightly thicker with light pressure variation.
+- Color use: one color per idea for the whole lesson (unchanged); body text takes its concept's color; white reserved for neutral connecting text. No fixed purpose→color mapping was verifiable, so none is imposed.
+- Voice: switch default TTS model to OpenAI gpt-4o-mini-tts (accepts `instructions`), default voice `ash`, with a Sal-style delivery instruction derived from KA's creator guidance. Add `khan audition` so the human can hear candidates (ash, echo, onyx; cedar if available) and pick. Not cloning Sal Khan's voice.
+- Handwriting font unchanged (Patrick Hand).
