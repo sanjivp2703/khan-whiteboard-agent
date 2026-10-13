@@ -92,7 +92,9 @@ function ellipsePath(cx, cy, rx, ry, m) {
 
 /**
  * Convert an SVG string to strokes under a root matrix (which maps root SVG user units to
- * board pixels). Returns [{d, tag, dataC}] in document order.
+ * board pixels). Returns [{d, tag, dataC, origin, em}] in document order, where `origin` is
+ * the board point of the element's local (0, 0) (for a MathJax glyph: its origin on the
+ * baseline) and `em` the local em size in board px (1000 local units).
  */
 export function svgToStrokes(svg, root = IDENTITY) {
   const stack = [root.slice()];
@@ -120,7 +122,9 @@ export function svgToStrokes(svg, root = IDENTITY) {
       case 'ellipse': segs = ellipsePath(Number(attrs.cx || 0), Number(attrs.cy || 0), Number(attrs.rx || 0), Number(attrs.ry || 0), cur); break;
       default: break;
     }
-    if (segs && segs.length) out.push({ d: segmentsToPath(segs), tag: name, dataC: attrs['data-c'] || null });
+    if (segs && segs.length) {
+      out.push({ d: segmentsToPath(segs), tag: name, dataC: attrs['data-c'] || null, origin: apply(cur, 0, 0), em: Math.hypot(cur[0], cur[1]) * 1000 });
+    }
     if (!selfClose) stack.push(cur);
   }
   return out;

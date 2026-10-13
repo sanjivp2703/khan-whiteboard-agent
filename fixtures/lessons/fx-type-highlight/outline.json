@@ -17,6 +17,11 @@
       "sceneId": "s003",
       "title": "Default style",
       "goal": "Explain default style"
+    },
+    {
+      "sceneId": "s004",
+      "title": "Emphasis styles",
+      "goal": "Show the wavy, double and box styles"
     }
   ],
   "producer": {

@@ -18,8 +18,9 @@ export const COL_LETTERS = 'ABCDEF';
 export const SLOT_PAD = 12;
 
 // ---- Typography (fixed styles; no other sizes exist) ----
-export const FONT_SIZES = Object.freeze({ title: 44, body: 28, note: 22, code: 20 });
-export const LINE_HEIGHTS = Object.freeze({ title: 54, body: 36, note: 28, code: 24 });
+/** change-khan-feel: body 28 → 38, note 22 → 28 (Sal's cap height ≈ 45–50 px on the 1600 board; study §2.3); title stays 44 (never bigger than body in his videos). */
+export const FONT_SIZES = Object.freeze({ title: 44, body: 38, note: 28, code: 20 });
+export const LINE_HEIGHTS = Object.freeze({ title: 54, body: 48, note: 36, code: 24 });
 /** `code` is drawn with the handwriting font at a fixed per-character advance (px). */
 export const CODE_CHAR_ADVANCE = 10;
 export const TEXT_STYLES = Object.freeze(['title', 'body', 'note']);
@@ -37,7 +38,8 @@ export const ELEMENT_TYPES = Object.freeze([
 ]);
 /** Types that occupy a slot (everything except arrow and highlight). */
 export const SLOTTED_TYPES = Object.freeze(ELEMENT_TYPES.filter((t) => t !== 'arrow' && t !== 'highlight'));
-export const HIGHLIGHT_STYLES = Object.freeze(['circle', 'underline', 'strike', 'pointer']);
+/** change-khan-feel: wavy (wavy underline), double (double underline) and box (rough rectangle) are additive (study §2.10: V5 0:51, V2 3:05, V4 9:33). */
+export const HIGHLIGHT_STYLES = Object.freeze(['circle', 'underline', 'wavy', 'double', 'box', 'strike', 'pointer']);
 export const DEFAULT_HIGHLIGHT_STYLE = 'circle';
 /** Sketch library enum (extendable without a contract change). */
 export const SKETCH_SHAPES = Object.freeze([
@@ -56,7 +58,7 @@ export const CAPS = Object.freeze({
   outlineScenesMax: 12,
   idMaxLen: 24,
 
-  textWordsPerCell: 10,
+  textWordsPerCell: 8, // change-khan-feel: re-derived at body 38 px (average prose fits ≈ 9 words per cell; 8 leaves margin)
   textWordsMax: 40,
   titleWordsMax: 8,
   titleMinColSpan: 2,
@@ -118,7 +120,8 @@ export const NARRATION = Object.freeze({
 // ---- Measurement details ----
 export const LIST_LAYOUT = Object.freeze({ bulletIndent: 34, itemGap: 6, style: 'body' });
 export const TABLE_LAYOUT = Object.freeze({ cellPad: 6, style: 'note', maxCellLines: 2 });
-export const MATH_LAYOUT = Object.freeze({ fontPx: 28, lineGap: 10, exPx: 8 });
+/** change-khan-feel: math follows the body size up (36 px is the largest at which every fixture math block still fits its slot). */
+export const MATH_LAYOUT = Object.freeze({ fontPx: 36, lineGap: 6, exPx: 8 });
 export const BOX_LAYOUT = Object.freeze({ labelStyle: 'note', labelPad: 6 });
 
 // ---- Identifiers (spec §4.1, §4.4) ----

@@ -11,7 +11,7 @@
     {
       "id": "para",
       "type": "text",
-      "slot": "A1:D1",
+      "slot": "A1:E1",
       "style": "body",
       "text": "A response cache stores the full answer to a request keyed by its inputs, so when the same inputs arrive again the server can return the stored answer immediately, skipping the database, the templates, and every other expensive step entirely."
     },

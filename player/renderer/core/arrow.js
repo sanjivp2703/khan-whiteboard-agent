@@ -104,7 +104,7 @@ export function prepareArrow(el, ctx) {
     const w = Math.max(...lines.map((l) => textWidth(l, LABEL_STYLE)));
     const h = lines.length * lineHeight(LABEL_STYLE);
     labelRect = placeLabel(p1, p2, w, h, [A, B]);
-    const { strokes: text } = blockStrokes(lines, LABEL_STYLE, labelRect.x, labelRect.y, color, seed + 2, { meta: { label: true } });
+    const { strokes: text } = blockStrokes(lines, LABEL_STYLE, labelRect.x, labelRect.y, color, seed + 2, { meta: { label: true }, hand: { key: `${el.id}:label` } });
     strokes.push(...text);
   }
   return buildDrawable({

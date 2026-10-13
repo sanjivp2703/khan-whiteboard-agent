@@ -51,7 +51,7 @@ export function checkLayout(scene, occupancy, skipIds = new Set(), artifacts = n
       case 'text': {
         const cap = textWordCap(bounds);
         const n = countWords(el.text);
-        if (n > cap) E(el.id, 'CAP_WORDS', `text has ${n} words; cap for ${el.slot} is ${cap} (10 × ${span.cells} cells, max ${CAPS.textWordsMax})`);
+        if (n > cap) E(el.id, 'CAP_WORDS', `text has ${n} words; cap for ${el.slot} is ${cap} (${CAPS.textWordsPerCell} × ${span.cells} cells, max ${CAPS.textWordsMax})`);
         if (el.style === 'title' && span.cols < CAPS.titleMinColSpan) E(el.id, 'SLOT_TOO_SMALL', `title needs colSpan ≥ ${CAPS.titleMinColSpan}, slot ${el.slot} has ${span.cols}`);
         else if (n <= cap) {
           const m = measureTextElement(el, rect);

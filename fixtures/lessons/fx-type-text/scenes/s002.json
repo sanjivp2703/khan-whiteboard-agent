@@ -20,7 +20,7 @@
     {
       "id": "capnote",
       "type": "text",
-      "slot": "E3",
+      "slot": "E3:F3",
       "style": "note",
       "text": "one two three four five six seven eight nine ten",
       "at": 0.4,

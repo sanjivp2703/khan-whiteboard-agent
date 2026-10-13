@@ -3,9 +3,14 @@
 // strings with a style) grouped into parts; `u` maps to parts through partStarts and,
 // inside a part, strokes are revealed in order proportionally to their length.
 //
-// Stroke kinds: 'glyph' (handwriting outline: filled when complete, outlined while in
-// progress), 'rough' (rough.js stroke), 'faint' (rough.js stroke, lighter and thinner).
-import { flatten, rough, parsePath } from '../../../shared/strokes.js';
+// Stroke kinds: 'glyph' (handwriting outline, filled; revealed by a left-to-right sweep of
+// the filled glyph so ink appears where the pen is — change-khan-feel, study §4 item 3),
+// 'rough' (rough.js stroke), 'faint' (rough.js stroke, lighter and thinner).
+//
+// Handwriting feel (change-khan-feel, study §4 item 4): every hand-written glyph is sheared
+// HAND.shearDeg to the right and gets a small deterministic jitter (baseline, size, rotation)
+// seeded by the element id and the glyph index, so the same element always draws the same.
+import { flatten, rough, parsePath, seedFor } from '../../../shared/strokes.js';
 import { glyphPaths, textWidth, measure, lineHeight, fontSize, getFont } from '../../../shared/handwriting.js';
 import { colorOf, tokens } from '../../../shared/layout-core/tokens.js';
 import { PEN_PX_PER_S, ROUGH_OPTIONS, CANVAS_W, CANVAS_H, CODE_CHAR_ADVANCE } from '../../../shared/layout-core/constants.js';
@@ -19,12 +24,25 @@ const FIT_ATTEMPTS = 6;
 const EPS = 1e-6;
 
 export const PEN = Object.freeze({
-  glyphEdge: 1.3,        // outline width added around a completed, filled glyph (design cycle 1: bolder pen)
-  glyphProgress: 2.6,    // outline width of the glyph currently being written
+  glyphEdge: 1.6,        // outline width added around a filled glyph (study §4 item 15: heavier ink at the larger sizes)
+  glyphProgress: 1.6,    // the glyph being written is drawn like a finished one, inside the sweep clip (no outline-then-fill pop)
   rough: ROUGH_OPTIONS.strokeWidth,
   faint: 1.5,
   faintAlpha: 0.55,
 });
+
+/** Handwriting feel: right shear and per-glyph jitter amplitudes (study §2.3; proposal item 3). */
+export const HAND = Object.freeze({
+  shearDeg: 6,
+  baselinePx: 1,     // baseline drift ± px
+  sizePct: 3,        // size ± %
+  rotationDeg: 2,    // rotation ± degrees about the glyph centre
+  /** Styles that get the hand treatment; `code` stays upright and even. */
+  styles: Object.freeze(['title', 'body', 'note']),
+});
+
+/** Sweep reveal: the clip edge runs from this many px left of the glyph to this many px right of it. */
+const SWEEP_MARGIN = 2;
 
 const BOARD = { x: 0, y: 0, w: CANVAS_W, h: CANVAS_H };
 
@@ -193,18 +211,110 @@ export function glyphOutline(ch, style, x, baseline) {
   return d;
 }
 
+// ---------- hand effects (deterministic) ----------
+
+/** Small deterministic PRNG (mulberry32) seeded from a string key; returns () → [0, 1). */
+export function handRng(key) {
+  let a = seedFor(key) >>> 0;
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Jitter parameters for one glyph: {dy, size, rot} from the element key and glyph index. */
+export function handJitter(key, index) {
+  const r = handRng(`${key}#${index}`);
+  const dy = (r() * 2 - 1) * HAND.baselinePx;
+  const size = 1 + (r() * 2 - 1) * (HAND.sizePct / 100);
+  const rot = ((r() * 2 - 1) * HAND.rotationDeg * Math.PI) / 180;
+  return { dy, size, rot };
+}
+
+function segmentsBounds(segs) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const s of segs) for (let i = 0; i < s.pts.length; i += 2) {
+    const x = s.pts[i], y = s.pts[i + 1];
+    if (x < x0) x0 = x; if (y < y0) y0 = y; if (x > x1) x1 = x; if (y > y1) y1 = y;
+  }
+  return x0 === Infinity ? null : { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
+/** Apply `fn(x, y) → [x, y]` to every point (incl. control points) of parsed segments. */
+export function mapSegments(segs, fn) {
+  return segs.map((s) => {
+    const pts = [];
+    for (let i = 0; i < s.pts.length; i += 2) pts.push(...fn(s.pts[i], s.pts[i + 1]));
+    return { type: s.type, pts };
+  });
+}
+
+/**
+ * The hand treatment for one glyph outline whose baseline is at `baseline`: size and rotation
+ * jitter about the glyph centre, the right shear about the baseline, then the baseline drift.
+ * Returns the transformed path string (or `d` unchanged when `jitter` is null and shear is 0).
+ */
+export function handGlyphPath(d, baseline, jitter, shearDeg = HAND.shearDeg) {
+  const segs = parsePath(d);
+  const b = segmentsBounds(segs);
+  if (!b) return d;
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  const k = jitter ? jitter.size : 1;
+  const cos = Math.cos(jitter ? jitter.rot : 0), sin = Math.sin(jitter ? jitter.rot : 0);
+  const tan = Math.tan((shearDeg * Math.PI) / 180);
+  const dy = jitter ? jitter.dy : 0;
+  const out = mapSegments(segs, (x, y) => {
+    const rx = x - cx, ry = y - cy;
+    let px = cx + k * (rx * cos - ry * sin);
+    let py = cy + k * (rx * sin + ry * cos);
+    px += tan * (baseline - py);   // shear: tops lean right, descenders left
+    py += dy;
+    return [px, py];
+  });
+  return segmentsToPath(out);
+}
+
+/**
+ * Light rough jitter for a path that is kept as-is otherwise (MathJax fallback glyphs): every
+ * point is nudged by a smooth, seeded offset of at most `amp` px. Deterministic per key.
+ */
+export function jitterPath(d, key, amp = 0.5) {
+  const r = handRng(key);
+  let ox = 0, oy = 0;
+  const segs = mapSegments(parsePath(d), (x, y) => {
+    ox = 0.6 * ox + 0.4 * (r() * 2 - 1) * amp;
+    oy = 0.6 * oy + 0.4 * (r() * 2 - 1) * amp;
+    return [x + ox, y + oy];
+  });
+  return segmentsToPath(segs);
+}
+
 /**
  * Strokes for one line of handwriting with its baseline at (x, y). Characters the font lacks
  * become a small rough square (never a throw). Returns {strokes, width}.
+ * `hand` = {key, offset} enables the hand treatment (shear + jitter seeded by key and glyph
+ * index; `offset` shifts the index for later lines); `false` draws upright, even glyphs. The
+ * default is the hand treatment for HAND.styles keyed by the text itself.
  */
-export function lineStrokes(text, style, x, y, color, seed, extraMeta = {}) {
+export function lineStrokes(text, style, x, y, color, seed, extraMeta = {}, hand = undefined) {
   const strokes = [];
   const glyphs = glyphPaths(text, style, x, y);
+  const useHand = hand !== false && HAND.styles.includes(style);
+  const key = hand && typeof hand === 'object' && hand.key !== undefined ? String(hand.key) : String(text);
+  const offset = hand && typeof hand === 'object' && Number.isFinite(hand.offset) ? hand.offset : 0;
   let n = 0;
   for (const g of glyphs) {
     if (g.d) {
-      const d = glyphOutline(g.char, style, g.x, y) || g.d;
-      strokes.push({ d, kind: 'glyph', color, char: g.char, x: g.x, advance: g.advance, baseline: y, ...extraMeta });
+      let d = glyphOutline(g.char, style, g.x, y) || g.d;
+      let jitter = null;
+      if (useHand) {
+        jitter = handJitter(key, offset + n);
+        d = handGlyphPath(d, y, jitter);
+      }
+      strokes.push({ d, kind: 'glyph', color, char: g.char, x: g.x, advance: g.advance, baseline: y, index: offset + n, jitter, ...extraMeta });
     } else if (g.char.trim() !== '' && isMissingGlyph(g.char)) {
       const size = fontSize(style);
       const side = Math.max(4, Math.min(g.advance * 0.8, size * 0.4));
@@ -223,17 +333,21 @@ export function lineStrokes(text, style, x, y, color, seed, extraMeta = {}) {
  * Strokes for a block of pre-wrapped lines starting at `top`.
  * @returns {{strokes:object[], lineRects:Array<{x,y,w,h,baseline}>}}
  */
-export function blockStrokes(lines, style, x, top, color, seed, { align = 'left', width = 0, meta = {} } = {}) {
+export function blockStrokes(lines, style, x, top, color, seed, { align = 'left', width = 0, meta = {}, hand = undefined } = {}) {
   const lh = lineHeight(style);
   const strokes = [];
   const lineRects = [];
+  let glyphIndex = 0;
+  const key = hand && typeof hand === 'object' && hand.key !== undefined ? String(hand.key) : lines.join('\n');
   lines.forEach((line, i) => {
     const lw = textWidth(line, style);
     const lineX = align === 'center' ? x + Math.max(0, (width - lw) / 2) : x;
     const lineTop = top + i * lh;
     const baseline = baselineFor(style, lineTop);
-    const { strokes: s } = lineStrokes(line, style, lineX, baseline, color, seed + 31 * i, { ...meta, line: i });
+    const lineHand = hand === false ? false : { key, offset: glyphIndex };
+    const { strokes: s } = lineStrokes(line, style, lineX, baseline, color, seed + 31 * i, { ...meta, line: i }, lineHand);
     strokes.push(...s);
+    glyphIndex += [...line].length;
     lineRects.push({ x: lineX, y: lineTop, w: lw, h: lh, baseline });
   });
   return { strokes, lineRects };
@@ -262,6 +376,32 @@ export function pointOnFlat(flat, total, fraction) {
   const sp = flat[flat.length - 1];
   const last = sp.points[sp.points.length - 1];
   return { x: last[0], y: last[1] };
+}
+
+/** x of the sweep edge of a glyph stroke at `fraction` of its reveal (left edge − margin → right edge + margin). */
+export function sweepEdge(s, fraction) {
+  const f = Math.max(0, Math.min(1, fraction));
+  const x0 = s.bounds.x - SWEEP_MARGIN;
+  return x0 + f * (s.bounds.w + 2 * SWEEP_MARGIN);
+}
+
+/**
+ * Pen tip of a stroke at `fraction`: for a glyph the point of its ink nearest the sweep edge
+ * (the edge x, the mean y of the outline points within a small band around it); for every
+ * other stroke the point at `fraction` of its length (same semantics as strokes.pointAt).
+ */
+export function strokeTip(s, fraction) {
+  if (s.kind !== 'glyph' || !s.bounds) return pointOnFlat(s.flat, s.length, fraction);
+  const edge = Math.max(s.bounds.x, Math.min(s.bounds.x + s.bounds.w, sweepEdge(s, fraction)));
+  const band = Math.max(1.5, s.bounds.w * 0.08);
+  let sum = 0, n = 0, nearest = null, nearestDx = Infinity;
+  for (const sp of s.flat) for (const [x, y] of sp.points) {
+    const dx = Math.abs(x - edge);
+    if (dx <= band) { sum += y; n++; }
+    if (dx < nearestDx) { nearestDx = dx; nearest = y; }
+  }
+  const y = n ? sum / n : (nearest === null ? s.bounds.y + s.bounds.h / 2 : nearest);
+  return { x: edge, y };
 }
 
 /** moveTo/lineTo the first `budget` px of a flattened path onto a 2D context (no beginPath/stroke). */
@@ -380,9 +520,24 @@ export function buildDrawable(spec) {
     if (p.current >= 0 && p.fraction > 0) {
       const s = strokes[p.current];
       setStyle(ctx2d, s, true);
-      ctx2d.beginPath();
-      traceFlat(ctx2d, s.flat, p.fraction * s.length);
-      ctx2d.stroke();
+      if (s.kind === 'glyph' && s.bounds) {
+        // sweep reveal: the finished glyph, clipped to the part left of the advancing edge
+        const edge = sweepEdge(s, p.fraction);
+        const x0 = s.bounds.x - SWEEP_MARGIN, y0 = s.bounds.y - SWEEP_MARGIN - PEN.glyphEdge;
+        ctx2d.save();
+        ctx2d.beginPath();
+        ctx2d.rect(x0, y0, Math.max(0, edge - x0), s.bounds.h + 2 * (SWEEP_MARGIN + PEN.glyphEdge));
+        ctx2d.clip();
+        ctx2d.beginPath();
+        traceFlat(ctx2d, s.flat, Infinity);
+        ctx2d.fill();
+        ctx2d.stroke();
+        ctx2d.restore();
+      } else {
+        ctx2d.beginPath();
+        traceFlat(ctx2d, s.flat, p.fraction * s.length);
+        ctx2d.stroke();
+      }
     }
     ctx2d.restore();
   }
@@ -391,10 +546,9 @@ export function buildDrawable(spec) {
     if (spec.tipOverride) return spec.tipOverride(u);
     if (!strokes.length) return null;
     const p = progress(u);
-    if (p.current >= 0) return pointOnFlat(strokes[p.current].flat, strokes[p.current].length, p.fraction);
-    if (p.completeCount === 0) { const s = strokes[0]; return pointOnFlat(s.flat, s.length, 0); }
-    const s = strokes[p.completeCount - 1];
-    return pointOnFlat(s.flat, s.length, 1);
+    if (p.current >= 0) return strokeTip(strokes[p.current], p.fraction);
+    if (p.completeCount === 0) return strokeTip(strokes[0], 0);
+    return strokeTip(strokes[p.completeCount - 1], 1);
   }
 
   return {

@@ -9,14 +9,14 @@
     {
       "id": "frame",
       "type": "box",
-      "slot": "A3:C4",
+      "slot": "A3:D4",
       "label": "Six words label on the box",
       "color": "muted"
     },
     {
       "id": "grid66",
       "type": "table",
-      "slot": "B3:C4",
+      "slot": "C3:D4",
       "header": true,
       "rows": [
         ["key", "size", "hits", "miss", "ttl", "age"],
@@ -31,7 +31,7 @@
     {
       "id": "eq5",
       "type": "math",
-      "slot": "D3:F4",
+      "slot": "E3:F4",
       "lines": [
         "h = \\frac{\\text{hits}}{\\text{hits} + \\text{misses}}",
         "\\bar{c} = (1 - h)\\, c + h\\, c_0",

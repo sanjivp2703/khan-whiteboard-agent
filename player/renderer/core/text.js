@@ -10,7 +10,7 @@ export function prepareText(el, ctx) {
   const m = measureTextElement({ ...el, text }, rect);
   const color = elementColor(el);
   const seed = ctx.seed(el.id);
-  const { strokes, lineRects } = blockStrokes(m.lines, m.style, m.inner.x, m.inner.y, color, seed);
+  const { strokes, lineRects } = blockStrokes(m.lines, m.style, m.inner.x, m.inner.y, color, seed, { hand: { key: el.id } });
   return buildDrawable({
     id: el.id,
     type: 'text',

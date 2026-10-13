@@ -3,13 +3,13 @@
   "lessonId": "fx-core-dense",
   "sceneId": "s003",
   "title": "Text at the cap",
-  "narration": "After a wipe the text caps are exercised together: forty body words across four cells, an eight word title across the row, a ten word note in one cell, a six word box label, and a four word arrow label.",
+  "narration": "After a wipe the text caps are exercised together: forty body words across five cells, an eight word title across the row, a ten word note in two cells, a six word box label, and a four word arrow label.",
   "board": { "mode": "wipe" },
   "elements": [
     {
       "id": "para40",
       "type": "text",
-      "slot": "A1:D1",
+      "slot": "A1:E1",
       "style": "body",
       "text": "A response cache stores the full answer to a request keyed by its inputs, so when the same inputs arrive again the server can return the stored answer immediately, skipping the database, the templates, and every other expensive step entirely.",
       "color": "accent4"
@@ -17,7 +17,7 @@
     {
       "id": "note10",
       "type": "text",
-      "slot": "E1",
+      "slot": "D3:E3",
       "style": "note",
       "text": "one two three four five six seven eight nine ten",
       "color": "muted"

@@ -1,13 +1,14 @@
 // player/renderer/core/highlight.js — `highlight` drawable: circle (rough ring), underline,
-// strike, or pointer (draws nothing; the pen parks just left of the target). The target rect
-// is the drawn extent of the target where it can be measured (text/code/list/table/math via
-// the same measure.js the validator uses), else the element's content rect; `line` narrows a
-// code target to one line.
+// wavy (wavy underline), double (double underline), box (rough rectangle around the drawn
+// extent), strike, or pointer (draws nothing; the pen parks just left of the target). The
+// target rect is the drawn extent of the target where it can be measured (text/code/list/
+// table/math via the same measure.js the validator uses), else the element's content rect;
+// `line` narrows a code target to one line. wavy/double/box: change-khan-feel, study §4 item 9.
 import { SLOT_PAD, LINE_HEIGHTS } from '../../../shared/layout-core/constants.js';
 import { rectInset } from '../../../shared/layout-core/grid.js';
 import { measureTextElement, measureList, measureCode, measureTable } from '../../../shared/layout-core/measure.js';
 import { textWidth } from '../../../shared/handwriting.js';
-import { buildDrawable, roughFit, roughLine, roughEllipse, roughStrokes, expandRect, elementColor, requireField, ROUGH_ENVELOPE, BOARD_BOUNDS } from './drawable.js';
+import { buildDrawable, roughFit, roughLine, roughRect, roughEllipse, roughStrokes, expandRect, elementColor, requireField, ROUGH_ENVELOPE, BOARD_BOUNDS } from './drawable.js';
 import { boxRect } from './box.js';
 import { normalizeCodeLine } from './code.js';
 import { compiledFor } from './math-compile.js';
@@ -16,6 +17,23 @@ import { mathLayout } from './math.js';
 export const CIRCLE_MARGIN = 16;      // ideal ring margin; the wobble envelope adds ROUGH_ENVELOPE (≤ 20 total)
 export const UNDERLINE_GAP = 3;
 export const POINTER_GAP = 14;
+export const DOUBLE_GAP = 7;          // distance between the two lines of a double underline
+export const WAVE_AMP = 3;            // half-height of the wavy underline
+export const WAVE_LEN = 18;           // wavelength of the wavy underline
+export const BOX_MARGIN = 8;          // ideal gap between a boxed target and its rectangle
+
+/** Points of a wavy line from x1 to x2 around y (a sine of WAVE_AMP / WAVE_LEN, ≥ 2 periods). */
+export function wavePoints(x1, y, x2) {
+  const len = Math.max(1, x2 - x1);
+  const periods = Math.max(2, Math.round(len / WAVE_LEN));
+  const n = periods * 6;
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    pts.push([x1 + t * len, y + WAVE_AMP * Math.sin(t * periods * 2 * Math.PI)]);
+  }
+  return pts;
+}
 
 /**
  * Target geometry: {rect, lastLine} where `rect` is the drawn extent used for circle/strike and
@@ -114,6 +132,26 @@ export function prepareHighlight(el, ctx) {
     envelope = expandRect({ x: x1, y, w: x2 - x1, h: 0 }, ROUGH_ENVELOPE);
     strokes = roughStrokes(roughFit(seed, envelope, (r) => roughLine(r, x1, y, x2, y)), color);
     meta.y = y;
+  } else if (style === 'wavy') {
+    const L = geo.lastLine;
+    const y = L.y + L.h + UNDERLINE_GAP + WAVE_AMP;
+    const x1 = L.x - 2, x2 = L.x + L.w + 2;
+    envelope = expandRect({ x: x1, y: y - WAVE_AMP, w: x2 - x1, h: 2 * WAVE_AMP }, ROUGH_ENVELOPE);
+    strokes = roughStrokes(roughFit(seed, envelope, (r) => r.curve(wavePoints(x1, y, x2), { bowing: 0 })), color, { wavy: true });
+    meta.y = y;
+  } else if (style === 'double') {
+    const L = geo.lastLine;
+    const y = L.y + L.h + UNDERLINE_GAP;
+    const x1 = L.x - 2, x2 = L.x + L.w + 2;
+    envelope = expandRect({ x: x1, y, w: x2 - x1, h: DOUBLE_GAP }, ROUGH_ENVELOPE);
+    strokes = roughStrokes(roughFit(seed, envelope, (r) => [...roughLine(r, x1, y, x2, y), ...roughLine(r, x1 + 3, y + DOUBLE_GAP, x2 - 1, y + DOUBLE_GAP)]), color, { double: true });
+    meta.y = y;
+    meta.y2 = y + DOUBLE_GAP;
+  } else if (style === 'box') {
+    const frame = expandRect(T, BOX_MARGIN);
+    envelope = expandRect(frame, ROUGH_ENVELOPE);
+    strokes = roughStrokes(roughFit(seed, envelope, (r) => roughRect(r, frame.x, frame.y, frame.w, frame.h)), color, { box: true });
+    meta.frame = frame;
   } else if (style === 'strike') {
     const y = T.y + T.h / 2;
     const x1 = T.x - 4, x2 = T.x + T.w + 4;
