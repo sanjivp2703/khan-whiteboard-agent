@@ -1,7 +1,7 @@
 // Slice 01 — unit tests for the OpenAI provider with a recording fetch mock (criteria 1, 2, 5, key hygiene).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createOpenAIProvider, OPENAI_SPEECH_URL, DEFAULT_VOICE, DEFAULT_MODEL, DEFAULT_INSTRUCTIONS, INSTRUCTIONS_UNSUPPORTED_MODELS, resolveVoice, resolveModel, resolveInstructions, modelSupportsInstructions, redactKey, NO_KEY_REASON, BACKOFF_MS, TIMEOUT_MS, MAX_ATTEMPTS } from '../../server/tts/openai.js';
+import { createOpenAIProvider, OPENAI_SPEECH_URL, DEFAULT_VOICE, DEFAULT_MODEL, DEFAULT_INSTRUCTIONS, INSTRUCTIONS_UNSUPPORTED_MODELS, resolveVoice, resolveModel, resolveInstructions, modelSupportsInstructions, redactKey, NO_KEY_REASON, BACKOFF_MS, TIMEOUT_MS, MAX_ATTEMPTS, MAX_TIMEOUT_ATTEMPTS } from '../../server/tts/openai.js';
 import { selectProvider, ttsStatus } from '../../server/tts/index.js';
 import { cacheKey, cacheKeyFor } from '../../server/tts/cache.js';
 import { createMockFetch, audioResponse, errorResponse, hangingResponse, networkError, fixtureBytes, FIXTURE_MP3_META } from './helpers/mock-fetch.js';
@@ -178,7 +178,7 @@ test('retry matrix: 500 ×3 → rejects with TTS_FAILED after exactly 3 attempts
   assert.deepEqual(sleeps, [1000, 3000]);
   assert.deepEqual(BACKOFF_MS, [1000, 3000]);
   assert.equal(MAX_ATTEMPTS, 3);
-  assert.equal(TIMEOUT_MS, 20000);
+  assert.equal(TIMEOUT_MS, 90000); // was 20000 until backlog #25 (gpt-4o-mini-tts needs longer than that for 80–90 words)
 });
 
 test('retry matrix: 408 and network errors are retried; 401 → TTS_AUTH after 1 attempt; 403 → TTS_AUTH; 400/404/422 → TTS_BAD_REQUEST immediately', async () => {
@@ -207,7 +207,7 @@ test('retry matrix: 408 and network errors are retried; 401 → TTS_AUTH after 1
   assert.equal(net.mock.calls.length, 3);
 });
 
-test('a hanging request is aborted at the timeout (per attempt), then retried; three hangs → TTS_FAILED with a timeout cause', async () => {
+test('a hanging request is aborted at the timeout (per attempt), then retried; two hangs → TTS_FAILED with a timeout cause (a third timed-out attempt is not made since backlog #25)', async () => {
   const t0 = Date.now();
   const hang = make([(_u, init) => hangingResponse(init), audioResponse()], { timeoutMs: 60 });
   const out = await hang.provider.synthesize({ text: TEXT });
@@ -219,8 +219,8 @@ test('a hanging request is aborted at the timeout (per attempt), then retried; t
   assert.match(hang.logs[0], /timed out after 60 ms/);
 
   const all = make([(_u, init) => hangingResponse(init)], { timeoutMs: 30 });
-  await assert.rejects(() => all.provider.synthesize({ text: TEXT }), (e) => e.code === 'TTS_FAILED' && e.attempts === 3 && e.cause && e.cause.code === 'TTS_TIMEOUT' && /timed out after 30 ms/.test(e.message));
-  assert.equal(all.mock.calls.length, 3);
+  await assert.rejects(() => all.provider.synthesize({ text: TEXT }), (e) => e.code === 'TTS_FAILED' && e.attempts === 2 && e.cause && e.cause.code === 'TTS_TIMEOUT' && /timed out after 30 ms/.test(e.message));
+  assert.equal(all.mock.calls.length, 2, 'at most MAX_TIMEOUT_ATTEMPTS timed-out attempts');
   for (const c of all.mock.calls) assert.equal(c.signal.aborted, true);
   // env knobs reach the provider when constructed by the foundation (no injection possible there)
   const viaEnv = createOpenAIProvider({ env: { OPENAI_API_KEY: KEY, KHAN_TTS_TIMEOUT_MS: '25', KHAN_TTS_BACKOFF_MS: '0,0' }, fetch: (_u, init) => hangingResponse(init) });
@@ -363,4 +363,77 @@ test('default fetch is looked up per call on globalThis (so a swapped global tak
   } finally {
     mock.uninstall();
   }
+});
+
+// ---- backlog #25 (fix lane, 2026-10-13): gpt-4o-mini-tts needs more than 20 s for an 80–90-word scene ----
+
+/** A 200 response whose body never finishes: the abort fires while the body is being read, as it did in the real lessons. */
+function bodyNeverEnds(init) {
+  const signal = init && init.signal;
+  return {
+    status: 200,
+    headers: new Headers({ 'content-type': 'audio/mpeg' }),
+    arrayBuffer: () => new Promise((_, reject) => {
+      const fail = () => reject(new DOMException('This operation was aborted', 'AbortError'));
+      if (signal.aborted) fail(); else signal.addEventListener('abort', fail, { once: true });
+    }),
+    text: async () => '',
+  };
+}
+
+test('backlog #25: the default per-attempt timeout is 90 s, so a body that arrives after 25 s succeeds (fake timers, no real wait) and KHAN_TTS_TIMEOUT_MS still overrides it', async (t) => {
+  assert.equal(TIMEOUT_MS, 90000);
+  t.after(() => t.mock.timers.reset());
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const mock = createMockFetch([() => new Promise((resolve) => setTimeout(() => resolve(audioResponse()), 25000))]);
+    const logs = [];
+    // no timeoutMs knob: this exercises the built-in default, with no KHAN_TTS_TIMEOUT_MS in env
+    const provider = createOpenAIProvider({ env: { OPENAI_API_KEY: KEY }, fetch: mock.fetch, backoffMs: [0, 0], log: (l) => logs.push(l), sleep: async () => {} });
+    const pending = provider.synthesize({ text: TEXT });
+    assert.equal(mock.calls.length, 1, 'the request went out synchronously');
+    t.mock.timers.tick(25000); // 25 s later the body lands — under the old 20 s limit this attempt would already be aborted
+    const out = await pending;
+    assert.equal(out.ext, 'mp3');
+    assert.equal(mock.calls[0].signal.aborted, false, 'not aborted at 20 s');
+    assert.match(logs.at(-1), /attempts=1/);
+  } finally {
+    t.mock.timers.reset();
+  }
+  // the env override is still honoured on the body-read path: 25 ms override, body never lands → aborted twice, then TTS_FAILED
+  const slow = createMockFetch([(_u, init) => bodyNeverEnds(init)]);
+  const strict = createOpenAIProvider({ env: { OPENAI_API_KEY: KEY, KHAN_TTS_TIMEOUT_MS: '25', KHAN_TTS_BACKOFF_MS: '0,0' }, fetch: slow.fetch });
+  const t0 = Date.now();
+  await assert.rejects(() => strict.synthesize({ text: TEXT }), (e) => e.code === 'TTS_FAILED' && e.attempts === 2 && e.cause && e.cause.code === 'TTS_TIMEOUT' && /timed out after 25 ms/.test(e.message));
+  assert.equal(slow.calls.length, 2);
+  assert.ok(slow.calls.every((c) => c.signal.aborted));
+  assert.ok(Date.now() - t0 < 2000, 'the override, not the 90 s default, was in force');
+});
+
+test('backlog #25: an abort during the body read maps to TTS_TIMEOUT (never a bare "This operation was aborted"), is retried once, and gives up after 2 timed-out attempts with TTS_FAILED', async () => {
+  const t0 = Date.now();
+  const all = make([(_u, init) => bodyNeverEnds(init)], { timeoutMs: 30 });
+  await assert.rejects(() => all.provider.synthesize({ text: TEXT }), (e) => {
+    assert.equal(e.code, 'TTS_FAILED');
+    assert.equal(e.attempts, 2, 'a third 90 s wait is pointless once two have timed out');
+    assert.equal(e.cause && e.cause.code, 'TTS_TIMEOUT');
+    assert.match(e.message, /after 2 attempts/);
+    assert.match(e.message, /timed out after 30 ms/);
+    assert.doesNotMatch(e.message, /This operation was aborted/);
+    return true;
+  });
+  assert.equal(all.mock.calls.length, 2);
+  for (const c of all.mock.calls) assert.equal(c.signal.aborted, true);
+  assert.ok(Date.now() - t0 < 2000);
+  assert.equal(MAX_TIMEOUT_ATTEMPTS, 2);
+  // a timeout followed by a good response still succeeds (one retry is kept)
+  const once = make([(_u, init) => bodyNeverEnds(init), audioResponse()], { timeoutMs: 30 });
+  const out = await once.provider.synthesize({ text: TEXT });
+  assert.equal(out.ext, 'mp3');
+  assert.equal(once.mock.calls.length, 2);
+  assert.match(once.logs[0], /attempt=1\/3 retryable failure: attempt 1: timed out after 30 ms/);
+  // timeouts and other retryable failures mix: timeout, 500, timeout → stop (2 timeouts) after 3 attempts
+  const mixed = make([(_u, init) => bodyNeverEnds(init), errorResponse(500, 'oops'), (_u, init) => bodyNeverEnds(init), audioResponse()], { timeoutMs: 30 });
+  await assert.rejects(() => mixed.provider.synthesize({ text: TEXT }), (e) => e.code === 'TTS_FAILED' && e.attempts === 3 && e.cause.code === 'TTS_TIMEOUT');
+  assert.equal(mixed.mock.calls.length, 3);
 });

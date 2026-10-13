@@ -1,8 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, existsSync, openSync, writeSync, closeSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, openSync, writeSync, closeSync, readdirSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
 import { startTestServer, openSse, sleep } from './helpers/server.js';
+import { FIXTURES } from './helpers/fixtures.js';
+import { createSilentProvider } from '../../server/tts/silent.js';
 
 test('ingest (criterion 8): fx-build-region reaches ready in order; SSE sends a snapshot on connect and after each change; effective scene served', async () => {
   const srv = await startTestServer();
@@ -283,6 +285,92 @@ test('a ready scene rewritten invalid gets its reject round before degrading (QA
     await srv.waitForStatuses(L, { s003: 'rejected' });
     assert.equal(entry().invalidAttempts, 1);
     assert.equal(entry().attempts, 5);
+  } finally {
+    await srv.close();
+  }
+});
+
+// ---- backlog #26 (fix lane, 2026-10-13): voicing races ----
+
+/** A gated provider: every synthesize call waits until `release()` and counts in-flight calls. */
+function gatedProvider({ holdMs = 0 } = {}) {
+  const silent = createSilentProvider();
+  let release = null;
+  const gate = new Promise((r) => { release = r; });
+  const stats = { calls: 0, inflight: 0, max: 0 };
+  const provider = {
+    name: 'silent', voice: null,
+    ready: () => ({ ok: true, reason: null }),
+    synthesize: async (a) => {
+      stats.calls++; stats.inflight++; stats.max = Math.max(stats.max, stats.inflight);
+      try { await gate; if (holdMs) await sleep(holdMs); return silent.synthesize(a); } finally { stats.inflight--; }
+    },
+  };
+  return { provider, stats, release };
+}
+
+test('backlog #26: a scene re-validated while its first voicing is still in flight is written once, never records an ENOENT rename, and each narration is voiced once', async () => {
+  const { provider, stats, release } = gatedProvider();
+  const srv = await startTestServer({}, { provider });
+  const L = 'fx-revoice-race';
+  const scene = (sceneId, slot, narration, board) => ({
+    schema: 'khan-scene/1', lessonId: L, sceneId, title: sceneId, narration, board,
+    elements: [{ id: `txt_${sceneId}`, type: 'text', slot, style: 'body', text: 'hello', color: 'accent1' }],
+  });
+  const first ='The first scene says the same thing before and after its rewrite, so its narration keeps the same cache key throughout.';
+  const second = 'The second scene is re-validated when the first one changes footprint, and that used to voice it twice at once.';
+  try {
+    srv.writeOutline(L, { schema: 'khan-outline/1', lessonId: L, title: 'race', scenes: [{ sceneId: 's001', title: 'one', goal: 'g' }, { sceneId: 's002', title: 'two', goal: 'g' }] });
+    srv.writeScene(L, scene('s001', 'A1', first, { mode: 'wipe' }));
+    srv.writeScene(L, scene('s002', 'D1', second, { mode: 'region', slots: 'D1' }));
+    await srv.waitForStatuses(L, { s001: 'voicing', s002: 'voicing' });
+    assert.equal(stats.calls, 2);
+    // rewrite s001 with a different footprint: s002's input occupancy changes, so the track is
+    // re-validated from s001 and s002 is voiced AGAIN (same generation) while its first voicing
+    // still waits on the provider — the two then raced on audio/s002.<ext>.tmp
+    srv.writeScene(L, scene('s001', 'B2', first, { mode: 'wipe' }));
+    await srv.waitFor(() => srv.info.store.get(L).scenes.get('s001').attempts === 2, { what: 's001 rewritten' });
+    await sleep(300); // let the re-validation of s002 reach its (second) voicing
+    release();
+    const p = await srv.waitForStatuses(L, { s001: 'ready', s002: 'ready' });
+    for (const e of p.entries) {
+      assert.deepEqual(e.errors, [], `${e.sceneId}: ${JSON.stringify(e.errors)}`);
+      assert.equal(e.audioUrl, `/api/lesson/${L}/audio/${e.sceneId}`);
+    }
+    await sleep(200); // a late second writer would surface here
+    const again = await srv.playlist(L);
+    assert.deepEqual(again.entries.map((e) => e.errors), [[], []]);
+    assert.equal(stats.calls, 2, 'identical narration is voiced once (cache in-flight share), even when re-validated');
+    const audioDir = join(srv.lessonsDir, L, 'audio');
+    assert.deepEqual(readdirSync(audioDir).sort(), ['s001.wav', 's002.wav'], 'no .tmp left behind');
+    assert.equal((await srv.get(`/api/lesson/${L}/audio/s002`)).status, 200);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('startup re-voicing of several lessons at once runs at most 3 provider calls in flight (the cache concurrency limit) and still voices every scene', async () => {
+  const { provider, stats, release } = gatedProvider({ holdMs: 30 });
+  release(); // no gate here: only the hold matters
+  const lessons = ['fx-full-tour', 'fx-pic-shapes', 'fx-build-region']; // 10 + 7 + 4 scenes present before the server starts
+  const srv = await startTestServer({}, {
+    provider,
+    populate: (lessonsDir) => { for (const id of lessons) cpSync(join(FIXTURES, 'lessons', id), join(lessonsDir, id), { recursive: true }); },
+  });
+  try {
+    for (const id of lessons) {
+      await srv.waitFor(async () => {
+        const p = await srv.playlist(id);
+        return p && p.entries.length > 0 && p.entries.every((e) => e.status === 'ready') ? p : null;
+      }, { what: `${id} all ready`, timeoutMs: 20000 });
+    }
+    assert.ok(stats.calls >= 20, `expected ~21 synthesize calls, got ${stats.calls}`);
+    assert.ok(stats.max <= 3, `max in-flight synthesize calls was ${stats.max}, limit is 3`);
+    assert.ok(stats.max >= 2, `the limit bounded it (max ${stats.max}), not serialization`);
+    for (const id of lessons) {
+      const p = await srv.playlist(id);
+      for (const e of p.entries) assert.ok(e.audioUrl, `${id}/${e.sceneId} has audio`);
+    }
   } finally {
     await srv.close();
   }
