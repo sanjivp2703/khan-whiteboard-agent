@@ -2,7 +2,7 @@
 
 | # | Item | Source | Lane | Size | Status |
 |---|------|--------|------|------|--------|
-| 1 | First real `/khan` lesson with an OpenAI key: measure first-audio latency (≤ 8 s target) and inter-scene gaps (> 5 s typical ⇒ build option-2 producer) | qa/02-verification-report.md needs-human, 2026-10-06 | | S | open (human) |
+| 1 | First real `/khan` lesson with an OpenAI key: measure first-audio latency (≤ 8 s target) and inter-scene gaps (> 5 s typical ⇒ build option-2 producer) | qa/02-verification-report.md needs-human, 2026-10-06 | | S | done 2026-10-13: lesson 20261013-155609 played end to end in real Chrome; scene 1 voiced ~6 s after its file landed; inter-scene handoffs ~30 ms, no stalls; producer wrote each scene faster than the previous one played (buffer grew to 4). Option-2 producer not needed. |
 | 2 | Choose the voice by listening (`khan audition`) | spec §10; decisions.md 2026-10-05 | | S | open (human) |
 | 3 | Safari/Firefox: MP3 seek on resume (server has no Range support) | qa/01-integration-report.md known issue 5 | fix | S | open |
 | 4 | Confirm the silent re-wait loop (`khan wait --timeout 100`) in a real Claude Code session | qa/02-verification-report.md | | S | open (human) |
@@ -33,3 +33,4 @@
 | 29 | Silent scenes (TTS_FAILED) are never retried; add a server-side re-voice on demand or on next replay | real lessons 2026-10-13 | change | S | open |
 | 30 | Streamed speech response (`stream_format`) would allow a tight "nothing arrived" timeout instead of 90 s | TTS fixer report 2026-10-13 | change | S | open |
 | 31 | With no key (`tts.ready=false`) the server marks every scene TTS_FAILED, including scenes whose audio is already in the cache; cache hits should be served regardless of key presence | restart without key 2026-10-13, lesson 20261013-115749 | fix | S | open |
+| 32 | End-of-lesson summary card overlays the board and hides part of the last scene (table cells, plot); place it in the bottom panel or make it dismissable on click | real lesson 20261013-155609 screenshot | fix | S | open |
