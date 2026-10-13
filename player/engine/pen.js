@@ -3,7 +3,22 @@
 // point, e.g. a pointer highlight or a paused stroke), 'idle' (stalled/thinking: hover wobble plus
 // a slow re-trace of the last highlight/box paths). The idle animation runs on wall time — it is
 // decoration, not sync. Nothing here touches playback state.
+//
+// The cursor is the classic OS arrow pointer (design cycle 1, design/01-khan-look-research.md §4:
+// Khan Academy videos point with the plain white mouse arrow, made a bit bigger). It is drawn
+// white with a dark outline on purpose — like an OS cursor it is not board content, so it does not
+// follow the chalk/accent tokens. The hotspot (arrow tip) is exactly the point the engine passes.
 import { drawPartial } from '../../shared/strokes.js';
+
+/** Classic arrow outline at OS size (px, hotspot at 0,0): left edge, notch, tail, back to the tip. */
+export const ARROW_SHAPE = Object.freeze([
+  [0, 0], [0, 16.4], [4.3, 12.6], [7.2, 19.3], [9.9, 18.1], [7.0, 11.6], [12.2, 11.6],
+].map((p) => Object.freeze(p)));
+/** The arrow is drawn ~1.35x an OS default pointer (about 16 x 26 board px). */
+export const ARROW_SCALE = 1.35;
+export const ARROW_FILL = '#FFFFFF';
+export const ARROW_OUTLINE = '#000000';
+export const ARROW_OUTLINE_WIDTH = 1.6;
 
 export function createPen(canvas, tokens) {
   const ctx = canvas.getContext('2d');
@@ -17,35 +32,33 @@ export function createPen(canvas, tokens) {
 
   function clear() { ctx.clearRect(0, 0, W, H); }
 
-  /** Chalk stick: a short tilted rounded bar with a bright tip, drawn at (x, y). */
+  /** White arrow pointer with a dark outline; its tip is at (x, y). Absolute coordinates, no transform. */
   function glyph(x, y, alpha = 1) {
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.translate(x, y);
-    ctx.rotate(-Math.PI / 4);
-    // shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.beginPath(); ctx.ellipse(6, 8, 10, 5, 0, 0, Math.PI * 2); ctx.fill();
-    // body
-    ctx.fillStyle = tokens.chalk;
-    ctx.strokeStyle = tokens.boardBg;
-    ctx.lineWidth = 1.5;
-    roundRect(ctx, -4, -34, 8, 34, 3);
-    ctx.fill(); ctx.stroke();
-    // tip
-    ctx.fillStyle = tokens.accent1;
-    ctx.beginPath(); ctx.arc(0, 0, 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.lineJoin = 'miter';
+    ctx.miterLimit = 6;
+    ctx.beginPath();
+    ARROW_SHAPE.forEach(([px, py], i) => {
+      const ax = x + px * ARROW_SCALE, ay = y + py * ARROW_SCALE;
+      if (i === 0) ctx.moveTo(ax, ay); else ctx.lineTo(ax, ay);
+    });
+    ctx.closePath();
+    // a soft shadow lifts the arrow off coloured strokes (invisible on the black board itself)
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 3;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 2;
+    ctx.fillStyle = ARROW_FILL;
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = ARROW_OUTLINE;
+    ctx.lineWidth = ARROW_OUTLINE_WIDTH;
+    ctx.stroke();
     ctx.restore();
-  }
-
-  function roundRect(c, x, y, w, h, r) {
-    c.beginPath();
-    c.moveTo(x + r, y);
-    c.arcTo(x + w, y, x + w, y + h, r);
-    c.arcTo(x + w, y + h, x, y + h, r);
-    c.arcTo(x, y + h, x, y, r);
-    c.arcTo(x, y, x + w, y, r);
-    c.closePath();
   }
 
   return {

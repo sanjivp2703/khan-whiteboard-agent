@@ -28,7 +28,8 @@ export const DEFAULT_TEXT_STYLE = 'body';
 // ---- Pen / strokes ----
 /** Pen speed used by strokes.naturalMs: total path length / PEN_PX_PER_S. */
 export const PEN_PX_PER_S = 1500;
-export const ROUGH_OPTIONS = Object.freeze({ roughness: 1.2, bowing: 1, strokeWidth: 2.5, fillStyle: 'hachure', hachureGap: 8 });
+/** strokeWidth 3.2 = the ~3-4 px pen of a 1080p Khan video scaled to the 1600 px board (design cycle 1). */
+export const ROUGH_OPTIONS = Object.freeze({ roughness: 1.2, bowing: 1, strokeWidth: 3.2, fillStyle: 'hachure', hachureGap: 8 });
 
 // ---- Element vocabulary ----
 export const ELEMENT_TYPES = Object.freeze([
