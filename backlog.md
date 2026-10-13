@@ -20,3 +20,7 @@
 | 16 | First server restart after v0.2.0 re-voices every lesson folder in `.khan/lessons` under the new cache key (≈ $0.05–0.15 each); move old lessons out to avoid it | qa/03-change-khan-look.md finding 2 | | S | open (human, release note) |
 | 17 | Stroke pressure variation along a stroke (thick mid, thin ends) was deferred: needs per-segment stroking in both renderers | look builder report 2026-10-12 | change | S | open |
 | 18 | Box ink margin to slot edge is now 0.4 px; any stroke width > 4 px would cross the slot | qa/03 finding 3 | | S | open (note) |
+| 19 | Player chrome covers board content: the scene rail expands over the left of the board whenever not playing, and the transcript bar overlays the bottom; spec §10 says the transcript is under the board | human screenshot 2026-10-13 (lesson 20261013-002431) | fix | S | in progress (fix: chrome outside board) |
+| 20 | "scene skipped: audio unavailable" notes duplicate on each pass over the same scenes | human screenshot 2026-10-13 | fix | S | in progress (fix: chrome outside board) |
+| 21 | Diagram edge labels overlap arrows and neighbouring labels (e.g. "interrupt or wait" across the Orchestrator→Assessor edge) | human screenshot 2026-10-13 | fix | S | in progress (fix: diagram labels) |
+| 22 | Server shows `ready` with `TTS_FAILED` 401 on every scene when the key is wrong; the player should surface "OpenAI rejected the API key" once, loudly, instead of per-scene "no audio" badges | lesson 20261013-002431 playlist | change | S | open |
