@@ -1,6 +1,6 @@
 # khan
 
-khan turns your Claude Code responses into a Khan Academy style video: a voice explains while a pen writes, draws, and points on a black board in your browser, and you can pause, jump between chapters, or ask khan a question mid-lesson. Just type `/khan` and ask your question.
+khan turns your Claude Code responses into a Khan Academy style video. Just type `/khan` and ask your question to create the video.
 
 ![khan explaining RLAIF: the pipeline diagram and the reward-model loss](docs/images/hero-rlaif.jpg)
 
