@@ -2,7 +2,7 @@
 // THE one constants file (spec §4.4 last paragraph). Every numeric cap, the grid,
 // fonts, line heights, pen speed and slot padding live here. The validator (server)
 // and the renderer (player) both import this module, so "validator says fits"
-// implies "renderer fits". Names are frozen; values may be tuned (record in README).
+// implies "renderer fits". Names are frozen; values may be tuned (record in docs/DEVELOPMENT.md).
 // Environment-agnostic: no Node or DOM APIs.
 
 // ---- Grid (spec §4.4; brief 00 C1) ----

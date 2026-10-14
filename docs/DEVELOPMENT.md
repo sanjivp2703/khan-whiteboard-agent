@@ -1,3 +1,5 @@
+> Developer reference. This file was `README.md` until 2026-10-13; references to "README C1–C5" in briefs and QA reports mean the sections below. The user-facing guide is the repository README.
+
 # khan — narrated whiteboard lessons from Claude's last response
 
 A Claude Code skill that turns the explanation in Claude's last response into a live, interruptible,
