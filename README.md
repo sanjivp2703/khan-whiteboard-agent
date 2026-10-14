@@ -552,3 +552,13 @@ summary and ends its turn. Record the first-audio latency and the typical gap be
 (spec §11: gaps > 5 s typical is the trigger for the option-2 producer). Replay later with
 `./bin/khan play <lessonId>`. Without a key, `/khan` must stop at step 1 with the "OpenAI key
 required" message and write nothing.
+
+## Using `/khan` from any project
+
+The skill in `.claude/skills/khan/` is project-scoped. To use it everywhere, install it as a personal skill:
+
+```
+./scripts/install-skill.sh
+```
+
+That writes `~/.claude/skills/khan/SKILL.md` pointing at this repo's `bin/khan` by absolute path (re-run after pulling). Requirements in the shell that launches Claude Code: `OPENAI_API_KEY` exported. Lessons and the server state live under this repo's `.khan/` unless `KHAN_HOME` is set. Inside this repo both the project skill and the personal copy are visible; they are identical apart from the path.
