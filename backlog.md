@@ -41,3 +41,4 @@
 | 37 | `\color{accentN}` inside math so factors within one equation can be colour-coded (study §4 item 13, chain rule 6:25) | design/02-khan-video-study.md | change | M | open |
 | 38 | Pacing: with the 550 px/s pen, 102/142 non-last elements compress (36 by >3×) and 27/87 last elements overrun the yield cap and pop in; need length-weighted windows, a compression cap on the last element, and a producer pacing budget in SKILL.md | qa/04 finding 1 | fix | S | done (merge f267efe) |
 | 39 | Plot: end-of-axis tick number crowds the arrowhead | qa/04 finding 4 | fix | S | done (merge f267efe) |
+| 40 | `khan scene` output carries a stale `degraded` notice for a scene after a valid rewrite replaced the rejected version (playlist shows ready, not degraded); clear notices on re-ingest | RLAIF lesson 20261014-000122 s003 | fix | S | open |

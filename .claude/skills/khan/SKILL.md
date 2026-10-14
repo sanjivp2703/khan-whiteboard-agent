@@ -19,6 +19,7 @@ Argument: `$ARGUMENTS`
 - **Empty** → explain the whole of your previous assistant response (the one the user is reacting to).
 - **Free text** → it is a scope/focus ("just the caching part", "the second algorithm") and may carry audience hints ("for a junior", "for a product manager", "assume they know Rust") or length hints ("short", "two minutes", "thorough").
 - Length hints map to scene counts: short ≈ 3–5 scenes, default ≈ 5–8, thorough ≈ 8–12. Never more than 12.
+- **A direct question or topic** ("explain how RLAIF works to me", "teach me binary search") that your previous response does not cover, or when there is no previous response: first answer it yourself in a normal reply of a few short paragraphs (what it is, how it works, one concrete example, the key formula or steps if any), then treat that reply as the response being explained and continue below. Do not stop for lack of a previous response.
 
 Print **one short line** stating the interpreted focus and audience before you start (e.g. `Lesson: the caching layer of the previous answer, for a working developer, about 6 scenes.`). Then start producing without asking for confirmation.
 
@@ -37,7 +38,7 @@ The voice itself is not yours to pick per lesson: the human chooses it once by l
 
 ## 2. Plan the lesson and write the outline
 
-Plan 3–12 scenes **grounded only in the response being explained** (and the user's focus). Every scene must correspond to something that response actually says; never introduce a concept, example, number or API the response did not contain. If the response is too thin for three scenes, say so and stop instead of padding.
+Plan 3–12 scenes **grounded only in the response being explained** (and the user's focus). Every scene must correspond to something that response actually says; never introduce a concept, example, number or API the response did not contain. If the response is too thin for three scenes and the argument did not name a topic (section 0), say so and stop instead of padding.
 
 Choose a **color map** now and keep it for the whole lesson: one accent token (`accent1`…`accent5`) per recurring concept, `muted` for scaffolding (axes, notes, containers). Same concept, same color, every scene. The board is black chalkboard and the accents are chalk pastels, so written things take their concept's color by default and plain chalk (no `color`) is kept for neutral connecting text and short transitions. Recommended defaults when assigning the map (not hard rules; what is fixed is that the map does not change mid-lesson): yellow `accent1` for curves, graphs and the main thread of the lesson; light blue `accent2` for definitions and steps; coral `accent3` for cautions, costs and contrasts; teal `accent4` and pink `accent5` stand out most, so give them to the thing currently being worked on. Say the map to yourself in one line before writing the outline, e.g. `accent1 = the cache (main thread), accent2 = the lookup steps, accent3 = cost and misses, accent4 = the fast path`.
 

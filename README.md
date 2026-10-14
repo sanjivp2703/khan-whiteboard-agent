@@ -1,8 +1,8 @@
 # khan
 
-Turn any explanation Claude just gave you into a live, narrated, Khan Academy style whiteboard lesson. A voice talks you through it while a pen writes, draws, and points on a black board in your browser. You can pause, jump between chapters, and ask khan a question mid-lesson; it stops, thinks, answers on a fresh board, and picks up where it left off.
+khan turns your Claude Code responses into a Khan Academy style video: a voice explains while a pen writes, draws, and points on a black board in your browser, and you can pause, jump between chapters, or ask khan a question mid-lesson. Just type `/khan` and ask your question.
 
-![khan playing a lesson on limits](docs/images/player-playing.jpg)
+![khan explaining RLAIF: the pipeline diagram and the reward-model loss](docs/images/hero-rlaif.jpg)
 
 ## Try it in five minutes
 
@@ -20,47 +20,17 @@ claude                            # open Claude Code anywhere
 Then, inside Claude Code, ask about anything and turn the answer into a lesson:
 
 ```
-> explain how a hash map handles collisions
-> /khan explain that to me
+> /khan explain how RLAIF works to me
 ```
 
-A browser tab opens, the chapters appear in the sidebar, and the first narrated chapter starts within a few seconds while the rest are still being written. Narrow or shape the lesson with free text:
+A browser tab opens, the chapters appear in the sidebar, and the first narrated chapter starts within a few seconds while the rest are still being written. If Claude has just answered something, `/khan explain that to me` turns that answer into the lesson. Free text shapes it:
 
 ```
-/khan explain just the eviction part to me, for a junior developer, short
+/khan explain just the reward model part to me, for a junior, short
 /khan teach me the second algorithm like Khan Academy, about two minutes
 ```
 
 Natural phrasing works too: "khan, explain this", "whiteboard this", "draw this out for me", "turn this into a lesson".
-
-Pick the voice once by listening, then adopt it:
-
-```bash
-./bin/khan --pretty audition           # reads one paragraph in each candidate voice and plays them
-export KHAN_TTS_VOICE=ash              # or put {"tts":{"voice":"ash"}} in .khan/config.json
-```
-
-## What you get
-
-| | |
-|---|---|
-| ![start](docs/images/player-start.jpg) | ![ask](docs/images/player-ask.png) |
-| The start screen: title, chapters with durations, one play button. | Ask khan mid-lesson. The board pauses, khan thinks, answers, and resumes where you were. |
-| ![ended](docs/images/player-ended.png) | ![phone](docs/images/player-phone.png) |
-| Lesson complete: replay, ask, or pick a chapter. | Phone width stacks into one column. |
-
-**In the player**
-
-| Action | How |
-|---|---|
-| Play or pause | space, or the play button |
-| Previous or next chapter | ← and →, or click a segment of the progress bar, or a row in Chapters |
-| Ask khan a question | `?` or the **Ask khan** button, type, Enter. Esc cancels |
-| Chapters panel | `s` or the **Chapters** button. It collapses to a thin strip while playing and expands on hover |
-| Full transcript | `t` or the **Transcript** button. A two-line caption is always under the board |
-| Replay a finished lesson later | `./bin/khan play <lessonId>` (no Claude needed) |
-
-You can ask a question during an answer too, three levels deep. Answers you have already heard do not replay when the lesson continues; a manual rewind replays them in place.
 
 ## How it works
 
@@ -115,9 +85,7 @@ Each round was verified the same way: a fixture sweep of 23 lessons and 90 scene
 | ![diagram](docs/images/diagram.png) | ![sketches](docs/images/sketches.png) |
 | Flowcharts are laid out so labels never cross arrows or nodes. | Doodles at Sal's scale: rock, ground, smiley, zigzag, curve. |
 
-## Every command
-
-### The skill
+## Every way to ask
 
 | Command | Meaning |
 |---|---|
@@ -128,6 +96,8 @@ Each round was verified the same way: a fixture sweep of 23 lessons and 90 scene
 
 Claude keeps its turn open while the lesson plays so it can answer your questions. It ends the turn when the lesson finishes or the tab closes, and prints a one-line summary with the lesson id.
 
+## Appendix
+
 ### The command line
 
 All commands print one line of JSON; add `--pretty` to read it.
@@ -137,7 +107,6 @@ All commands print one line of JSON; add `--pretty` to read it.
 | `./bin/khan serve [--port N]` | start the local server if not running, print its state and whether the voice is ready |
 | `./bin/khan play <lessonId> [--no-open]` | replay a finished lesson, starting the server if needed |
 | `./bin/khan status <lessonId>` | chapters planned and ready, questions answered, where the player is |
-| `./bin/khan audition [--voices ash,echo,onyx] [--text "..."] [--no-play]` | synthesize a sample in each voice and play them |
 | `./bin/khan outline -` and `./bin/khan scene <lessonId> <sceneId>` | used by the skill to write the lesson; read JSON on stdin |
 | `./bin/khan wait <lessonId> --timeout 100` | used by the skill; blocks until a question, a rejection, or the end |
 
@@ -146,14 +115,11 @@ All commands print one line of JSON; add `--pretty` to read it.
 | Variable | Purpose |
 |---|---|
 | `OPENAI_API_KEY` | required for the voice; exported in the shell the server starts from |
-| `KHAN_TTS_VOICE` | voice name; overrides `tts.voice` in `.khan/config.json`; default `ash` |
-| `KHAN_TTS_MODEL` | speech model; default `gpt-4o-mini-tts` |
-| `KHAN_TTS_INSTRUCTIONS` | override the delivery description |
 | `KHAN_HOME` | where lessons, audio cache, and the server pidfile live; default `<repo>/.khan` |
 | `KHAN_PORT` | server port; default 7777 |
 | `KHAN_NO_OPEN=1` | do not open a browser tab |
 
-The audio cache is keyed by voice, model, instructions, and text, so switching voices re-voices cleanly and switching back is instant. A lesson costs a few cents of speech synthesis; everything else runs locally.
+A lesson costs a few cents of speech synthesis; everything else runs locally.
 
 ### Running the tests
 
@@ -165,7 +131,7 @@ npm run check       # syntax check of every file
 
 All tests run offline with a silent voice provider; no key is needed.
 
-## Where things are
+### Where things are
 
 | Path | What |
 |---|---|
